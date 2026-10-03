@@ -3,7 +3,7 @@
  *  - VR.Tex   : procedural 16x16 pixel textures (no image files needed)
  *  - VR.Mat   : cached materials (one per texture + tint)
  *  - VR.VoxelBuilder : collects boxes and merges them into ONE mesh per
- *    material, so a whole train / tree / track segment costs 1-3 draw calls.
+ *    material, so a whole tree / rock / mountain section costs a few draw calls.
  *
  * To use real texture files later, replace the painter for a key in
  * PAINTERS with an image load; everything else keeps working.
@@ -62,7 +62,6 @@
       for (let y = 3; y < 16; y += 4) c.fillRect(0, y, 16, 1);
       for (let y = 0; y < 16; y += 4) c.fillRect(((y * 7) % 16), y, 1, 3);
     },
-    sleeper(c, r) { noise(c, 0x6b4a2e, 0.12, r); c.fillStyle = hex(0x4e3520); for (let y = 2; y < 16; y += 5) c.fillRect(0, y, 16, 1); },
     log(c, r) {
       noise(c, 0x6b4f2f, 0.1, r);
       c.fillStyle = hex(0x4f3a22);
@@ -86,19 +85,18 @@
     },
     wall(c, r) { noise(c, 0xe8dcc4, 0.05, r); speckle(c, [0xd8ccb2], 20, r); },
     roof(c, r) { noise(c, 0x8f3b2c, 0.1, r); c.fillStyle = hex(0x6d2a1f); for (let y = 1; y < 16; y += 3) c.fillRect(0, y, 16, 1); },
-    metal(c, r) {                                     // tinted per train colour
+    metal(c, r) {                                     // tinted per use (mission props)
       noise(c, 0xe6e6e6, 0.05, r);
       c.fillStyle = hex(0xbdbdbd);
       c.fillRect(0, 0, 16, 1); c.fillRect(0, 15, 16, 1); c.fillRect(0, 0, 1, 16);
       c.fillStyle = hex(0xd0d0d0); c.fillRect(7, 2, 1, 12);
       c.fillStyle = hex(0x9e9e9e); c.fillRect(3, 4, 1, 1); c.fillRect(12, 4, 1, 1); c.fillRect(3, 11, 1, 1); c.fillRect(12, 11, 1, 1);
     },
-    window(c, r) {
-      noise(c, 0xe6e6e6, 0.04, r);
-      c.fillStyle = hex(0x2b3a4f); c.fillRect(2, 3, 12, 8);
-      c.fillStyle = hex(0x7fb4e0); c.fillRect(3, 4, 4, 2); c.fillRect(3, 4, 2, 4);
-    },
     iron(c, r) { noise(c, 0x9da3ab, 0.06, r); c.fillStyle = hex(0xc8ced6); c.fillRect(0, 2, 16, 2); },
+    void(c, r) {                                      // the inside of a crevice
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { c.fillStyle = hex(shade(0x0d1016, 0.8 + r() * 0.5)); c.fillRect(x, y, 1, 1); }
+      c.fillStyle = hex(0x2a2f3a); c.fillRect(0, 0, 16, 1);
+    },
     dark(c, r) { noise(c, 0x33312f, 0.15, r); speckle(c, [0x24221f, 0x44403c], 40, r); },
     glass(c, r) { noise(c, 0xa9d3ee, 0.03, r); c.fillStyle = hex(0xffffff); c.fillRect(0, 0, 16, 1); c.fillRect(0, 0, 1, 16); c.fillRect(3, 3, 3, 1); },
     hazard(c, r) {
@@ -106,17 +104,9 @@
         c.fillStyle = hex(((x + y) >> 2) % 2 ? 0x2a2a2a : 0xf2c230); c.fillRect(x, y, 1, 1);
       }
     },
-    redwhite(c, r) {
-      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-        c.fillStyle = hex(((x + y) >> 2) % 2 ? 0xf4f4f4 : 0xd8392b); c.fillRect(x, y, 1, 1);
-      }
-    },
     hay(c, r) { noise(c, 0xd9b340, 0.12, r); c.fillStyle = hex(0x9c3b20); c.fillRect(0, 4, 16, 1); c.fillRect(0, 11, 16, 1); },
-    ore(c, r) { noise(c, 0x8b8d90, 0.1, r); speckle(c, [0xf2c94c, 0xffe07a], 22, r); },
     lamp(c, r) { noise(c, 0xffe29a, 0.08, r); c.fillStyle = hex(0xb07b2c); c.fillRect(0, 0, 16, 1); c.fillRect(0, 15, 16, 1); c.fillRect(0, 0, 1, 16); c.fillRect(15, 0, 1, 16); },
     concrete(c, r) { noise(c, 0xb9b4ab, 0.05, r); speckle(c, [0xa8a39a], 25, r); },
-    platform(c, r) { noise(c, 0xc9c2b4, 0.04, r); c.fillStyle = hex(0xa39c8f); c.fillRect(0, 0, 16, 1); c.fillRect(0, 0, 1, 16); },
-    tile_edge(c, r) { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { c.fillStyle = hex(y < 5 ? 0xf2c230 : 0xc9c2b4); c.fillRect(x, y, 1, 1); } },
     cactus(c, r) { noise(c, 0x4c8a32, 0.1, r); c.fillStyle = hex(0x2f5f1f); for (let x = 2; x < 16; x += 4) c.fillRect(x, 0, 1, 16); speckle(c, [0xe6e0b0], 10, r); },
     coin(c, r) {
       c.fillStyle = hex(0xffc93c); c.fillRect(0, 0, 16, 16);
@@ -162,12 +152,6 @@
       ];
       rows.forEach((row, y) => [...row].forEach((ch, x) => { if (P[ch]) { c.fillStyle = P[ch]; c.fillRect(x, y, 1, 1); } }));
     },
-    lemon_sign(c, r) {                                // station sign: lemon on dark board
-      c.fillStyle = hex(0x23313f); c.fillRect(0, 0, 16, 16);
-      c.fillStyle = hex(0xffd83a); c.fillRect(0, 0, 16, 1); c.fillRect(0, 15, 16, 1);
-      PAINTERS.lemon_icon(c);
-    },
-    ballast_side(c, r) { noise(c, 0x6f675f, 0.2, r); },
   };
 
   const texCache = {};

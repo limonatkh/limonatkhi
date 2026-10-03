@@ -137,6 +137,7 @@
     next() { return queue.shift(); },
     clear() { queue.length = 0; },
     onPause(fn) { onPause = fn; },
+    touchFirst,
 
     // ---- mode switching
     setMode(m) {

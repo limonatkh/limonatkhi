@@ -1,13 +1,24 @@
 /* =====================================================================
  * PLAYER CONTROLLER
- * Movement zones (lanes the terrain allows), smooth switching, jump,
- * slide, fast-fall, stumble and the procedural run / jump / slide
- * animation of the voxel rig. The player lives in path space; the track
- * puts the model into the winding world (VR.track.place).
- * Collision response is driven from game.js (see Game.resolveCollisions).
+ * ---------------------------------------------------------------------
+ * Moving across the route (no lanes): the runner has a continuous
+ * sideways position x. It lives in the walkable REGION under it (route.js)
+ * and keeps its relative place in that region, so it flows with the route
+ * when the ridge narrows, bends, splits or merges, never snapping.
+ * A swipe moves DODGE_STEP metres sideways, clamped to the region; a
+ * swipe toward rock, a gorge or the void is refused (bump).
+ *
+ * States: running -> STUMBLING (vulnerable for VULNERABLE_TIME; see
+ * game.js resolveCollisions) -> recovered.
+ *
+ * Visual: the body faces along the local route (heading), leans into
+ * turns (smooth, limited, from speed x curvature) and into sideways
+ * moves; the camera is separate (game.js).
  * ===================================================================== */
 (function () {
   const C = VR.CONFIG;
+  const M = C.ROUTE_MARGIN;
+  const clamp = THREE.MathUtils.clamp;
 
   class Player {
     constructor(scene) {
@@ -32,6 +43,17 @@
       this.shieldMesh.visible = false;
       this.object.add(this.shieldMesh);
 
+      // star / boost: a golden glow frame instead of blinking (the runner stays visible)
+      const gg = new THREE.BoxGeometry(1.25, 2.0, 1.25);
+      this.glow = new THREE.LineSegments(new THREE.EdgesGeometry(gg), new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.9 }));
+      this.glow.position.y = 1.0; this.glow.visible = false;
+      this.object.add(this.glow);
+
+      // vulnerable: a pulsing red ring at the feet
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.86, 4, 1), new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+      ring.rotation.x = -Math.PI / 2; ring.rotation.z = Math.PI / 4; ring.position.y = 0.06; ring.visible = false;
+      this.vRing = ring; this.object.add(ring);
+
       this.rig = null;
       this.reset();
     }
@@ -43,48 +65,57 @@
     }
 
     reset() {
-      this.lane = 0; this.prevLane = 0; this.lastSide = 1;
-      this.offset = 0;             // x relative to the current lane's centre (eases to 0)
       this.x = 0; this.y = 0; this.z = 0;
+      this.rel = 0.5;              // relative place in the current region (0 left edge … 1 right edge)
+      this.dodgeX = null;          // a swipe in progress: target x
+      this.side = 1;               // last sideways direction (decides a fork when you're in the middle)
+      this.regionW = 0;
       this.vy = 0;
       this.grounded = true;
       this.slideTimer = 0;
       this.pendingSlide = false;
       this.runPhase = 0;
-      this.lastStumble = -99;
       this.stumbleAnim = 0;
+      this.vulnerable = 0;         // seconds left of the stumble / vulnerable state
       this.landSquash = 0;
       this.dead = false;
       this.deathTimer = 0;
       this.onTopOf = null;
       this.stepAcc = 0;
       this.flash = 0;
+      this.lean = 0; this.tilt = 0; this.yawOff = 0;
+      this.lateralVel = 0; this.prevX = 0;
       this.object.position.set(0, 0, 0);
       this.object.rotation.set(0, 0, 0);
+      this.vRing.visible = false; this.glow.visible = false;
       if (this.rig) { this.rig.inner.rotation.set(0, 0, 0); this.rig.inner.position.set(0, 0, 0); this.rig.root.visible = true; }
     }
 
     get sliding() { return this.slideTimer > 0; }
     get height() { return this.sliding ? C.PLAYER_SLIDE_HEIGHT : C.PLAYER_HEIGHT; }
-    laneX(l) { return VR.track ? VR.track.laneX(this.z, l) : l * C.LANE_WIDTH; }
-    /** change lane, keeping the body where it is (it then slides over) */
-    setLane(nl) {
-      if (nl === this.lane) return;
-      this.prevLane = this.lane; this.lane = nl;
-      this.offset = this.x - this.laneX(nl);
-    }
+
+    // ------------------------------------------------------------ the route under the runner
+    region(z = this.z, x = this.x) { return VR.track ? VR.track.regionAt(z, x, this.side) : { a: -4.4, b: 4.4 }; }
+    static span(r) { const a = r.a + M, b = r.b - M; return b < a ? [(r.a + r.b) / 2, (r.a + r.b) / 2] : [a, b]; }
+    /** the x for a relative place in region r */
+    static xAt(r, rel) { const [a, b] = Player.span(r); return a + (b - a) * rel; }
+    static relAt(r, x) { const [a, b] = Player.span(r); return b - a < 0.01 ? 0.5 : clamp((x - a) / (b - a), 0, 1); }
 
     action(a, game) {
       if (this.dead) return;
       switch (a) {
         case 'left':
         case 'right': {
-          const nl = this.lane + (a === 'left' ? -1 : 1);
-          this.lastSide = a === 'left' ? -1 : 1;           // also picks the side of a fork
-          // mountains and rock walls: the swipe is refused (no passing through terrain)
-          if (nl < -1 || nl > 1 || !game.world.canSwitch(this, this.lane, nl)) { game.onWallBump(); return; }
-          this.setLane(nl);
-          VR.Audio.play('lane');
+          const dir = a === 'left' ? -1 : 1;
+          this.side = dir;
+          const r = this.region();
+          const [lo, hi] = Player.span(r);
+          const from = this.dodgeX !== null ? this.dodgeX : this.x;
+          const to = clamp(from + dir * C.DODGE_STEP, lo, hi);
+          // rock, a gorge or the void that way: refused, no passing through the mountain
+          if ((to - from) * dir < 0.3) { game.onWallBump(); return; }
+          this.dodgeX = to;
+          VR.Audio.play('dodge');
           break;
         }
         case 'jump':
@@ -100,10 +131,12 @@
       }
     }
 
-    // bounce back after a side hit
-    bounceBack() {
-      if (!VR.track || VR.track.isOpen(this.z, this.prevLane)) this.setLane(this.prevLane);
-      this.stumbleAnim = 0.45;
+    /** trip over an obstacle: stumble animation + the vulnerable timer */
+    stumble(fromSide) {
+      this.stumbleAnim = 0.6;
+      this.vulnerable = C.VULNERABLE_TIME;
+      // knocked back out of a sideways hit
+      if (fromSide && this.prevX !== undefined && Math.abs(this.x - this.prevX) > 1e-4) this.dodgeX = this.prevX - Math.sign(this.x - this.prevX) * 0.4;
     }
 
     update(dt, speed, world, game) {
@@ -112,16 +145,24 @@
       // forward
       this.z -= speed * dt;
 
-      // the terrain narrows ahead -> funnel into a lane that stays open
-      world.guide(this);
-      // lateral: follow the lane (which itself moves where the terrain widens or
-      // splits); a lane change is a constant-speed slide of the offset (crisp)
-      const maxStep = (C.LANE_WIDTH / C.LANE_SWITCH_TIME) * dt;
-      const o0 = this.offset;
-      this.offset -= Math.abs(this.offset) < maxStep ? this.offset : Math.sign(this.offset) * maxStep;
+      // sideways: follow the region (it may narrow, move, split or merge)
+      const r = this.region();
+      const w = r.b - r.a;
+      if (Math.abs(w - this.regionW) > 0.8 || this.x < r.a - 0.05 || this.x > r.b + 0.05) this.rel = Player.relAt(r, this.x);   // a new region (split / merge)
+      this.regionW = w;
+      const [lo, hi] = Player.span(r);
+      let target, vmax;
+      if (this.dodgeX !== null) {
+        target = clamp(this.dodgeX, lo, hi); this.dodgeX = target;
+        vmax = C.DODGE_STEP / C.DODGE_TIME;
+      } else { target = Player.xAt(r, this.rel); vmax = C.FOLLOW_SPEED; }
+      const step = vmax * dt, dx = target - this.x;
       this.prevX = this.x;
-      this.x = this.laneX(this.lane) + this.offset;
-      this.lateralVel = (this.offset - o0) / Math.max(dt, 1e-4);
+      this.x += Math.abs(dx) <= step ? dx : Math.sign(dx) * step;
+      if (this.dodgeX !== null && Math.abs(this.dodgeX - this.x) < 0.01) { this.dodgeX = null; this.rel = Player.relAt(r, this.x); }
+      // never off the ground (the route can shrink faster than you follow it)
+      this.x = clamp(this.x, r.a + 0.2, r.b - 0.2);
+      this.lateralVel = (this.x - this.prevX) / Math.max(dt, 1e-4);
 
       // vertical
       this.vy -= C.GRAVITY * dt;
@@ -135,12 +176,12 @@
         this.onTopOf = ground.obj;
       } else {
         this.y = newY;
-        // walked off an edge?
-        if (this.grounded && newY > ground.h + 0.05 && this.vy <= 0) this.grounded = false;
+        if (this.grounded && newY > ground.h + 0.05 && this.vy <= 0) this.grounded = false;     // walked off a shelf
         if (this.vy > 0) this.grounded = false;
       }
 
       if (this.slideTimer > 0) this.slideTimer -= dt;
+      if (this.vulnerable > 0) this.vulnerable = Math.max(0, this.vulnerable - dt);
 
       // footstep sounds
       if (this.grounded && !this.sliding) {
@@ -161,35 +202,51 @@
     animate(dt, speed) {
       const r = this.rig; if (!r) return;
       const p = r.parts;
-      this.place();
 
       this.runPhase += dt * (6 + speed * 0.42);
       const s = Math.sin(this.runPhase);
       const k = 1 - Math.exp(-dt * 18);  // smoothing factor
 
-      let legL = 0, legR = 0, armL = 0, armR = 0, lean = 0, bob = 0, innerY = 0;
+      let legL = 0, legR = 0, armL = 0, armR = 0, pitch = 0, bob = 0, innerY = 0;
       if (this.sliding) {
-        lean = 1.25; legL = -1.3; legR = -1.1; armL = -2.4; armR = -2.2; innerY = 0.1;
+        pitch = 1.25; legL = -1.3; legR = -1.1; armL = -2.4; armR = -2.2; innerY = 0.1;
       } else if (!this.grounded) {
-        const t = THREE.MathUtils.clamp(this.vy / C.JUMP_VELOCITY, -1, 1);
-        legL = -0.9 + t * 0.3; legR = 0.6; armL = -2.6; armR = -2.4 - t * 0.2; lean = -0.12;
+        const t = clamp(this.vy / C.JUMP_VELOCITY, -1, 1);
+        legL = -0.9 + t * 0.3; legR = 0.6; armL = -2.6; armR = -2.4 - t * 0.2; pitch = -0.12;
       } else {
         legL = s * 1.0; legR = -s * 1.0; armL = -s * 0.95; armR = s * 0.95;
-        bob = Math.abs(Math.cos(this.runPhase)) * 0.09; lean = -0.14;
+        bob = Math.abs(Math.cos(this.runPhase)) * 0.09; pitch = -0.14;
       }
-      if (this.stumbleAnim > 0) { this.stumbleAnim -= dt; lean += Math.sin(this.stumbleAnim * 30) * 0.25; }
+      // stumble: pitched forward, arms thrown out, wobbling, then recovering
+      if (this.stumbleAnim > 0) {
+        this.stumbleAnim = Math.max(0, this.stumbleAnim - dt);
+        const a = this.stumbleAnim / 0.6;
+        pitch += 0.55 * Math.sin(a * Math.PI) + Math.sin(a * 26) * 0.12 * a;
+        armL = -1.6 - a * 1.2; armR = -0.4 - a * 1.6;
+      }
 
       p.legL.rotation.x += (legL - p.legL.rotation.x) * k;
       p.legR.rotation.x += (legR - p.legR.rotation.x) * k;
       p.armL.rotation.x += (armL - p.armL.rotation.x) * k;
       p.armR.rotation.x += (armR - p.armR.rotation.x) * k;
-      p.armL.rotation.z = -0.12; p.armR.rotation.z = 0.12;
-      r.inner.rotation.x += (lean - r.inner.rotation.x) * k;
+      p.armL.rotation.z = -0.12 - (this.stumbleAnim > 0 ? 0.6 : 0); p.armR.rotation.z = 0.12 + (this.stumbleAnim > 0 ? 0.6 : 0);
+      r.inner.rotation.x += (pitch - r.inner.rotation.x) * k;
       r.inner.position.y += (bob + innerY - r.inner.position.y) * k;
-      // lean into lane changes
-      const tilt = THREE.MathUtils.clamp(-this.lateralVel * 0.018, -0.35, 0.35);
-      r.inner.rotation.z += (tilt - r.inner.rotation.z) * k;
-      p.head.rotation.y = tilt * 0.8;
+
+      // LEAN, kept apart from the heading:
+      //  into turns: from speed² × curvature (sideways acceleration), limited and eased
+      //  into sideways moves: a little tilt toward where you're going
+      const kk = VR.track ? VR.track.curvature(this.z) : 0;
+      const turnLean = clamp(-speed * speed * kk * 0.03, -0.2, 0.2);
+      this.lean += (turnLean - this.lean) * (1 - Math.exp(-dt * 3.5));
+      const tilt = clamp(-this.lateralVel * 0.016, -0.3, 0.3);
+      this.tilt += (tilt - this.tilt) * k;
+      r.inner.rotation.z = this.lean + this.tilt + (this.stumbleAnim > 0 ? Math.sin(this.stumbleAnim * 30) * 0.15 : 0);
+      p.head.rotation.y = this.tilt * 0.8;
+      // heading follows the route; turned slightly toward a sideways move
+      const yaw = clamp(-Math.atan2(this.lateralVel, Math.max(6, speed)) * 0.55, -0.22, 0.22);
+      this.yawOff += (yaw - this.yawOff) * (1 - Math.exp(-dt * 6));
+      this.place();
 
       // landing squash
       if (this.landSquash > 0) {
@@ -198,14 +255,29 @@
         r.root.scale.set(1 + q, 1 - q, 1 + q);
       } else r.root.scale.set(1, 1, 1);
 
-      // blink when invincible / just hit
+      // blink only right after a hit (short); star / boost show the glow frame instead
       if (this.flash > 0) {
         this.flash -= dt;
         r.root.visible = Math.floor(this.flash * 16) % 2 === 0 || this.flash <= 0;
       } else r.root.visible = true;
 
+      // vulnerable ring
+      this.vRing.visible = this.vulnerable > 0;
+      if (this.vRing.visible) {
+        const pulse = 0.5 + 0.5 * Math.sin(this.runPhase * 1.4);
+        this.vRing.material.opacity = 0.45 + pulse * 0.45;
+        this.vRing.scale.setScalar(1 + pulse * 0.18);
+      }
+      this.glow.rotation.y += dt * 2;
+
       this.shieldMesh.rotation.y += dt * 1.5;
       this.shieldMesh.scale.setScalar(1 + Math.sin(this.runPhase * 0.5) * 0.03);
+    }
+
+    /** put the model into the world at the path position, facing along the route */
+    place() {
+      if (VR.track) VR.track.place(this.object, this.x, this.y, this.z, this.yawOff || 0);
+      else { this.object.position.set(this.x, this.y, this.z); this.object.rotation.set(0, 0, 0); }
     }
 
     updateShadow(world) {
@@ -222,27 +294,32 @@
     revive(d) {
       this.dead = false; this.deathTimer = 0;
       this.x = d.x; this.y = d.y; this.z = d.z;
-      this.lane = d.lane; this.prevLane = d.lane; this.prevX = d.x; this.offset = 0;
-      if (VR.track && !VR.track.isOpen(this.z, this.lane)) this.lane = VR.track.zoneAt(this.z).open[0];
-      this.offset = this.x - this.laneX(this.lane);
+      const r = this.region();
+      this.x = clamp(this.x, ...Player.span(r)); this.prevX = this.x;
+      this.rel = Player.relAt(r, this.x); this.regionW = r.b - r.a; this.dodgeX = null;
       this.vy = 0; this.grounded = false; this.slideTimer = 0; this.pendingSlide = false;
-      this.lastStumble = -99; this.stumbleAnim = 0;
+      this.stumbleAnim = 0; this.vulnerable = 0;
       this.flash = 1.5;
-      const r = this.rig;
-      r.inner.rotation.set(0, 0, 0); r.inner.position.set(0, 0, 0);
-      for (const k in r.parts) r.parts[k].rotation.set(0, 0, 0);
+      const rig = this.rig;
+      rig.inner.rotation.set(0, 0, 0); rig.inner.position.set(0, 0, 0);
+      for (const k in rig.parts) rig.parts[k].rotation.set(0, 0, 0);
       this.place();
     }
 
-    /** put the model into the world at the path position, facing along the run */
-    place() {
-      if (VR.track) VR.track.place(this.object, this.x, this.y, this.z);
-      else { this.object.position.set(this.x, this.y, this.z); this.object.rotation.set(0, 0, 0); }
+    /** the run state that must survive a mission / duel (game.js snapshotRun) */
+    snapshot() {
+      return { x: this.x, y: this.y, z: this.z, rel: this.rel, side: this.side, regionW: this.regionW, vulnerable: this.vulnerable };
+    }
+    restore(s) {
+      Object.assign(this, { x: s.x, y: s.y, z: s.z, rel: s.rel, side: s.side, regionW: s.regionW, vulnerable: s.vulnerable || 0,
+        dodgeX: null, vy: 0, grounded: true, slideTimer: 0, pendingSlide: false, prevX: s.x, lateralVel: 0, stumbleAnim: 0 });
+      this.place();
     }
 
     die() {
       this.dead = true; this.deathTimer = 0;
       this.deathVy = 6;
+      this.vRing.visible = false; this.glow.visible = false;
     }
     animateDeath(dt) {
       this.deathTimer += dt;

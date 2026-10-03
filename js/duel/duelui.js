@@ -20,7 +20,7 @@
     'du.offline': 'Online challenges are switched off in Settings.', 'du.connecting': 'Connecting…',
     'du.challenge': 'CHALLENGE', 'du.close': 'BACK TO THE RUN', 'du.free': 'Free',
     'du.why.mission': 'in a mission', 'du.why.duel': 'in another duel', 'du.why.race': 'in a race', 'du.why.busy': 'busy', 'du.why.cooldown': 'wait a moment before inviting again', 'du.why.offline': 'offline',
-    'du.waitTitle': 'Waiting for acceptance…', 'du.cancel': 'CANCEL',
+    'du.waitTitle': 'Waiting for acceptance…', 'du.cancel': 'CANCEL', 'du.exit': 'EXIT',
     'du.declined': '{name} declined the duel.', 'du.timeout': '{name} didn\'t answer.', 'du.unavailable': '{name} can\'t play now ({why}).', 'du.lost': 'Lost contact with {name}.',
     'du.inviteFrom': '{name} challenges you!', 'du.accept': 'ACCEPT', 'du.decline': 'DECLINE',
     'du.sniper': 'Sniper', 'du.nade': 'Impulse grenade', 'du.hp': 'Health', 'du.reloading': 'Reloading…',
@@ -47,7 +47,7 @@
     'du.offline': 'التحديات الأونلاين مطفأة من الإعدادات.', 'du.connecting': 'نتصل…',
     'du.challenge': 'تحدَّ', 'du.close': 'العودة إلى الطريق', 'du.free': 'متاح',
     'du.why.mission': 'في مهمة', 'du.why.duel': 'في تحدٍّ آخر', 'du.why.race': 'في سباق', 'du.why.busy': 'مشغول', 'du.why.cooldown': 'انتظر قليلًا قبل دعوته مجددًا', 'du.why.offline': 'غير متصل',
-    'du.waitTitle': 'بانتظار القبول…', 'du.cancel': 'إلغاء',
+    'du.waitTitle': 'بانتظار القبول…', 'du.cancel': 'إلغاء', 'du.exit': 'خروج',
     'du.declined': '{name} رفض التحدي.', 'du.timeout': 'لم يردّ {name}.', 'du.unavailable': '{name} لا يستطيع اللعب الآن ({why}).', 'du.lost': 'انقطع الاتصال بـ{name}.',
     'du.inviteFrom': '{name} يتحدّاك!', 'du.accept': 'قبول', 'du.decline': 'رفض',
     'du.sniper': 'القنّاصة', 'du.nade': 'قنبلة الدفع', 'du.hp': 'الصحة', 'du.reloading': 'تلقيم…',
@@ -86,7 +86,8 @@
           <div class="du-mid"><div class="du-timer num">45</div><div class="du-roundlbl"></div></div>
           <div class="du-side du-opp"><span class="du-sw"></span><b class="du-name"></b><span class="du-pips"></span></div>
         </div>
-        <div class="du-waitbar panel" hidden><b class="du-wt"></b><span class="du-wo"></span><small class="du-ws"></small></div>
+        <div class="du-waitbar panel" hidden><b class="du-wt"></b><span class="du-wo"></span><small class="du-ws"></small>
+          <button class="btn small du-wexit" type="button"></button></div>
         <div class="du-cross"><i></i><i></i><i></i><i></i></div>
         <div class="du-hit" hidden><i></i><i></i><i></i><i></i></div>
         <div class="du-scope" hidden></div>
@@ -122,6 +123,9 @@
       };
       this.prompt = document.getElementById('duPrompt');
       this.prompt.addEventListener('click', () => { VR.Audio.play('click'); this.mgr.openPicker(); });
+      // "Waiting for a player": a real way out (back to the main menu)
+      this.root.querySelector('.du-wexit').addEventListener('click', (e) => { e.stopPropagation(); VR.Audio.play('click'); this.mgr.exitWaiting(); });
+      this.root.querySelector('.du-wexit').addEventListener('pointerdown', (e) => e.stopPropagation());
       this.buildTouch();
       this.relabel();
       VR.I18N.onChange(() => this.relabel());
@@ -276,6 +280,8 @@
     setSolo(on) {
       this.root.classList.toggle('solo', on);
       this.root.querySelector('.du-waitbar').hidden = !on;
+      const b = this.root.querySelector('.du-wexit');
+      b.textContent = T('du.exit') + (VR.Input.touchFirst && VR.Input.touchFirst() ? '' : ' (Esc)');
     }
     setWaitText(title, online, sub) {
       const w = this.root.querySelector('.du-waitbar');

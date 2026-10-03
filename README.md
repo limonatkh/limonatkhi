@@ -1,6 +1,7 @@
-# ليمونات — Endless Block Runner
+# ليمونات — Endless Mountain Runner
 
-A complete 3D endless runner with an original voxel/block art style, built
+A complete 3D endless runner across a high voxel mountain world (ridges,
+knife edges, passes, forks around peaks, a sea of clouds below), built
 with **Three.js** and plain JavaScript. No build step, no image or audio
 files: every block texture, model and sound is generated in code.
 
@@ -30,7 +31,7 @@ python3 -m http.server 8000
 or `npx serve .`. Double-clicking `index.html` also works in most browsers
 because the code uses classic `<script>` tags, not ES modules.
 
-Controls: **A/D or ←/→** switch lane · **W / ↑ / Space** jump ·
+Controls: **A/D or ←/→** dodge sideways · **W / ↑ / Space** jump ·
 **S / ↓** slide (in the air: fast-fall) · **Esc / P** pause ·
 on phones, **swipe** in any direction.
 
@@ -67,67 +68,84 @@ same 6 part names.
 Collision size is independent of the model (`PLAYER_*` values in
 `js/config.js`), so a new look never changes gameplay.
 
-## 5. The adventure world (sections, turns, hills, movement zones)
+## 5. The mountain world: route segments instead of lanes
 
-The run is no longer a straight three-track railway. It crosses a voxel
-world of valleys, canyons, mountain passes, rock ridges, forks around a
-mountain, tunnels and bridges; the path turns and climbs. The terrain
-itself makes the way: there are no lines on the ground.
+The runner crosses a high voxel mountain range. There are **no lanes, no
+railway and no trains**. Where things live:
 
-| Piece | File |
+| Question | Answer |
 |---|---|
-| Path: turns (curvature), slopes, path → world (`toWorld`, `heading`, `place`), bending a section's voxels onto the curve (`VR.bendGroup`) | `js/track.js` |
-| Movement zones, section list (`VR.SECTIONS`) and terrain builders | `js/terrain.js` |
-| Which section / turn / slope comes next, spawning, swipe rules (`canSwitch`), funnelling (`guide`) | `js/world.js` |
-| Obstacles / coins that fit the zones | `js/patterns.js` (`mask`) |
+| Route geometry (what you can run on) | `js/route.js`: profiles `W` (wide ridge), `M`, `N` (knife edge), `Fm`/`Fc` (two branches around a peak / over a gorge), `Tm` (three branches). A section goes from one profile to the next over ~34 m (`span`), so splitting and merging are gradual. `regions(u)` = the walkable strips at a point |
+| Sections (route + terrain + weights) | `js/terrain.js` → `VR.SECTIONS`: ridge, saddle, ledge_l/r, pass_w, w2m, w2n, m2w, m2n, n2m, n2w, ridge_m, ledge_ml/mr, pass_m, tunnel_start/end, knife, arch (natural rock bridge), split_m, twin_m, merge_mw, merge_mn, split_c, twin_c, merge_cw, merge_cn, split3, tri, merge3n, merge3w |
+| Choosing the next section / turn / slope | `js/world.js` → `nextSection()` (only sections whose route starts where the last one ended), `nextShape()` (curvature, climbs and drops; a ledge always winds with its wall on the inside) |
+| Turning path coordinates into the 3D world | `js/track.js` (`toWorld`, `heading`, `curvature`, `place`, `regionsAt`, `bendGroup`) |
+| Sky depth: cloud sea, valley floor, far peaks | `js/backdrop.js` |
+| Moving across the route | `js/player.js` (`action`, `update`) |
+| Obstacles, coins, fairness check | `js/patterns.js` |
+| Obstacle models | `js/prefabs.js` → `VR.OBSTACLE_TYPES` |
 
-**From three lanes to movement zones.** Gameplay still uses up to three
-internal positions (-1, 0, 1), but each section decides, metre by metre,
-which of them exist (`open`), where they are (`x`, e.g. 6.5 m apart at a
-fork), and where a rock wall separates two of them (`wallL` / `wallR`):
+**How the three lanes were replaced.** The runner has a continuous sideways
+position `x` (metres). It belongs to the walkable region under it and keeps
+its *relative* place in that region, so when the ridge narrows, bends,
+splits or merges the runner flows with it (at most `FOLLOW_SPEED` m/s; no
+snapping). A swipe moves `DODGE_STEP` (2.6 m) sideways, clamped to the
+region; a swipe toward rock, a gorge or the void is refused (bump). On a
+wide ridge that gives about three places to be, on a medium one two, on a
+knife edge one: the number of ways comes from the terrain, not from a
+lane count. At a fork the side you are on (or last swiped toward) decides
+your branch.
 
-- `open` valley: all three, wide.
-- `canyon`: only the middle corridor.
-- `pass_l` / `pass_r`: two corridors, one side is cliff.
-- `ridge_l` / `ridge_r`: three, but a rock ridge you can't cross.
-- `fork`: the trail splits around a mountain into two passes; swipe left
-  or right before the split to choose (the last swipe decides).
-- `tunnel_start/end`, `bridge`.
+**Merging from far away.** Branch positions and widths are interpolated over
+the whole span: three routes converge into one over ~34 m, visible well
+before you reach it. The camera rides on your branch and follows it.
 
-A swipe into a closed position or across a wall is refused (bump, no
-move). When the terrain narrows, the runner is guided into the nearest
-open corridor 9 m before it happens. `Patterns` receives the section's
-grid (`X` = rock, `N` = no obstacles here, walls), so obstacles are never
-in the rock and every chunk still passes the fairness check.
+**Terrain = route.** `terrain.js` builds the voxels *from* the regions:
+natural ground on the walkable strips (grass / gravel / snow / sand with
+patches), the mountain body dropping ~45 m into the clouds on `drop` sides,
+grassy shoulders with trees, rock walls on `wall` sides, a peak or a deep
+gorge between branches, tunnels, rock bridges, and medium peaks standing
+out of the cloud sea. Materials are slots filled per biome.
 
-Gameplay (physics, collisions, coins, distance, score) stays in simple
-path coordinates; the track turns them into the 3D world, so the player
-model, the camera, coins and gates follow every turn and hill.
+**Adding a section:** one `sec(key, { from, to, sides, w, turn, hill })`
+line in `terrain.js`. Route, terrain, obstacle placement and the fairness
+check follow automatically. **New profile:** add it to `PROFILES` in
+`route.js`.
 
-**Adding a section:** add an entry to `VR.SECTIONS` in `js/terrain.js`
-with a zone spec (`makeZone({ close, walls, spread, sides })`), a
-`weight(difficulty, biome)`, `turn` / `hill` flags and `build()`.
-Races stay identical for both players: sections, turns and slopes come
-from the seeded random generator.
+Races stay identical for both players: sections, turns, slopes and content
+come from the seeded random generator.
 
-## 6. Where obstacles are generated
+## 6. Obstacles, coins and the fairness check
 
-`js/patterns.js`
+`js/patterns.js` works on a grid of 0.5 m × 1 m cells built from the
+section's regions.
 
-- `PATTERNS` — the chunk recipes: `coins` (A), `train` (B), `multitrain` (C),
-  `mixed` (G), `hurdles` (full-width jump/slide rows), `moving` (oncoming train).
-  Tunnels (D) and bridges (E) are world sections that combine with these
-  recipes; every recipe respects the section's movement zones.
-- `verify()` — the fairness check. It simulates a player changing lanes at
-  the current speed and rejects any layout that can't be survived; the chunk
-  is regenerated. Three blocked lanes can only happen when every lane has a
-  jump or slide solution.
-- `coinTrail()` — coins follow a survivable path, arc over hurdles, run up
-  ramps onto trains, and dip under slide bars.
+- Obstacles (`prefabs.js`): `rock_low`, `log`, `crevice` (jump over),
+  `arch`, `leaning` stone pillars (slide under), `boulder`, `pillar`,
+  `rockfall` (a rock that falls from the mountain as you come; its landing
+  spot is marked) — go around — and `step` (a rock shelf you run up onto).
+  Jump/slide obstacles can be stretched to span a whole ridge (`hurdle`).
+  Rocks you must go around always leave ≥ 1.5 m free beside them.
+- Recipes: `calm`, `scatter`, `hurdles`, `slalom`, `rockfall`, `steps`.
+- `verify()` walks the section backwards and marks every cell from which
+  the end can be reached, moving sideways only as fast as a player can at
+  this speed. The layout is accepted only if every branch, at every metre,
+  still has a way through. Jump/slide obstacles are spaced by real airtime.
+- Coins: one line per branch that weaves inside the region and flows with
+  it (narrowing, splitting, merging), goes around rocks, arcs over jumps,
+  dips under slides and runs up rock shelves. Never rows of three.
 
-Obstacle models and hitboxes: `js/prefabs.js → VR.OBSTACLE_TYPES`
-(barrier_low, barrier_high, minecart, hay, wall, ramp) and the train
-cars (`CARS`: loco, passenger, freight, tanker).
+### Collisions: stumble first
+
+`js/game.js` → `resolveCollisions()`:
+
+- Hitting a **jump** obstacle (or a rock shelf / clipping any obstacle from
+  the side) → **STUMBLE**: you trip (animation, short slowdown, red ring at
+  your feet and a red screen edge) and are **vulnerable** for
+  `VULNERABLE_TIME` (2.6 s). A second hit while vulnerable ends the run.
+  No second hit → back to normal.
+- A **block** (boulder, pillar, falling rock) or **slide** obstacle hit
+  head-on ends the run, as before. A shield saves you once; star / boost
+  smash obstacles.
 
 ## 7. Difficulty and speed
 
@@ -137,8 +155,9 @@ cars (`CARS`: loco, passenger, freight, tanker).
 - `DIFFICULTY_RAMP` — how fast difficulty (0 → 1) rises with distance.
 
 `js/game.js → speedAt()` / `difficultyAt()` apply the curves.
-Difficulty changes pattern weights (more trains, oncoming trains, walls),
-row spacing, hard-block chance and how often tunnels/bridges appear.
+Difficulty changes recipe weights (more slaloms, falling rocks, hurdles),
+row spacing, how many rocks per row, and how often narrow / split routes
+appear.
 
 ## 8. Score system
 
@@ -150,24 +169,23 @@ row spacing, hard-block chance and how often tunnels/bridges appear.
 
 ## 9. Adding a new environment (biome)
 
-Open `js/biomes.js` and add an entry to `VR.BIOMES`:
+Biomes are mountain regions (alpine meadows, pine heights, lemon terraces,
+red canyons, rocky peaks, snowy summits). Open `js/biomes.js` and add an
+entry to `VR.BIOMES`:
 
 ```js
-jungle: {
-  name: 'Jungle', sky: 0x9fe0b0, fog: 0xbde9c8,
-  ground: { top: 'grass_top', side: 'grass_side' },
-  styleWeights: { normal: 10, bridge: 3, tunnel: 1, station: 0.5 },
-  scenery(vb, rnd) {
-    // place props on the LEFT side of a 40 m strip: x < -5, z from 0 to -40
-    VR.Props.oak(vb, -9, -12, 7, 'leaves');
-  },
+volcano: {
+  sky: 0xd9a08a, fog: 0xe8c2b0, valley: 'dark',
+  slots: { top: 'gravel', topside: 'stone', alt: 'dark', cliff: 'dark', cliffTop: 'gravel',
+           peak: 'stone', leaf: 'leaves', leafTop: 'leaves', trunk: 'log', rock: 'cobble' },
+  bias: { tunnel: 1, arch: 1, split: 1 },
 },
 ```
 
-Then add `'jungle'` to `VR.BIOME_ORDER`. New block textures:
-`VR.Tex.register('vines', (ctx, rnd) => { /* paint 16×16 */ })`.
-Five scenery variants per biome are pre-built at load and mirrored for the
-right side, so there is no runtime cost.
+Then add `'volcano'` to `VR.BIOME_ORDER` and a name `'biome.volcano'` in
+`js/i18n.js`. New block textures: `VR.Tex.register('lava', (ctx, rnd) => { … })`.
+Every section's voxels are built once and reused by all biomes (only the
+materials change), so a new biome costs nothing at runtime.
 
 ## 10. Export / build
 
@@ -181,10 +199,9 @@ There is no build step — the folder **is** the game.
 
 ## Lemon theme
 
-- Textures: `lemon`, `lemon_leaves`, `lemon_icon`, `lemon_sign` in `js/voxel.js`.
-- Props: `P.lemon`, `P.lemonTree`, `P.lemonCrate` in `js/biomes.js`, placed by
-  the grassland, forest, village and desert scenery functions.
-- Stations: lemon sign board and crates in `js/prefabs.js → TRACK.station`.
+- Textures: `lemon`, `lemon_leaves`, `lemon_icon` in `js/voxel.js`.
+- Props: `P.lemon`, `P.lemonTree`, `P.lemonCrate` in `js/biomes.js`; the
+  "lemon terraces" biome grows lemon trees on the mountain shoulders.
 - Bonus pickup: the voxel lemon (worth 5 coins) in `js/collectibles.js`
   (the `gems` set); its spawn chance is in `js/patterns.js → addCoins`.
 
@@ -204,8 +221,8 @@ There is no build step — the folder **is** the game.
 
 # Mission mode (first-person)
 
-The runner is still the main game. Rare **mission gates** stand in one lane
-of the railway. Run through one and the game switches to a first-person
+The runner is still the main game. Rare **mission gates** stand on a wide
+ridge of the mountain route. Run through one and the game switches to a first-person
 puzzle world. When the mission ends you return to the same run.
 
 ```
@@ -300,7 +317,7 @@ bonus rewards and achievements are saved and granted once.
 ## How to test the missions
 
 * Play normally. The first gate appears about 250 m in, then one every 640–960 m. A
-  "Mission gate ahead!" toast warns you. Steer into its lane.
+  "Mission gate ahead!" toast warns you. Steer through it.
 * Shortcuts in the browser console while a run is going:
   * `VR.game.enterGate({ missionId: 'm2' })` jumps straight into mission 2.
   * `localStorage.removeItem('cubeexpress.missions')` resets mission progress.
@@ -347,7 +364,7 @@ The default is Arabic.
   walls and signs, which is redrawn in the chosen language.
 * Puzzles do not depend on the language. Solutions are symbols, and a row of
   symbols is read in the language's own direction, so the answer is the same.
-* Mission gate signs on the railway are redrawn when the language changes.
+* Mission gate signs on the route are redrawn when the language changes.
 * To add a language, add a table to `STRINGS` in `i18n.js` and a field for it in
   the mission data.
 
@@ -358,8 +375,8 @@ Menu → **تحدَّ صديقًا / Challenge a friend**.
 1. One player presses **Create invite** and sends the link (copy, WhatsApp or Share).
    The link looks like `…/?vs=K7M2Q0`; the 6-character room code can also be typed in by hand.
 2. The friend opens the link and joins the room automatically. Both see each other's names.
-3. The host presses **Start the race**. Both games receive the same seed, so the track,
-   trains, coins and power-ups are identical, then a 3-2-1 countdown starts on both screens.
+3. The host presses **Start the race**. Both games receive the same seed, so the route,
+   obstacles, coins and power-ups are identical, then a 3-2-1 countdown starts on both screens.
 4. While running, the other player appears as a see-through runner with a name tag, and the
    HUD shows their score and how far ahead or behind they are. Players never collide.
 5. When both have crashed, the higher score wins. **Rematch** (both press it) starts a new track.
@@ -428,7 +445,7 @@ A live first-person duel between two players, started from the road. Missions an
 mode are untouched; the duel reuses their systems (first-person controller, hands, voxel
 level builder, run snapshot/restore, fade + countdown, the relay link).
 
-**On the road.** A purple 1v1 gate stands on a platform *beside* the track (never in a lane).
+**On the road.** A purple 1v1 gate stands on a rock pillar *beside* the route (never in the way).
 While it is ahead, the prompt **E — Challenge a player** (a button on touch screens) appears.
 Nothing happens unless the player presses it. Then only this runner is frozen and the picker opens:
 
@@ -462,6 +479,9 @@ snipe and grenade-jump freely while you show as *waiting* online. When another p
 arrives (someone else waiting, or a runner who picks you at a 1v1 gate) the duel starts at
 round 1 right there; afterwards you return to the menu. Two waiting players match on their
 own (the lower id invites, the other accepts automatically). Esc/pause → leave any time.
+**EXIT** on the waiting bar leaves the arena for the main menu at any time (online status
+goes back to *free*). On a computer the arena holds the mouse: press **Esc** first (the
+button says so), then click EXIT, or use "Leave the arena" in the pause card.
 
 **Return.** Result card (winner, loser, score, rounds, coins: +150 win / +30 loss), then
 each runner is restored exactly where they were (3-2-1 + short star). If a player leaves or
@@ -497,7 +517,10 @@ Tuning numbers are in `VR.DUEL` at the top of `duel.js`.
 - Every model is built once and pooled (`VR.Pool`); spawned objects share
   geometry and materials.
 - Coins, gems and sparkles are `InstancedMesh` (one draw call each).
-- Whole trains/trees/track segments are merged into 1–3 meshes.
+- Each mountain section is built once (merged boxes, hidden faces dropped)
+  and shared by all biomes; curved / sloped sections are bent on the CPU
+  (~5 ms per 40 m). Sections are pre-built while the menu is open.
+- The cloud sea is one instanced mesh; far peaks are one mesh (hidden on Low).
 - No real-time shadows (a blob shadow under the player), no post-processing.
 - Draw distance is 6 chunks on High, 4 on Low (Settings → Graphics).
 - The world is shifted back to the origin every 600 m for float precision
@@ -515,8 +538,9 @@ VR.Audio.useMusicFile('sounds/theme.mp3');
 | Feature | Where |
 |---|---|
 | New power-up | `CONFIG.POWERUPS`, icon in `prefabs.js ICONS`, effect via `game.powerups.active('id')` |
-| New obstacle | `VR.OBSTACLE_TYPES` in `prefabs.js`, then use it in a pattern |
-| New pattern | `PATTERNS` in `patterns.js` (the fairness check applies automatically) |
+| New obstacle | `VR.OBSTACLE_TYPES` in `prefabs.js`, then use it in a recipe |
+| New recipe | `RECIPES` in `patterns.js` (the fairness check applies automatically) |
+| New route section | `sec(...)` in `terrain.js`; new profile in `route.js` |
 | Missions / achievements | hook into `Game.onCoin`, `onPowerUp`, `gameOver` |
 | Leaderboards | send `this.score` from `Game.gameOver()` |
 | Shop / unlocks | `game.bank` already stores lifetime coins |

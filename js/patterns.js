@@ -1,247 +1,332 @@
 /* =====================================================================
- * PATTERNS — what goes on the track inside one 40 m chunk.
+ * PATTERNS — what is on the route inside one 40 m section.
  * ---------------------------------------------------------------------
- * Each pattern writes obstacles into a lane grid (3 lanes x 40 cells).
- * Every generated chunk is then run through verify(), which simulates
- * a player moving between lanes at the current speed and rejects any
- * layout that can't be survived. Rejected chunks are regenerated, so
- * an impossible wall of obstacles can never reach the player.
+ * Works on the section's real route geometry (route.js), not on lanes:
+ * a grid of 0.5 m lateral cells x 1 m along the run, filled from the
+ * walkable regions (one wide ridge, a knife edge, two or three
+ * branches...). Obstacles are placed at any lateral position inside a
+ * region; full-width hurdles are stretched to span the region.
  *
- * Cell codes: F free · J jump · S slide · B block · R ramp/ride on train
- *             X closed by the terrain (rock) · N reserved: free to run, but kept
- *             clear of obstacles (the run-up before a corridor narrows)
+ * Cell codes:  OUT not walkable · FREE · J jump-over · S slide-under ·
+ *              B blocked · P ramp of a rock step · R top of a rock step
  *
- * Terrain sections (terrain.js) pass a MASK: closed cells, reserved cells,
- * walls between lanes, and "sep" cells where a lane has no neighbour to
- * dodge into (canyon, fork corridors, behind a ridge). Lane changes never
- * cross a wall; sep cells only take obstacles you can jump or slide.
+ * verify() is the fairness check. It walks the section backwards and
+ * marks every cell from which the end can still be reached (moving
+ * sideways only as fast as a player really can at this speed, never
+ * through rock or obstacles). The layout is accepted only if EVERY
+ * branch, at every metre, still has a way through, so whichever side of
+ * a fork the player took, there is no dead end. Rejected layouts are
+ * regenerated.
  *
- * HOW TO ADD A PATTERN: write a function (g) => {...} using g.place /
- * g.train / g.moving and add it to PATTERNS with a weight function.
+ * Coins follow the route: one line per branch that weaves gently inside
+ * the region, flows with it when it narrows, splits or merges, goes
+ * around blocks, arcs over jump obstacles, ducks under slides and runs up
+ * onto rock steps. Never three parallel rows.
+ *
+ * HOW TO ADD A RECIPE: write a function (g) => {...} using g.single /
+ * g.hurdle / g.rows and add it to RECIPES with a weight function.
  * ===================================================================== */
 (function () {
-  const L = VR.CONFIG.CHUNK_LENGTH;
-  const ZMIN = 6, ZMAX = 34;          // obstacles stay inside this band -> fair chunk seams
+  const C = VR.CONFIG;
+  const L = C.CHUNK_LENGTH;
+  const CELL = 0.5, XMIN = -16, NX = 64;
+  const ZMIN = 6, ZMAX = 34;               // obstacles stay inside this band -> fair section seams
+  const M = C.ROUTE_MARGIN;                // the runner's centre stays this far from a region edge
+  const PHW = C.PLAYER_HALF_WIDTH;
+  const BLOCK_GAP = 1.5;                  // metres of free ground beside a rock you must go around
+  const OUT = 0, FREE = 1, J = 2, S = 3, B = 4, P = 5, R = 6;
+  const cx = (i) => XMIN + (i + 0.5) * CELL;
+  const ci = (x) => Math.max(0, Math.min(NX - 1, Math.floor((x - XMIN) / CELL)));
+  const passable = (c) => c !== OUT && c !== B;
 
   class Plan {
-    constructor(rnd, diff, speed, mask) {
-      this.rnd = rnd; this.diff = diff; this.speed = speed;
-      this.mask = mask || null;
-      this.grid = [0, 1, 2].map(() => new Array(L).fill('F'));
-      if (mask) for (let i = 0; i < 3; i++) for (let z = 0; z < L; z++) {
-        if (mask.X[i][z]) this.grid[i][z] = 'X'; else if (mask.N[i][z]) this.grid[i][z] = 'N';
+    constructor(rnd, diff, speed, route) {
+      this.rnd = rnd; this.diff = diff; this.speed = speed; this.route = route;
+      this.regs = []; this.walk = []; this.code = []; this.comp = []; this.reserved = [];
+      for (let z = 0; z < L; z++) {
+        const regs = route.regions(z + 0.5);
+        this.regs.push(regs);
+        const w = new Uint8Array(NX), cp = new Int8Array(NX).fill(-1);
+        regs.forEach((r, k) => {
+          let a = r.a + M, b = r.b - M;
+          if (b < a) a = b = (r.a + r.b) / 2;
+          for (let i = ci(a); i <= ci(b); i++) { if (cx(i) >= a - CELL / 2 && cx(i) <= b + CELL / 2) { w[i] = FREE; cp[i] = k; } }
+        });
+        this.walk.push(w); this.code.push(Uint8Array.from(w)); this.comp.push(cp);
+        this.reserved.push(route.reserved(z + 0.5));
       }
-      this.obstacles = [];  // {type, lane, z}
-      this.trains = [];     // {lane, z, cars:[{kind,color}], ramp, moving}
+      this.obstacles = [];   // {type, x, z, sx}
       this.coins = []; this.gems = []; this.powerups = [];
-      this.jumpZ = [[], [], []];
+      this.jumps = [];       // {x0, x1, zc}
+      this.slides = [];      // {x0, x1, z0, z1}
+      this.steps = [];       // {x0, x1, z, ramp, h, len}
     }
-    cell(lane, z) { z = Math.floor(z); return z < 0 || z >= L ? 'F' : this.grid[lane + 1][z]; }
-    free(lane, z0, z1) {
-      for (let z = Math.floor(z0); z <= Math.ceil(z1); z++) if (z >= 0 && z < L && this.grid[lane + 1][z] !== 'F') return false;
-      return true;
-    }
-    mark(lane, z0, z1, code) { for (let z = Math.floor(z0); z < Math.ceil(z1); z++) if (z >= 0 && z < L) this.grid[lane + 1][z] = code; }
     pick(arr) { return arr[(this.rnd() * arr.length) | 0]; }
-    /** is there a wall between lane a and lane b (neighbours) at cell z? */
-    wall(a, b, z) {
-      if (!this.mask) return false;
-      z = Math.floor(z); if (z < 0 || z >= L) return false;
-      return Math.min(a, b) === -1 ? this.mask.wallL[z] : this.mask.wallR[z];
-    }
-    /** cells of this lane where you can't step aside */
-    sepAny(lane, z0, z1) {
-      if (!this.mask) return false;
-      for (let z = Math.max(0, Math.floor(z0)); z < Math.min(L, Math.ceil(z1)); z++) if (this.mask.sep[lane + 1][z]) return true;
-      return false;
-    }
-    openAll(lane) { for (let z = 0; z < L; z++) if (this.grid[lane + 1][z] === 'X') return false; return true; }
-
-    place(type, lane, z) {
-      const def = VR.OBSTACLE_TYPES[type];
-      if (z < ZMIN || z + def.length > ZMAX + 1) return false;
-      // where you can't step aside, only obstacles you can jump or slide under
-      if (def.kind === 'block' && this.sepAny(lane, z - 2, z + def.length + 2)) return false;
-      // keep a clear run-up before/after so actions never overlap
-      if (!this.free(lane, z - 2, z + def.length + 2)) return false;
-      this.mark(lane, z, z + Math.max(1, def.length), def.kind === 'jump' ? 'J' : def.kind === 'slide' ? 'S' : 'B');
-      this.obstacles.push({ type, lane, z });
-      if (def.kind === 'jump') this.jumpZ[lane + 1].push(z + def.length / 2);
-      return true;
-    }
-    train(lane, z, nCars, ramp) {
-      const len = nCars * VR.CAR_LEN + (ramp ? 7 : 0);
-      if (z < ZMIN || z + len > ZMAX) return false;
-      if (!this.free(lane, z - 1, z + len + 1)) return false;
-      if (this.sepAny(lane, z - 1, z + len + 1)) return false;
-      const colors = VR.TRAIN_COLORS;
-      const col = (this.rnd() * colors.length) | 0;
-      const cars = [];
-      for (let i = 0; i < nCars; i++) {
-        const r = this.rnd();
-        const kind = i === 0 ? (r < 0.55 ? 'loco' : 'passenger') : r < 0.45 ? 'passenger' : r < 0.75 ? 'freight' : 'tanker';
-        cars.push({ kind, color: kind === 'freight' ? (col + 2) % colors.length : col });
+    rangeR(a, b) { return a + this.rnd() * (b - a); }
+    regionAt(z, x) { const regs = this.regs[Math.max(0, Math.min(L - 1, Math.floor(z)))]; return VR.Route.pick(regs, x, 0); }
+    /** nothing else within this box (lateral range, rows z0..z1) */
+    clear(x0, x1, z0, z1, codes) {
+      for (let z = Math.max(0, Math.floor(z0)); z <= Math.min(L - 1, Math.ceil(z1)); z++) {
+        const row = this.code[z];
+        for (let i = ci(x0); i <= ci(x1); i++) if (codes.includes(row[i])) return false;
       }
-      this.mark(lane, z, z + len, ramp ? 'R' : 'B');
-      this.trains.push({ lane, z: z + (ramp ? 7 : 0), cars, ramp, rampZ: ramp ? z : null, moving: false });
       return true;
     }
-    moving(lane, z, nCars) {
-      // an oncoming train needs its lane open the whole way and room to step aside
-      if (!this.openAll(lane) || this.sepAny(lane, 0, L)) return false;
-      for (let k = 0; k < L; k++) if (this.grid[lane + 1][k] !== 'F' && this.grid[lane + 1][k] !== 'N') return false;
-      this.mark(lane, 0, L, 'B');   // whole lane is dangerous
-      const col = (this.rnd() * VR.TRAIN_COLORS.length) | 0;
-      const cars = [{ kind: 'loco', color: col }];
-      for (let i = 1; i < nCars; i++) cars.push({ kind: 'passenger', color: col });
-      this.trains.push({ lane, z, cars, ramp: false, moving: true });
+    fits(def, x, z, sx) {
+      const w = def.w * sx, len = def.length;
+      if (z < ZMIN || z + len > ZMAX) return false;
+      // spanning obstacles may hang a little over the edge; blocks stand fully on the route
+      const tol = def.kind === 'jump' || def.kind === 'slide' ? 0.4 : -0.15;
+      for (let zz = Math.floor(z); zz <= Math.min(L - 1, Math.ceil(z + len)); zz++) {
+        if (this.reserved[zz]) return false;
+        const r = VR.Route.pick(this.regs[zz], x, 0);
+        if (x - w / 2 < r.a - tol || x + w / 2 > r.b + tol) return false;
+        // a rock you must go around leaves a comfortable way past it (not a squeeze)
+        if (def.kind === 'block' && Math.max((x - w / 2) - r.a, r.b - (x + w / 2)) < BLOCK_GAP) return false;
+      }
       return true;
+    }
+    spacingOk(def, x0, x1, z) {
+      // a clear run-up around everything; jumps and slides need room to land / stand up
+      if (!this.clear(x0 - PHW - 0.6, x1 + PHW + 0.6, z - 2, z + def.length + 2, [J, S, B, P, R])) return false;
+      if (def.kind === 'jump' || def.kind === 'slide') {
+        // a jump keeps you in the air ~0.65 s: the next jump / slide must be out of reach of it
+        const gap = Math.max(7, this.speed * 0.8);
+        if (!this.clear(x0 - PHW, x1 + PHW, z - gap, z + def.length + gap, [J, S, P, R])) return false;
+      }
+      return true;
+    }
+    mark(def, x, z, sx) {
+      const pad = PHW + (def.kind === 'block' ? 0.15 : 0);      // a little safety margin around rocks
+      const w = def.w * sx, x0 = x - w / 2 - pad, x1 = x + w / 2 + pad;
+      const code = def.kind === 'jump' ? J : def.kind === 'slide' ? S : def.kind === 'block' ? B : P;
+      for (let zz = Math.floor(z); zz < Math.min(L, Math.ceil(z + def.length)); zz++) {
+        const c = def.kind === 'step' && zz >= z + def.ramp.len ? R : code;
+        for (let i = ci(x0); i <= ci(x1); i++) if (this.walk[zz][i]) this.code[zz][i] = c;
+      }
+      if (def.kind === 'jump') this.jumps.push({ x0: x - w / 2, x1: x + w / 2, zc: z + def.length / 2 });
+      if (def.kind === 'slide') this.slides.push({ x0: x - w / 2, x1: x + w / 2, z0: z, z1: z + def.length });
+      if (def.kind === 'step') this.steps.push({ x0: x - w / 2, x1: x + w / 2, z, ramp: def.ramp.len, h: def.ramp.h, len: def.length });
+    }
+    /** one obstacle at (x, z) */
+    single(type, x, z, sx = 1) {
+      const def = VR.OBSTACLE_TYPES[type];
+      if (!this.fits(def, x, z, sx)) return false;
+      if (!this.spacingOk(def, x - def.w * sx / 2, x + def.w * sx / 2, z)) return false;
+      this.mark(def, x, z, sx);
+      this.obstacles.push({ type, x, z, sx });
+      return true;
+    }
+    /** a jump / slide obstacle stretched across a whole region (pieces side by side) */
+    hurdle(kind, z, region) {
+      const types = kind === 'jump' ? ['rock_low', 'log', 'crevice', 'rock_low'] : ['arch', 'leaning'];
+      const type = this.pick(types), def = VR.OBSTACLE_TYPES[type];
+      const W = region.b - region.a;
+      const n = Math.max(1, Math.round(W / (def.w * 1.15)));
+      const pw = W / n, sx = Math.max(0.6, Math.min(1.6, pw / def.w));
+      if (!this.spacingOk(def, region.a, region.b, z)) return false;
+      const pieces = [];
+      for (let k = 0; k < n; k++) {
+        const x = region.a + pw * (k + 0.5);
+        if (!this.fits(def, x, z, sx)) return false;
+        pieces.push(x);
+      }
+      for (const x of pieces) { this.mark(def, x, z, sx); this.obstacles.push({ type, x, z, sx }); }
+      return true;
+    }
+    usable(r) { const a = r.a + M, b = r.b - M; return b < a ? [(r.a + r.b) / 2, (r.a + r.b) / 2] : [a, b]; }
+    /** call fn(z, regions) every `spacing` metres */
+    rows(spacing, fn, start = ZMIN + this.rnd() * 3) {
+      for (let z = start; z < ZMAX - 1; z += spacing * (0.85 + this.rnd() * 0.3)) fn(z, this.regs[Math.floor(z)]);
     }
   }
 
   // ------------------------------------------------------------------ fairness
   function verify(plan) {
-    const step = Math.max(3.5, plan.speed * 0.2);   // metres needed per lane change
-    const since = [-100, -100, -100];               // z since which each lane is reachable (null = no)
-    for (let z = 0; z < L; z++) {
-      for (let i = 0; i < 3; i++) if (since[i] !== null && (plan.grid[i][z] === 'B' || plan.grid[i][z] === 'X')) since[i] = null;
-      for (let pass = 0; pass < 2; pass++) {
-        for (let i = 0; i < 3; i++) {
-          if (since[i] !== null) continue;
-          for (const m of [i - 1, i + 1]) {
-            if (m < 0 || m > 2 || since[m] === null || since[m] > z - step) continue;
-            let ok = true;
-            for (let k = Math.max(0, Math.floor(z - step)); k <= z; k++) {
-              const c = plan.grid[i][k];
-              if (c === 'B' || c === 'X' || (c === 'R' && plan.grid[m][k] !== 'R') || plan.wall(i - 1, m - 1, k)) { ok = false; break; }
-            }
-            if (ok) { since[i] = z; break; }
+    const perRow = Math.max(1, Math.round((C.DODGE_STEP / Math.max(3.5, plan.speed * 0.2)) / CELL));
+    const G = [];
+    for (let z = 0; z < L; z++) G.push(new Uint8Array(NX));
+    const last = plan.code[L - 1];
+    for (let i = 0; i < NX; i++) G[L - 1][i] = passable(last[i]) ? 1 : 0;
+    for (let z = L - 2; z >= 0; z--) {
+      const row = plan.code[z], next = plan.code[z + 1], gn = G[z + 1], g = G[z];
+      for (let i = 0; i < NX; i++) {
+        if (!passable(row[i])) continue;
+        const onTop = row[i] === R;
+        let ok = false;
+        // move sideways within this row (not through rock / obstacles; not up onto a
+        // rock step from the side), then forward
+        for (const dir of [0, -1, 1]) {
+          for (let k = dir === 0 ? 0 : 1; k <= (dir === 0 ? 0 : perRow); k++) {
+            const j = i + dir * k;
+            if (j < 0 || j >= NX || !passable(row[j])) break;
+            if (row[j] === R && !onTop) break;
+            const nc = next[j];
+            if (passable(nc) && gn[j] && !(nc === R && row[j] !== P && row[j] !== R)) { ok = true; break; }
           }
+          if (ok) break;
         }
+        g[i] = ok ? 1 : 0;
       }
-      if (since.every(s => s === null)) return false;
     }
+    // every branch, at every metre, must still have a way through
+    for (let z = 0; z < L; z++) {
+      const nComp = plan.regs[z].length, cp = plan.comp[z], has = new Uint8Array(nComp), seen = new Uint8Array(nComp);
+      for (let i = 0; i < NX; i++) if (cp[i] >= 0) { seen[cp[i]] = 1; if (G[z][i]) has[cp[i]] = 1; }
+      for (let k = 0; k < nComp; k++) if (seen[k] && !has[k]) return false;
+    }
+    plan.G = G;
     return true;
   }
 
-  // ------------------------------------------------------------------ patterns
-  const lanes = [-1, 0, 1];
-  const PATTERNS = {
-    // A: straight track, coins, maybe a gentle hurdle
-    coins: {
+  // ------------------------------------------------------------------ recipes
+  const BLOCKS = ['boulder', 'boulder', 'pillar'];
+  const JUMPS = ['rock_low', 'log', 'crevice'];
+  const SLIDES = ['arch', 'leaning'];
+  const narrow = (g, r) => { const [a, b] = g.usable(r); return b - a < 1.6; };
+  const RECIPES = {
+    // easy stretch: coins, maybe one hurdle
+    calm: {
       weight: d => 3 - d * 2,
       build(g) {
-        if (g.rnd() < 0.5 + g.diff * 0.4) g.place(g.rnd() < 0.7 ? 'barrier_low' : 'hay', g.pick(lanes), 12 + g.rnd() * 14);
-      },
-    },
-    // B: one parked train, often with a ramp to climb on
-    train: {
-      weight: d => 2.2,
-      build(g) {
-        const lane = g.pick(lanes);
-        const ramp = g.rnd() < 0.5;
-        const cars = 1 + ((g.rnd() * (ramp ? 2 : 3)) | 0);
-        g.train(lane, ZMIN + g.rnd() * 4, cars, ramp);
-        const other = g.pick(lanes.filter(l => l !== lane));
-        if (g.rnd() < 0.3 + g.diff * 0.5) g.place(g.pick(['barrier_low', 'barrier_high', 'minecart']), other, 14 + g.rnd() * 14);
-      },
-    },
-    // C: two or three trains, staggered
-    multitrain: {
-      weight: d => (d > 0.05 ? 1 + d * 2.5 : 0),
-      build(g) {
-        const order = lanes.slice().sort(() => g.rnd() - 0.5);
-        const nTrains = g.diff > 0.35 && g.rnd() < 0.5 ? 3 : 2;
-        const rampLane = order[(g.rnd() * nTrains) | 0];
-        for (let i = 0; i < nTrains; i++) {
-          const lane = order[i];
-          const ramp = lane === rampLane;
-          const cars = ramp ? 2 : 1 + ((g.rnd() * 2) | 0);
-          g.train(lane, ZMIN + i * (3 + g.rnd() * 5), cars, ramp);
+        if (g.rnd() < 0.55 + g.diff * 0.4) {
+          const z = 12 + g.rnd() * 14, regs = g.regs[Math.floor(z)];
+          const r = g.pick(regs);
+          if (narrow(g, r) || g.rnd() < 0.4) g.hurdle('jump', z, r);
+          else { const [a, b] = g.usable(r); g.single(g.pick(['rock_low', 'log']), g.rangeR(a, b), z); }
         }
       },
     },
-    // G: rows of mixed barriers — the core "reaction" pattern
-    mixed: {
+    // rocks scattered across the route — the core reaction recipe
+    scatter: {
       weight: d => 1.5 + d * 3,
       build(g) {
-        const spacing = Math.max(8 + (1 - g.diff) * 8, g.speed * 0.48);
-        if (g.rnd() < 0.35) g.train(g.pick(lanes), ZMIN, 1 + ((g.rnd() * 2) | 0), false);
-        for (let z = ZMIN + g.rnd() * 3; z < ZMAX - 1; z += spacing * (0.85 + g.rnd() * 0.3)) {
-          const hard = g.rnd() < 0.25 + g.diff * 0.45 ? (g.rnd() < 0.2 + g.diff * 0.4 ? 2 : 1) : 0;
-          const order = lanes.slice().sort(() => g.rnd() - 0.5);
-          order.forEach((lane, i) => {
-            if (i < hard) g.place('wall', lane, z);
-            else if (g.rnd() < 0.35 + g.diff * 0.4) g.place(g.pick(['barrier_low', 'barrier_high', 'minecart', 'hay', 'barrier_high']), lane, z);
-          });
-        }
+        const sp = Math.max(9 + (1 - g.diff) * 7, g.speed * 0.48);
+        g.rows(sp, (z, regs) => {
+          for (const r of regs) {
+            if (narrow(g, r)) { if (g.rnd() < 0.55 + g.diff * 0.3) g.hurdle(g.rnd() < 0.62 ? 'jump' : 'slide', z, r); continue; }
+            const [a, b] = g.usable(r);
+            const n = 1 + (g.rnd() < 0.2 + g.diff * 0.5 ? 1 : 0);
+            for (let k = 0; k < n; k++) {
+              const t = g.rnd();
+              const type = t < 0.45 ? g.pick(BLOCKS) : t < 0.8 ? g.pick(JUMPS) : g.pick(SLIDES);
+              g.single(type, g.rangeR(a, b), z + k * 0.5);
+            }
+          }
+        });
       },
     },
-    // Full-width hurdle: every lane blocked but one action clears it
+    // hurdles across the whole route: one action clears them
     hurdles: {
       weight: d => (d > 0.1 ? 1 + d : 0.3),
       build(g) {
-        const spacing = Math.max(12, g.speed * 0.6);
-        let z = ZMIN + 2;
-        while (z < ZMAX - 1) {
-          const type = g.rnd() < 0.5 ? 'barrier_low' : 'barrier_high';
-          lanes.forEach(l => g.place(g.rnd() < 0.8 ? type : (type === 'barrier_low' ? 'hay' : type), l, z));
-          z += spacing;
-        }
+        g.rows(Math.max(12, g.speed * 0.6), (z, regs) => {
+          const kind = g.rnd() < 0.6 ? 'jump' : 'slide';
+          for (const r of regs) g.hurdle(kind, z, r);
+        }, ZMIN + 2);
       },
     },
-    // Oncoming train
-    moving: {
-      weight: d => (d > 0.12 ? 0.8 + d * 1.6 : 0),
+    // boulders left and right: weave between them
+    slalom: {
+      weight: d => (d > 0.05 ? 0.8 + d * 2 : 0.2),
       build(g) {
-        const lane = g.pick(lanes);
-        g.moving(lane, 16, g.rnd() < 0.5 ? 2 : 1);
-        const others = lanes.filter(l => l !== lane);
-        if (g.rnd() < 0.6) g.place(g.pick(['barrier_low', 'barrier_high']), g.pick(others), 12 + g.rnd() * 12);
+        let side = g.rnd() < 0.5 ? -1 : 1;
+        g.rows(Math.max(8, g.speed * 0.4), (z, regs) => {
+          for (const r of regs) {
+            if (narrow(g, r)) { if (g.rnd() < 0.5) g.hurdle('jump', z, r); continue; }
+            const [a, b] = g.usable(r);
+            const x = side < 0 ? a + 0.6 + g.rnd() * 0.8 : b - 0.6 - g.rnd() * 0.8;
+            g.single(g.pick(BLOCKS), x, z);
+          }
+          side = -side;
+        });
+      },
+    },
+    // a rock falls from the mountain as you come
+    rockfall: {
+      weight: d => (d > 0.15 ? 0.6 + d * 1.4 : 0),
+      build(g) {
+        const z = 14 + g.rnd() * 10, regs = g.regs[Math.floor(z)];
+        const r = regs.reduce((p, c) => (c.b - c.a > p.b - p.a ? c : p), regs[0]);
+        if (!narrow(g, r)) { const [a, b] = g.usable(r); g.single('rockfall', g.rangeR(a, b), z); }
+        if (g.rnd() < 0.6) RECIPES.calm.build(g);
+      },
+    },
+    // rock shelves: the ground steps up, run over the top
+    steps: {
+      weight: d => 0.7,
+      build(g) {
+        const z = ZMIN + g.rnd() * 10, regs = g.regs[Math.floor(z)];
+        for (const r of regs) {
+          if (narrow(g, r)) continue;
+          const [a, b] = g.usable(r);
+          g.single('step', g.rangeR(a + 0.4, b - 0.4), z);
+          if (g.rnd() < 0.5 + g.diff * 0.4) g.single(g.pick(BLOCKS), g.rangeR(a, b), z + 3 + g.rnd() * 6);
+        }
       },
     },
   };
 
   // ------------------------------------------------------------------ coins
-  function coinTrail(g, startLane, zFrom, zTo) {
-    let lane = startLane;
-    const ahead = (l, z) => { for (let k = 0; k <= 5; k++) { const c = g.cell(l, z + k); if (c === 'B' || c === 'X') return false; } return true; };
-    const surf = (l, z) => {
-      const t = g.trains.find(t => t.lane === l && !t.moving && t.ramp && z >= t.rampZ && z < t.z + t.cars.length * VR.CAR_LEN);
-      if (!t) return null;
-      return z < t.z ? VR.TRAIN_HEIGHT * (z - t.rampZ) / 7 : VR.TRAIN_HEIGHT;
-    };
-    for (let z = zFrom; z < zTo; z += 2) {
-      if (!ahead(lane, z)) {
-        const alt = [lane - 1, lane + 1].filter(l => l >= -1 && l <= 1 && ahead(l, z) && g.cell(l, z) !== 'R' && !g.wall(lane, l, z) && !g.wall(lane, l, z - 1));
-        if (!alt.length) { z += 4; continue; }
-        const nl = g.pick(alt);
-        g.coins.push({ x: (lane + nl) / 2, y: 0.9, z: z - 1, lanes: true });
-        lane = nl;
+  function surfaceY(g, x, z) {
+    for (const s of g.steps) {
+      if (x < s.x0 - 0.1 || x > s.x1 + 0.1 || z < s.z || z > s.z + s.len) continue;
+      return z < s.z + s.ramp ? s.h * (z - s.z) / s.ramp : s.h;
+    }
+    return 0;
+  }
+  function coinY(g, x, z) {
+    for (const sl of g.slides) if (x > sl.x0 - 0.3 && x < sl.x1 + 0.3 && z > sl.z0 - 1.2 && z < sl.z1 + 1.2) return 0.5;
+    let y = 0.9 + surfaceY(g, x, z);
+    for (const j of g.jumps) {
+      if (x < j.x0 - 0.3 || x > j.x1 + 0.3) continue;
+      const d = (z - j.zc) / 4.5;
+      if (Math.abs(d) < 1) y = Math.max(y, 0.9 + 1.5 * (1 - d * d));
+    }
+    return y;
+  }
+  /** one line of coins flowing along the branch it is on */
+  function coinLine(g, z0, x0, every = 1) {
+    let x = x0, joined = 0;
+    const before = g.coins.slice();                        // lines laid down earlier
+    // where branches have merged, this line joins the one already there (no side-by-side rows)
+    const taken = (z, r) => before.some(c => Math.abs(c.z - z) < 1.1 && c.x >= r.a - 0.01 && c.x <= r.b + 0.01);
+    const side = x0 < 0 ? -1 : 1;
+    const phase = g.rnd() * Math.PI * 2, freq = 0.12 + g.rnd() * 0.1, amp = g.rnd() * 0.32;
+    let n = 0;
+    for (let z = z0; z < L - 1; z += 2) {
+      const zi = Math.floor(z);
+      const r = VR.Route.pick(g.regs[zi], x, side);
+      const [a, b] = g.usable(r);
+      let xd = a + (0.5 + amp * Math.sin(phase + z * freq)) * (b - a);
+      // keep to cells that lead on (the fairness map), away from rocks ahead
+      const bad = (xx) => { for (let k = 0; k <= 4; k++) { const zz = Math.min(L - 1, zi + k); const c = g.code[zz][ci(xx)]; if (c === B || c === OUT || (c === R && g.code[zi][ci(xx)] !== R && g.code[zi][ci(xx)] !== P)) return true; } return !g.G[zi][ci(xx)]; };
+      if (bad(xd)) {
+        let best = null;
+        for (let i = ci(a); i <= ci(b); i++) { const xx = cx(i); if (!bad(xx) && (best === null || Math.abs(xx - x) < Math.abs(best - x))) best = xx; }
+        if (best !== null) xd = best;
       }
-      const c = g.cell(lane, z);
-      let y = 0.9;
-      const s = surf(lane, z);
-      if (s !== null) y = s + 0.9;
-      else if (c === 'S') y = 0.5;
-      else {
-        const jz = g.jumpZ[lane + 1].find(j => Math.abs(j - z) < 4.5);
-        if (jz !== undefined) { const d = (z - jz) / 4.5; y = 0.9 + 1.5 * (1 - d * d); }
-      }
-      g.coins.push({ x: lane, y, z, lanes: true });
+      const maxStep = 1.3;
+      x += Math.max(-maxStep, Math.min(maxStep, xd - x));
+      x = Math.max(a, Math.min(b, x));
+      if (taken(z, r)) { if (++joined >= 2) break; continue; }
+      joined = 0;
+      const c = g.code[zi][ci(x)];
+      if (c === B || c === OUT) continue;
+      if ((n++ % every) !== 0) continue;
+      g.coins.push({ x, y: coinY(g, x, z), z });
     }
   }
-
   function addCoins(g, safe) {
-    const start = g.pick([-1, 0, 1].filter(l => g.cell(l, 2) === 'F' || g.cell(l, 2) === 'N'));
-    coinTrail(g, start === undefined ? 0 : start, 2, L - 2);
-    // risk / reward jump arc in a free lane
-    if (g.rnd() < 0.4) {
-      const l = g.pick([-1, 0, 1]);
-      const z0 = 8 + g.rnd() * 20;
-      if (g.free(l, z0 - 2, z0 + 10) && !g.coins.some(c => c.x === l && Math.abs(c.z - z0 - 4) < 6)) {
-        for (let i = 0; i < 5; i++) { const d = (i - 2) / 2.2; g.coins.push({ x: l, y: 1.0 + 1.6 * (1 - d * d), z: z0 + i * 1.6, lanes: true }); }
-      }
+    const route = g.route;
+    const start = g.regs[2];
+    // one line per branch (a split gets a second, lighter line on the other branch)
+    start.forEach((r) => coinLine(g, 2, (r.a + r.b) / 2 + (g.rnd() - 0.5) * (r.b - r.a) * 0.3));
+    if (route.splitting) {
+      const zs = Math.min(L - 4, Math.ceil(route.span[0] + 14));
+      const regs = g.regs[zs];
+      const taken = new Set(g.coins.filter(c => Math.abs(c.z - zs) < 2).map(c => VR.Route.pick(regs, c.x, 0)));
+      for (const r of regs) if (!taken.has(r)) coinLine(g, zs, (r.a + r.b) / 2, 2);
     }
     // bonus lemon (the "gem" pickup) replaces a coin
     if (!safe && g.rnd() < 0.3 && g.coins.length > 4) {
@@ -250,34 +335,32 @@
     }
   }
 
-  const PU_TYPES = Object.keys(VR.CONFIG.POWERUPS);
+  const PU_TYPES = Object.keys(C.POWERUPS);
 
   /**
-   * Build the content plan for one chunk.
-   * ctx: { rnd, difficulty (0..1), speed, safe, style, powerupChance }
+   * Build the content plan for one section.
+   * ctx: { rnd, difficulty (0..1), speed, safe, route, powerupChance }
    */
   VR.Patterns = {
-    PATTERNS,
+    RECIPES,
     verify,
     generate(ctx) {
-      const { rnd, difficulty, speed, safe, style, mask } = ctx;
+      const { rnd, difficulty, speed, safe, route } = ctx;
       let plan = null;
       for (let attempt = 0; attempt < 10 && !plan; attempt++) {
-        const g = new Plan(rnd, difficulty, speed, mask);
+        const g = new Plan(rnd, difficulty, speed, route);
         if (!safe) {
-          let names = Object.keys(PATTERNS);
-          if (style === 'tunnel_start' || style === 'tunnel_end') names = names.filter(n => n !== 'moving');
-          if (style === 'bridge') names = names.filter(n => n !== 'moving');
-          const weights = names.map(n => Math.max(0, PATTERNS[n].weight(difficulty)));
+          const names = Object.keys(RECIPES).filter(n => !(ctx.noFalls && n === 'rockfall'));
+          const weights = names.map(n => Math.max(0, RECIPES[n].weight(difficulty)));
           let r = rnd() * weights.reduce((a, b) => a + b, 0);
           let chosen = names[0];
           for (let i = 0; i < names.length; i++) { r -= weights[i]; if (r <= 0) { chosen = names[i]; break; } }
-          PATTERNS[chosen].build(g);
+          RECIPES[chosen].build(g);
           g.patternName = chosen;
         } else g.patternName = 'safe';
         if (verify(g)) plan = g;
       }
-      if (!plan) { plan = new Plan(rnd, difficulty, speed, mask); plan.patternName = 'fallback'; }
+      if (!plan) { plan = new Plan(rnd, difficulty, speed, route); plan.patternName = 'fallback'; verify(plan); }
       addCoins(plan, safe);
       if (!safe && rnd() < ctx.powerupChance && plan.coins.length > 6) {
         const i = 3 + ((rnd() * (plan.coins.length - 6)) | 0);
@@ -286,5 +369,7 @@
       }
       return plan;
     },
+    /** is this box free of everything (used for mission gates)? */
+    clearBox(plan, x0, x1, z0, z1) { return plan.clear(x0, x1, z0, z1, [J, S, B, P, R, OUT]); },
   };
 })();

@@ -4,7 +4,7 @@
  *  Lobby:   the host makes a room and shares an invite link (?vs=CODE).
  *           The guest opens it (or types the code) and joins.
  *  Start:   the host presses Start: both get the same seed, so the world
- *           (trains, obstacles, coins, power-ups) is identical, then a
+ *           (route, obstacles, coins, power-ups) is identical, then a
  *           3-2-1 countdown.
  *  Race:    each game streams its runner ~10 times a second. The other
  *           player appears as a see-through "ghost" with a name tag on

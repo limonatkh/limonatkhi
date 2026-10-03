@@ -61,7 +61,9 @@
       this.sun.position.set(-0.6, 1, 0.45);
       this.scene.add(this.hemi, this.sun);
 
-      this.camera = new THREE.PerspectiveCamera(C.CAMERA_FOV, 1, 0.3, 260);
+      this.camera = new THREE.PerspectiveCamera(C.CAMERA_FOV, 1, 0.3, 330);
+      // clouds below, the valley far down, peaks on the horizon
+      this.backdrop = new VR.Backdrop(this.scene);
       this.camTarget = new THREE.Vector3();
       this.camLook = new THREE.Vector3();
       // the runner camera works in path space (like the player) and is put into the
@@ -78,9 +80,10 @@
       if (!hq && (window.devicePixelRatio || 1) > 1.5) this.renderer.setPixelRatio(0.85);
       this.renderer.setSize(w, h);
       this.camera.aspect = w / h;
-      // portrait phones: widen the view so all three lanes stay visible
+      // portrait phones: widen the view so the route ahead stays visible
       this.portrait = w / h < 0.8;
-      this.camera.fov = this.portrait ? 70 : C.CAMERA_FOV;
+      this.baseFov = this.portrait ? 70 : C.CAMERA_FOV;
+      this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
       if (this.missions) this.missions.resize(w, h);
       if (this.duel) this.duel.resize(w, h);
@@ -93,7 +96,8 @@
       C.CHUNKS_AHEAD = s.quality === 'high' ? 6 : 4;
       this.scene.fog.far = s.quality === 'high' ? 200 : 140;
       this.scene.fog.near = s.quality === 'high' ? 70 : 45;
-      this.camera.far = this.scene.fog.far + 20; this.camera.updateProjectionMatrix();
+      this.camera.far = 330; this.camera.updateProjectionMatrix();     // far peaks on the horizon
+      if (this.backdrop) this.backdrop.peaks.visible = s.quality === 'high';   // low quality: no far peaks (less to draw)
       UI.setToggle('optSfx', s.sfx);
       UI.setToggle('optMusic', s.music);
       UI.setToggle('optQuality', s.quality === 'high', VR.t('high'), VR.t('low'));
@@ -237,6 +241,9 @@
       this.hitCooldown = 0;
       this.deadTimer = 0;
       this.tunnelDark = 0;
+      this.stumbleT = 0;
+      document.body.classList.remove('vulnerable');
+      this.camera.fov = this.baseFov; this.camera.updateProjectionMatrix();
       this.camera.position.set(0, C.CAMERA_HEIGHT, C.CAMERA_DISTANCE);
       this.camLook.set(0, 1.4, -C.CAMERA_LOOK_AHEAD);
       this.camPath.copy(this.camera.position); this.lookPath.copy(this.camLook);   // start: path = world
@@ -319,7 +326,7 @@
       VR.Input.setEnabled(false);
       // remember where the run ended so a secret code can continue it
       const p = this.player;
-      this.deathState = { x: p.x, y: p.y, z: p.z, lane: p.lane, coinsBanked: this.coins };
+      this.deathState = { x: p.x, y: p.y, z: p.z, coinsBanked: this.coins };
       this.canContinue = true;                     // one continue per death
       this.player.groundAtDeath = this.world.surfaceAt(this.player.x, this.player.z, this.player.y + 0.01, 0.3).h;
       this.player.die();
@@ -398,7 +405,7 @@
       return {
         score: this.score, distance: this.distance, coins: this.coins, multiplier: this.multiplier, speed: this.speed,
         powerups: Object.assign({}, this.powerups.timers),
-        player: { x: p.x, y: p.y, z: p.z, lane: p.lane, prevLane: p.prevLane, grounded: p.grounded, lastStumble: p.lastStumble, lastSide: p.lastSide },
+        player: p.snapshot(), stumbleT: this.stumbleT,
         usedCodes: [...this.usedCodes], canContinue: this.canContinue, hitCooldown: this.hitCooldown, lastBiome: this.lastBiome,
         world: { chunkIndex: this.world.chunkIndex, nextZ: this.world.nextZ, chunks: this.world.chunks.length, obstacles: this.world.obstacles.length },
         camPath: this.camPath.toArray(), lookPath: this.lookPath.toArray(),
@@ -409,11 +416,7 @@
       this.score = snap.score; this.distance = snap.distance; this.coins = snap.coins;
       this.multiplier = snap.multiplier; this.speed = snap.speed;
       this.powerups.timers = Object.assign({}, snap.powerups);
-      Object.assign(p, { x: snap.player.x, y: snap.player.y, z: snap.player.z, lane: snap.player.lane, prevLane: snap.player.prevLane,
-        vy: 0, grounded: true, slideTimer: 0, pendingSlide: false, lastStumble: snap.player.lastStumble, prevX: snap.player.x, lateralVel: 0,
-        lastSide: snap.player.lastSide || 1 });
-      p.offset = p.x - p.laneX(p.lane);
-      p.place();
+      p.restore(snap.player); this.stumbleT = snap.stumbleT || 0;
       this.usedCodes = new Set(snap.usedCodes); this.canContinue = snap.canContinue; this.hitCooldown = snap.hitCooldown;
       // the world was frozen, so it must be exactly as we left it
       const w = this.world;
@@ -617,35 +620,47 @@
       VR.Audio.play('powerup');
       UI.toast(VR.t('pu.' + type) + '!');
     }
-    onTrainApproach() { VR.Audio.play('trainHorn'); }
+    /** a rock starts falling from the mountain ahead */
+    onRockfall(o) { VR.Audio.play('rockfall'); }
+    onRockLanded(o) { if (o.z - this.player.z > -40) { this.shake = Math.max(this.shake, 0.22); VR.Audio.play('thud'); } }
     onWallBump() { this.cameraImpulse(0.05); this.shake = Math.max(this.shake, 0.08); }
     cameraImpulse(v) { this.camBumpV += v * 6; }
 
+    /*
+     * COLLISION RULES (state machine: running -> stumbling/vulnerable -> running)
+     *  - star / boost: the obstacle is smashed
+     *  - a 'jump' obstacle hit head-on, or any obstacle clipped from the side:
+     *      first time   -> STUMBLE: you trip, slow down for a moment and are
+     *                      VULNERABLE for VULNERABLE_TIME (red ring, HUD)
+     *      while vulnerable -> crash (a shield saves you once)
+     *  - a 'block' (boulder, pillar, falling rock) or 'slide' obstacle hit
+     *    head-on: crash (a shield saves you once), as before
+     */
     resolveCollisions() {
       if (this.hitCooldown > 0) return;
       const hit = this.world.collide(this.player);
       if (!hit) return;
-      const pu = this.powerups;
+      const pu = this.powerups, p = this.player;
       const o = hit.obstacle;
       if (pu.active('invincible') || pu.active('boost')) {
-        this.collect.burst(o.x, 1.5, this.player.z - 1);
+        this.collect.burst(o.x, 1.5, p.z - 1);
         this.world.smash(o); VR.Audio.play('shieldBreak'); this.shake = 0.12;
         return;
       }
-      if (hit.side) {
-        const now = this.elapsed;
-        if (now - this.player.lastStumble < C.STUMBLE_WINDOW) {
-          if (pu.active('shield')) { pu.consume('shield'); this.shieldHit(o); return; }
-          this.gameOver(); return;
-        }
-        this.player.lastStumble = now;
-        this.player.bounceBack();
-        this.hitCooldown = 0.35;
-        this.shake = 0.18;
+      const trip = hit.side || o.kind === 'jump' || o.kind === 'step';
+      if (trip && p.vulnerable <= 0) {
+        // first hit: stumble, you don't die
+        p.stumble(hit.side);
+        if (!hit.side) o.tripped = true;                  // you stumble over it, it no longer blocks you
+        this.stumbleT = C.STUMBLE_RECOVER;
+        this.hitCooldown = 0.45;
+        this.shake = 0.22;
+        this.collect.burst(p.x, 0.4, p.z - 0.6);
         VR.Audio.play('stumble');
-        UI.toast(VR.t('toast.stumble'));
+        UI.toast(VR.t('toast.stumble'), 1300);
         return;
       }
+      // second hit while vulnerable, or a lethal head-on hit
       if (pu.active('shield')) { pu.consume('shield'); this.shieldHit(o); return; }
       this.gameOver();
     }
@@ -678,6 +693,7 @@
       else if (this.state === 'duel' || this.state === 'duelReturn') this.duel.render(this.renderer);
       else {
         this.collect.fx.mesh.visible = true;
+        this.backdrop.update(dt, this.camera.position);
         this.renderer.render(this.scene, this.camera);
       }
 
@@ -693,8 +709,10 @@
 
       this.powerups.update(dt);
       const boost = this.powerups.active('boost');
-      const target = this.speedAt(this.distance) * (boost ? C.POWERUPS.boost.speedFactor : 1);
-      this.speed += (target - this.speed) * Math.min(1, dt * 2.5);
+      let target = this.speedAt(this.distance) * (boost ? C.POWERUPS.boost.speedFactor : 1);
+      // just tripped: a short slowdown that eases back
+      if (this.stumbleT > 0) { this.stumbleT = Math.max(0, this.stumbleT - dt); target *= 1 - (1 - C.STUMBLE_SLOW) * (this.stumbleT / C.STUMBLE_RECOVER); }
+      this.speed += (target - this.speed) * Math.min(1, dt * (this.stumbleT > 0 ? 8 : 2.5));
       const diff = this.difficultyAt(this.distance);
 
       const z0 = p.z;
@@ -713,7 +731,8 @@
       this.collect.update(dt, p, this);
 
       p.shieldMesh.visible = this.powerups.active('shield');
-      if (this.powerups.active('invincible') || boost) p.flash = Math.max(p.flash, 0.1);
+      p.glow.visible = this.powerups.active('invincible') || boost;      // glow, not blinking: stay visible at speed
+      document.body.classList.toggle('vulnerable', p.vulnerable > 0);
       p.updateShadow(this.world);
 
       // keep coordinates small on very long runs
@@ -747,43 +766,67 @@
       this.scene.fog.color.copy(this.fogColor).lerp(TUNNEL_COLOR, dark * 0.9);
       this.hemi.intensity = 1.9 - dark * 1.1;
       this.sun.intensity = 2.1 - dark * 1.6;
+      this.backdrop.setBiome(biome, this.fogColor);
     }
 
+    /*
+     * RUNNER CAMERA (third person). Works in path space and is put into the
+     * world through the track, so it follows turns, climbs and descents.
+     *  - rides at a fixed distance behind the runner (no lag along the run):
+     *    at any speed the runner stays at the same place on screen; it pulls
+     *    back a little and widens the view as the speed rises
+     *  - sideways it keeps the runner's relative place in the route region
+     *    AT ITS OWN SPOT, so behind a fork, a narrowing or a ledge it is over
+     *    the walkable ground, never inside the mountain
+     *  - looks ahead along the route (further at higher speed)
+     *  - never rolls with the runner's lean; under tunnel roofs it stays low
+     */
     updateCamera(dt) {
-      const p = this.player;
+      const p = this.player, tr = VR.track, clamp = THREE.MathUtils.clamp;
       // spring for landing dip / bumps
       this.camBumpV += (-this.camBump * 60 - this.camBumpV * 10) * dt;
       this.camBump += this.camBumpV * dt;
-      const dist = C.CAMERA_DISTANCE + (this.portrait ? 1.2 : 0);
+      const sp = clamp((this.speed || C.SPEED_START) - C.SPEED_START, 0, 40);
+      const dist = C.CAMERA_DISTANCE + (this.portrait ? 1.2 : 0) + sp * C.CAMERA_SPEED_PULL;
       const tz = p.z + dist;
-      // the camera follows the runner's lane AT THE CAMERA'S OWN SPOT on the path:
-      // behind a fork or a canyon exit the corridors are elsewhere, and copying the
-      // runner's x would put the camera inside the rock
-      const tr = VR.track;
-      const zn = tr.zoneAt(tz);
-      let cl = p.lane;
-      if (!zn.open.includes(cl)) { cl = zn.open[0]; for (const l of zn.open) if (Math.abs(l - p.lane) < Math.abs(cl - p.lane)) cl = l; }
-      const bx = tr.laneX(tz, cl) + (cl === p.lane ? p.offset || 0 : 0);
-      const tx = bx - THREE.MathUtils.clamp(bx * 0.25, -0.65, 0.65);
+      const pr = p.region(), rel = VR.Player.relAt(pr, p.x);
+      // which branch the camera rides on: the runner's (by order), so behind a split it is
+      // on the runner's side of the mountain; behind a merge it stays on its own branch
+      const pregs = tr.regionsAt(p.z), cregs = tr.regionsAt(tz);
+      let rc;
+      if (cregs.length <= pregs.length) {
+        const kIdx = Math.max(0, pregs.indexOf(VR.Route.pick(pregs, p.x, p.side)));
+        rc = cregs[pregs.length === 1 ? 0 : Math.round(kIdx * (cregs.length - 1) / (pregs.length - 1))];
+      } else rc = VR.Route.pick(cregs, this.camPath.x, 0);
+      const bx = VR.Player.xAt(rc, rel);
+      const tx = bx - clamp(bx * 0.25, -0.65, 0.65);
       let ty = C.CAMERA_HEIGHT + p.y * 0.62 + this.camBump + (this.portrait ? 2.6 : 0);
-      const k = 1 - Math.exp(-dt * 7);
+      const k = 1 - Math.exp(-dt * 6);
       const cam = this.camPath;
-      // Tunnels: the roof is 5.9 m up. Keep the camera under it while the camera, the
-      // player or the stretch just ahead is inside a tunnel, so the view never ends up
-      // in the hill above (that hid the runner, worst in portrait and on trains).
-      const covered = this.tunnelCover(p.z - 12, cam.z + 1);
+      // Tunnels: keep the camera under the roof while the camera, the player or the
+      // stretch just ahead is inside a tunnel, so the view never ends up in the rock.
+      const covered = this.tunnelCover(p.z - 12, tz + 1);
       this.tunCam = (this.tunCam || 0) + ((covered ? 1 : 0) - (this.tunCam || 0)) * Math.min(1, dt * 6);
       const cap = TUNNEL_CAM_MAX;
       if (this.tunCam > 0.001) ty = ty + (Math.min(ty, cap) - ty) * this.tunCam;
-      cam.x += (tx - cam.x) * k;
+      cam.z = tz;
+      // smooth, and never faster than ~16-30 m/s sideways (no jumps at splits / merges)
+      const want = clamp(cam.x + (tx - cam.x) * k, rc.a + 0.3, rc.b - 0.3);   // over the ground, not in the rock
+      const mx = Math.max(16, (this.speed || 0) * 0.65) * dt;
+      cam.x += clamp(want - cam.x, -mx, mx);
       cam.y += (ty - cam.y) * (1 - Math.exp(-dt * (covered ? 12 : 5)));
       if (this.tunnelCover(cam.z - 0.5, cam.z + 0.5)) cam.y = Math.min(cam.y, cap);   // hard limit inside the tube
-      cam.z += (tz - cam.z) * (1 - Math.exp(-dt * 12));
+      // look ahead along the route where the runner is heading
       const look = this.lookPath;
-      look.x += (p.x - THREE.MathUtils.clamp(p.x * 0.15, -0.4, 0.4) - look.x) * k;
+      look.z = p.z - (C.CAMERA_LOOK_AHEAD + sp * 0.22);
+      const rl = tr.regionAt(look.z, p.x, p.side);
+      const lx = 0.55 * p.x + 0.45 * VR.Player.xAt(rl, rel);
+      look.x += (lx - clamp(lx * 0.15, -0.4, 0.4) - look.x) * k;
       const lookY = (this.portrait ? 0.6 : 1.2) + p.y * 0.55;
       look.y += (lookY + ((this.portrait ? 1.0 : 1.2) + p.y * 0.55 - lookY) * (this.tunCam || 0) - look.y) * k;
-      look.z = p.z - C.CAMERA_LOOK_AHEAD;
+      // sense of speed: a slightly wider view as you go faster
+      const fov = this.baseFov + C.CAMERA_SPEED_FOV * clamp(sp / (C.SPEED_MAX - C.SPEED_START), 0, 1.4);
+      if (Math.abs(this.camera.fov - fov) > 0.05) { this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 2); this.camera.updateProjectionMatrix(); }
       // path space -> world (turns, hills)
       const wc = this.camera.position;
       tr.toWorld(cam.x, cam.y, cam.z, wc);
@@ -808,6 +851,8 @@
     // menu: character faces the camera, slow orbit, idle bob
     updateMenu(dt) {
       this.menuTime += dt;
+      // build the rest of the mountain sections while the menu is up (no hitch later)
+      if (((this.menuTime * 60) | 0) % 3 === 0) this.world.prebuildStep();
       const p = this.player, r = p.rig;
       p.object.position.set(0, 0, 0);
       p.object.rotation.y = Math.PI + Math.sin(this.menuTime * 0.5) * 0.35;

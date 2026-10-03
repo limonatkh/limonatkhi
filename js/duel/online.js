@@ -21,7 +21,7 @@
       this.handlers = [];
       this.status = { st: 'free', why: '' };
       this.name = ''; this.ch = 'hero';
-      this.beatT = 0; this.enabled = false; this.trying = false;
+      this.lastBeat = 0; this.enabled = false; this.trying = false;
     }
     onMessage(fn) { this.handlers.push(fn); }
     get lobbyTopic() { return VR.Net.PREFIX + 'lobby'; }
@@ -102,7 +102,7 @@
     }
     beat(ask) {
       if (!this.client || !this.connected) return;
-      this.beatT = BEAT;
+      this.lastBeat = performance.now();
       this.client.publish(this.lobbyTopic, JSON.stringify({ t: 'p', id: this.id, name: this.name, ch: this.ch, st: this.status.st, why: this.status.why, ask: !!ask }));
     }
     /** Send a private message to another player's inbox. */
@@ -121,9 +121,9 @@
 
     update(dt) {
       if (!this.connected) return;
-      this.beatT -= dt;
-      if (this.beatT <= 0) this.beat();
+      // wall-clock beats: a slow frame rate must not make you look offline
       const now = performance.now();
+      if (now - (this.lastBeat || 0) >= BEAT * 1000) this.beat();
       for (const [id, p] of this.peers) if (now - p.seen > STALE * 2000) this.peers.delete(id);
     }
   }

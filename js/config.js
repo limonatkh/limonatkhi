@@ -6,10 +6,11 @@
 window.VR = window.VR || {};
 
 VR.CONFIG = {
-  // ---------- Lanes ----------
-  LANE_WIDTH: 2.6,            // distance between lane centres (world units = metres)
-  LANES: [-1, 0, 1],          // lane indices (left, centre, right)
-  LANE_SWITCH_TIME: 0.14,     // seconds to slide from one lane to the next
+  // ---------- Moving across the route (no lanes: see route.js) ----------
+  DODGE_STEP: 2.6,            // metres one swipe moves you sideways (clamped to the route)
+  DODGE_TIME: 0.14,           // seconds a swipe takes
+  ROUTE_MARGIN: 0.45,         // your centre stays this far inside the edge of the walkable ground
+  FOLLOW_SPEED: 7,            // m/s: how fast you flow with a route that narrows / bends / merges
 
   // ---------- Player physics ----------
   GRAVITY: 40,
@@ -20,7 +21,11 @@ VR.CONFIG = {
   PLAYER_HALF_DEPTH: 0.35,
   PLAYER_HEIGHT: 1.75,
   PLAYER_SLIDE_HEIGHT: 0.75,
-  STUMBLE_WINDOW: 5,          // a second side-hit inside this many seconds = crash
+  // stumbling: hitting a jump-over obstacle (or clipping one from the side) trips you;
+  // you are VULNERABLE for this long, and another hit in that time ends the run
+  VULNERABLE_TIME: 2.6,
+  STUMBLE_SLOW: 0.62,         // speed factor right after tripping (recovers over STUMBLE_RECOVER)
+  STUMBLE_RECOVER: 0.9,
 
   // ---------- Speed & difficulty ----------
   // speed = START + (MAX - START) * (1 - e^(-distance / RAMP))
@@ -57,7 +62,7 @@ VR.CONFIG = {
   },
   MAGNET_RADIUS: 6,
 
-  // ---------- Mission gates (entrances on the railway) ----------
+  // ---------- Mission gates (entrances along the mountain route) ----------
   MISSION_GATE_FIRST_CHUNK: 7,       // first gate ≈ 250 m into a run
   MISSION_GATE_GAP_MIN: 16,          // then one every 16-24 chunks (≈ 640-960 m)
   MISSION_GATE_GAP_MAX: 24,
@@ -96,4 +101,6 @@ VR.CONFIG = {
   CAMERA_DISTANCE: 7.6,
   CAMERA_LOOK_AHEAD: 9,
   CAMERA_FOV: 62,
+  CAMERA_SPEED_PULL: 0.06,    // extra distance per m/s above start speed (keeps the runner framed)
+  CAMERA_SPEED_FOV: 7,        // extra degrees of FOV at top speed (sense of speed)
 };

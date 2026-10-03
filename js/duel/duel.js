@@ -498,6 +498,13 @@
       this.ui.hideBig();
       this.showResult(true, VR.t('du.oppLeft', { name: m.names[m.op] }));
     }
+    /** EXIT on the "Waiting for a player" bar: leave the empty arena for the main menu. */
+    exitWaiting() {
+      const m = this.match;
+      if (!m || !m.solo || m.leaving) return;
+      m.result = { win: null, reward: 0 };
+      this.leave();
+    }
     forfeit() {
       const m = this.match; if (!m) return;
       if (m.solo) { this.ui.closeOverlay(); m.result = { win: null, reward: 0 }; return this.leave(); }

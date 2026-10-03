@@ -12,10 +12,10 @@
  *   heading(z)         facing direction at z (radians, 0 = world -Z)
  *   place(obj, x,y,z)  put an object on the path, facing along it
  *
- * Each section also has MOVEMENT ZONES (see terrain.js): which internal
- * lanes are open at each point, where they are (x), and where a rock wall
- * separates them. Swipes, funnelling and pattern generation ask the
- * track; the visible terrain is generated from the same zones.
+ * Each section is also a ROUTE SEGMENT (route.js): the walkable regions
+ * at every metre: one wide ridge, a narrow knife edge, two or three
+ * branches around a mountain... The player, the camera, obstacle and
+ * coin placement all ask the track for the regions at a point.
  *
  * bendGroup() deforms a straight section's geometry along its curve and
  * slope, so the voxel world really turns and climbs.
@@ -23,8 +23,7 @@
 (function () {
   const T = THREE;
   const C = VR.CONFIG;
-  const LW = C.LANE_WIDTH;
-  const DEFAULT_ZONE = Object.freeze({ open: [-1, 0, 1], x: { '-1': -LW, 0: 0, 1: LW }, wallL: false, wallR: false, sep: false });
+  const DEFAULT_REGIONS = Object.freeze([Object.freeze({ a: -4.4, b: 4.4 })]);
 
   class Track {
     constructor() { this.reset(); }
@@ -83,33 +82,19 @@
       return obj;
     }
 
-    // ---------------------------------------------------------------- zones
-    zoneAt(z) {
+    /** curvature (1/radius, + = turning right) and slope at z */
+    curvature(z) { const s = this.segAt(z); return s ? s.k : 0; }
+    slope(z) { const s = this.segAt(z); return s ? s.slope : 0; }
+
+    // ---------------------------------------------------------------- route regions
+    /** walkable regions [{a, b}] (path x, metres) across the route at z */
+    regionsAt(z) {
       const s = this.segAt(z);
-      if (!s || !s.section || !s.section.zone) return DEFAULT_ZONE;
-      return s.section.zone(Math.max(0, Math.min(s.len - 0.001, s.z0 - z)));
+      if (!s || !s.section || !s.section.route) return DEFAULT_REGIONS;
+      return s.section.route.regions(Math.max(0, Math.min(s.len - 0.001, s.z0 - z)));
     }
-    laneX(z, lane) { const zn = this.zoneAt(z); const v = zn.x[lane]; return v === undefined ? lane * LW : v; }
-    /** fractional lane (coin trails between two lanes) */
-    laneXf(z, f) {
-      const a = Math.floor(f), b = Math.ceil(f);
-      if (a === b) return this.laneX(z, a);
-      const t = f - a; return this.laneX(z, a) * (1 - t) + this.laneX(z, b) * t;
-    }
-    isOpen(z, lane) { return this.zoneAt(z).open.includes(lane); }
-    wallBetween(z, a, b) {
-      const zn = this.zoneAt(z), lo = Math.min(a, b);
-      return lo === -1 ? zn.wallL : zn.wallR;
-    }
-    /** Can the runner switch from lane a to lane b now (and over the next few metres)? */
-    canSwitch(z, a, b, look = 4) {
-      if (b < -1 || b > 1) return false;
-      for (let d = 0; d <= look; d += 1) {
-        const zz = z - d;
-        if (!this.isOpen(zz, b) || this.wallBetween(zz, a, b)) return false;
-      }
-      return true;
-    }
+    /** the region at z that holds x (nearest; `side` breaks ties inside a gap) */
+    regionAt(z, x, side) { return VR.Route.pick(this.regionsAt(z), x, side); }
   }
 
   /* -------------------------------------------------------------------
@@ -158,5 +143,4 @@
   VR.Track = Track;
   VR.bendGroup = bendGroup;
   VR.disposeBent = disposeBent;
-  VR.DEFAULT_ZONE = DEFAULT_ZONE;
 })();

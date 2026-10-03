@@ -1,15 +1,17 @@
 /* =====================================================================
- * BIOMES
+ * BIOMES — the mountain regions the run crosses.
  * ---------------------------------------------------------------------
+ * The terrain (terrain.js) is built with material SLOTS; a biome fills
+ * them in, and sets the sky, the fog and how often its special route
+ * pieces appear (tunnels through the mountain, natural rock bridges,
+ * splitting routes).
+ *
  * HOW TO ADD A NEW ENVIRONMENT:
- *   1. Add an entry to VR.BIOMES below with:
- *        sky / fog colours, ground materials (texture keys from voxel.js),
- *        styleWeights (how often tunnels / bridges / stations appear),
- *        and a scenery(vb, rnd, variant) function that places voxel
- *        props on the LEFT side of a 40 m strip (x < -5, z 0..-40).
- *        The right side is automatically the mirror of another variant.
+ *   1. Add an entry to VR.BIOMES with sky / fog colours, `slots`
+ *      (texture keys from voxel.js, optionally tinted with
+ *      VR.Mat.tinted) and `bias`.
  *   2. (optional) add new block textures with VR.Tex.register(...)
- *   3. That's it — world.js picks it up and rotates it into the run.
+ *   3. Add its name to i18n.js ('biome.<key>').
  * ===================================================================== */
 (function () {
   const L = 40; // chunk length
@@ -135,102 +137,47 @@
     },
   };
 
-  // scatter n props with minimum spacing in the strip
-  function scatter(rnd, n, xMin, xMax, fn, zPad = 1) {
-    for (let i = 0; i < n; i++) {
-      const x = -(xMin + rnd() * (xMax - xMin));
-      const z = -(zPad + rnd() * (L - zPad * 2));
-      fn(x, z, i);
-    }
-  }
-  const FLOWERS = [0xf2e14a, 0xe8453c, 0xf4f4f4, 0x6c8ef0, 0xf28bd1];
-
+  const tint = (t, c) => t + '#' + c.toString(16).padStart(6, '0');
+  // slot -> texture. top/topside: the ground you run on · alt: patches in it ·
+  // cliff/cliffTop: the mountain body and its steps · peak: high tops ·
+  // leaf/leafTop/trunk: trees · rock: loose stones
+  const SLOTS = {
+    meadow: { top: 'grass_top', topside: 'grass_side', alt: 'gravel', cliff: 'stone', cliffTop: 'grass_top', peak: 'snow', leaf: 'leaves', leafTop: 'leaves', trunk: 'log', rock: 'cobble' },
+  };
   VR.BIOMES = {
-    grassland: {
-      name: 'Grasslands', sky: 0x8fd3ff, fog: 0xb8e4ff,
-      ground: { top: 'grass_top', side: 'grass_side' },
-      styleWeights: { normal: 10, bridge: 2, tunnel: 1, station: 1.5 },
-      scenery(vb, rnd) {
-        P.fence(vb, -5.6, -1, -39);
-        scatter(rnd, 3, 12, 30, (x, z) => P.oak(vb, x, z, 4 + Math.floor(rnd() * 2)));
-        scatter(rnd, 1 + (rnd() < 0.5 ? 1 : 0), 8, 18, (x, z) => P.lemonTree(vb, x, z, rnd, 3 + rnd()), 4);
-        scatter(rnd, 3, 7, 28, (x, z) => P.bush(vb, x, z, 1 + rnd()));
-        if (rnd() < 0.45) P.lemon(vb, -6.3 - rnd() * 1.5, 0, -4 - rnd() * 32, 1, rnd() < 0.5);
-        scatter(rnd, 20, 6.5, 22, (x, z) => (rnd() < 0.5 ? P.flower(vb, x, z, FLOWERS[(rnd() * 5) | 0]) : P.tuft(vb, x, z)));
-        if (rnd() < 0.6) P.hill(vb, -30 - rnd() * 8, -20, 12, 16, 3 + Math.floor(rnd() * 3), 'grass_top', 'grass_side');
-      },
+    grassland: {   // high alpine meadows
+      sky: 0x86c8f5, fog: 0xc2e2f7, valley: 'grass_top',
+      slots: SLOTS.meadow,
+      bias: { tunnel: 0.6, arch: 1, split: 1 },
     },
-    forest: {
-      name: 'Forest', sky: 0x9fd6c4, fog: 0xb5e0cf,
-      ground: { top: 'grass_top', side: 'grass_side' },
-      styleWeights: { normal: 10, bridge: 2, tunnel: 1.5, station: 0.5 },
-      scenery(vb, rnd) {
-        scatter(rnd, 9, 7, 34, (x, z) => (rnd() < 0.35 ? P.birch(vb, x, z, 5 + Math.floor(rnd() * 2)) : P.oak(vb, x, z, 5 + Math.floor(rnd() * 3))));
-        scatter(rnd, 3, 14, 36, (x, z) => P.pine(vb, x, z, 9 + Math.floor(rnd() * 4)));
-        scatter(rnd, 5, 6.5, 20, (x, z) => P.bush(vb, x, z, 1 + rnd() * 0.8));
-        scatter(rnd, 4, 6.5, 18, (x, z) => P.mushroom(vb, x, z));
-        if (rnd() < 0.6) P.lemonTree(vb, -8 - rnd() * 6, -6 - rnd() * 28, rnd, 3.4);
-        scatter(rnd, 12, 6.5, 20, (x, z) => P.tuft(vb, x, z));
-      },
+    forest: {      // pine-covered heights
+      sky: 0x93cfc0, fog: 0xbfe2d6, valley: 'pine',
+      slots: Object.assign({}, SLOTS.meadow, { leaf: 'pine', leafTop: 'pine', alt: 'dirt' }),
+      bias: { tunnel: 1, arch: 0.8, split: 1.2 },
     },
-    desert: {
-      name: 'Desert', sky: 0xffd9a0, fog: 0xffe6c0,
-      ground: { top: 'sand', side: 'sand' },
-      styleWeights: { normal: 10, bridge: 0.3, tunnel: 0.8, station: 1 },
-      scenery(vb, rnd) {
-        scatter(rnd, 5, 7, 26, (x, z) => P.cactus(vb, x, z, 2 + Math.floor(rnd() * 3)));
-        scatter(rnd, 6, 6.5, 22, (x, z) => P.deadBush(vb, x, z));
-        scatter(rnd, 2, 16, 30, (x, z) => P.dune(vb, x, z, 10, 12, 3 + Math.floor(rnd() * 3)), 6);
-        if (rnd() < 0.35) P.pyramid(vb, -36, -20, 16);
-        else scatter(rnd, 2, 8, 20, (x, z) => P.rock(vb, x, z, 1.2 + rnd()));
-        if (rnd() < 0.4) P.lemonCrate(vb, -7.2, -6 - rnd() * 28, 0, rnd);   // lemon traders pass through
-      },
+    village: {     // lemon terraces on the mountain
+      sky: 0x9fd5ff, fog: 0xcbe6fb, valley: 'grass_top',
+      slots: Object.assign({}, SLOTS.meadow, { leaf: 'lemon_leaves', leafTop: 'lemon_leaves', alt: 'dirt', rock: 'sandstone' }),
+      bias: { tunnel: 0.4, arch: 0.8, split: 1 },
     },
-    snow: {
-      name: 'Snowfields', sky: 0xcfe4f4, fog: 0xe4eff8,
-      ground: { top: 'snow', side: 'snow_side' },
-      styleWeights: { normal: 10, bridge: 1.2, tunnel: 2.5, station: 0.7 },
-      scenery(vb, rnd) {
-        scatter(rnd, 7, 7, 32, (x, z) => P.pine(vb, x, z, 6 + Math.floor(rnd() * 4), true));
-        scatter(rnd, 3, 8, 22, (x, z) => P.iceSpike(vb, x, z, 2 + rnd() * 3));
-        if (rnd() < 0.7) P.hill(vb, -30, -20, 14, 18, 4, 'snow', 'snow_side');
-      },
+    desert: {      // red sandstone canyons
+      sky: 0xffcf96, fog: 0xffe2bd, valley: 'sand',
+      slots: { top: 'sand', topside: 'sandstone', alt: tint('sandstone', 0xe8b48a), cliff: tint('sandstone', 0xe39a6a), cliffTop: 'sand', peak: tint('sandstone', 0xf0c8a0), leaf: 'cactus', leafTop: 'cactus', trunk: 'log', rock: tint('sandstone', 0xc98a5a) },
+      bias: { tunnel: 0.8, arch: 1.6, split: 1 },
     },
-    village: {
-      name: 'Village', sky: 0xa8dcff, fog: 0xc4e7ff,
-      ground: { top: 'grass_top', side: 'grass_side' },
-      styleWeights: { normal: 10, bridge: 1, tunnel: 0.3, station: 3 },
-      scenery(vb, rnd, variant) {
-        P.fence(vb, -5.6, -1, -39);
-        const zs = [-9, -30];
-        P.house(vb, -11 - rnd() * 3, zs[0], 5 + Math.floor(rnd() * 2), 5, 3.2, rnd() < 0.5 ? 'planks' : 'wall');
-        if (variant % 2) P.well(vb, -9, zs[1]); else P.house(vb, -12, zs[1], 5, 6, 3.6, 'brick');
-        P.farm(vb, -22, -20, 8, 14);
-        P.lampPost(vb, -6.5, -20);
-        P.lemonCrate(vb, -7.4, zs[0] + 2.2, 0, rnd);
-        if (variant % 2 === 0) P.lemonCrate(vb, -7.2, zs[0] - 1.2, 0, rnd);
-        // small lemon orchard behind the farm
-        P.lemonTree(vb, -30, -12, rnd, 3.2);
-        P.lemonTree(vb, -30, -26, rnd, 3.4);
-        scatter(rnd, 1, 34, 38, (x, z) => P.oak(vb, x, z, 5));
-        scatter(rnd, 10, 6.5, 9, (x, z) => P.flower(vb, x, z, FLOWERS[(rnd() * 5) | 0]));
-      },
+    mountains: {   // bare rocky peaks
+      sky: 0x9dbde6, fog: 0xc9d8ee, valley: 'stone',
+      slots: { top: 'gravel', topside: 'stone', alt: 'stone', cliff: 'stone', cliffTop: 'stone', peak: 'snow', leaf: 'pine', leafTop: 'pine', trunk: 'log', rock: 'cobble' },
+      bias: { tunnel: 1.4, arch: 1.2, split: 1.2 },
     },
-    mountains: {
-      name: 'Mountains', sky: 0xa9c4e8, fog: 0xc6d7ee,
-      ground: { top: 'grass_top', side: 'grass_side' },
-      styleWeights: { normal: 8, bridge: 2.5, tunnel: 3, station: 0.5 },
-      scenery(vb, rnd) {
-        P.mountain(vb, -30 - rnd() * 6, -20, 22 + rnd() * 8, 22, 12);
-        scatter(rnd, 4, 7, 14, (x, z) => P.pine(vb, x, z, 7 + Math.floor(rnd() * 3)));
-        scatter(rnd, 4, 7, 16, (x, z) => P.rock(vb, x, z, 1 + rnd() * 1.5));
-        P.hill(vb, -14, -8 - rnd() * 20, 6, 10, 3, 'stone', 'stone');
-      },
+    snow: {        // snowy summits
+      sky: 0xc7def2, fog: 0xe3eef8, valley: 'snow',
+      slots: { top: 'snow', topside: 'snow_side', alt: 'ice', cliff: 'stone', cliffTop: 'snow', peak: 'snow', leaf: 'pine', leafTop: 'snow', trunk: 'log', rock: 'stone' },
+      bias: { tunnel: 1.6, arch: 1, split: 0.9 },
     },
   };
 
   // Order biomes rotate in (random start, never the same twice in a row)
   VR.BIOME_ORDER = ['grassland', 'forest', 'village', 'desert', 'mountains', 'snow'];
-  VR.BIOME_VARIANTS = 5;   // pre-built scenery strips per biome
   VR.Props = P;
 })();

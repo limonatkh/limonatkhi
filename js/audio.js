@@ -61,7 +61,7 @@
     jump() { tone(260, 0.16, 'square', 0.12, 620); },
     land() { noise(0.09, 0.2, 500); tone(110, 0.08, 'sine', 0.2, 60); },
     slide() { noise(0.28, 0.12, 2500); },
-    lane() { noise(0.07, 0.07, 3000); },
+    dodge() { noise(0.07, 0.07, 3000); },
     coin() {
       // rising pitch when collecting a streak of coins
       const now = ctx.currentTime;
@@ -76,7 +76,8 @@
     stumble() { tone(180, 0.2, 'sawtooth', 0.18, 90); noise(0.15, 0.2, 900); },
     crash() { noise(0.6, 0.5, 900); tone(160, 0.6, 'sawtooth', 0.25, 40); },
     click() { tone(520, 0.05, 'square', 0.08); },
-    trainHorn() { tone(233, 0.5, 'sawtooth', 0.06); tone(294, 0.5, 'sawtooth', 0.05); },
+    rockfall() { noise(0.9, 0.22, 400); tone(70, 0.8, 'triangle', 0.16, 45); },   // rumble of a falling rock
+    thud() { noise(0.25, 0.35, 300); tone(60, 0.25, 'sine', 0.3, 35); },
 
     // ---- mission mode -------------------------------------------------
     portal() { tone(220, 0.6, 'sine', 0.2, 880); noise(0.6, 0.12, 3000); [0, 7, 12].forEach((s, i) => tone(523 * Math.pow(2, s / 12), 0.3, 'triangle', 0.1, null, 0.15 + i * 0.08)); },
