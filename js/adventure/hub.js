@@ -232,6 +232,7 @@
     L.box(-14.4, 3.2, -44.7, -14, 4.4, -41.3, STONE, false); L.collider(-14.4, 3.2, -44.7, -14, TOP, -41.3);
     floor(-14.4, -44.5, -14, -41.5, 'cobble');
     L.anchor('arenaGate', -14.2, 0, -43, PI / 2);
+    L.anchor('shop', 8.4, 0, -37.6, 0);                                      // the shop stall, facing the gate
     L.anchor('arenaSign', -13.95, 3.75, -43, -PI / 2);
     L.anchor('arenaRespawn', -11.8, 0, -43, PI / 2);
     L.anchor('pistolRack', -12.4, 0, -38.6, PI / 2);
@@ -385,7 +386,7 @@
         closedText: { en: 'Locked. There is a keyhole beside it.', ar: 'مقفلة. بجانبها قفل.' } },
       { id: 'inPlaza', type: 'zone', at: 'gate', offset: [0, 0, -3.2], size: [10, 4, 3], flag: 'in_plaza', requires: 'plaza_open' },
       { id: 'c_court', type: 'coins', points: [[-6.6, 1.8, -18.6], [-3.0, 1.0, -21], [3.0, 1.0, -21], [0, 1.0, -26]] },
-      { id: 'c_plaza', type: 'coins', points: [[-3.6, 1.0, -45], [3.6, 1.0, -45], [0, 1.0, -41.4], [0, 1.0, -48.6], [-10, 1.0, -38], [10, 1.0, -38]] },
+      { id: 'c_plaza', type: 'coins', points: [[-3.6, 1.0, -45], [3.6, 1.0, -45], [0, 1.0, -41.4], [0, 1.0, -48.6], [-10, 1.0, -38], [11.6, 1.0, -38]] },
       ...DOOR_NAMES.map((n, i) => ({
         id: 'doorSign' + (i + 1), type: 'text', at: 'doorSign' + (i + 1), style: 'sign', size: 0.21, width: 3.4, inspect: false,
         text: { en: `${i + 1} · ${n.en}`, ar: `${AR_NUM[i]} · ${n.ar}` },
@@ -411,6 +412,8 @@
       { id: 'gardenNote', type: 'text', at: 'gardenNote', style: 'chalk', size: 0.12, width: 1.8,
         title: { en: 'Garden board', ar: 'لوحة الحديقة' },
         text: { en: 'You found the hidden garden.\nMore of the world opens soon.', ar: 'وجدت الحديقة المخفية.\nأجزاء أخرى من العالم تُفتح قريبًا.' } },
+      // ---- the shop stall in the square (js/adventure/shop.js)
+      { id: 'shop', type: 'shopkeeper', at: 'shop' },
       // ---- training arena: the first weapon outside, the rest inside, and a fight in three waves
       { id: 'arenaSignTxt', type: 'text', at: 'arenaSign', style: 'sign', size: 0.21, width: 3.0, inspect: false,
         text: { en: 'Training arena', ar: 'ساحة التدريب' } },

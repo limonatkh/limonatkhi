@@ -195,7 +195,7 @@
   class PowerUpState {
     constructor() { this.timers = {}; }
     reset() { this.timers = {}; }
-    activate(type) { this.timers[type] = C.POWERUPS[type].duration; }
+    activate(type) { this.timers[type] = C.POWERUPS[type].duration * (VR.Shop ? VR.Shop.powerupFactor(type) : 1); }   // shop upgrades
     active(type) { return (this.timers[type] || 0) > 0; }
     remaining(type) { return Math.max(0, this.timers[type] || 0); }
     consume(type) { this.timers[type] = 0; }

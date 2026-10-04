@@ -314,6 +314,27 @@ Saved: weapons and ammo (`inventory.weapons`), grenades
 (`inventory.consumables.nade`), what lies on the ground
 (`Profiles.world('hub').pickups`), and whether the arena was cleared.
 
+### Shop (متجر الليمون)
+
+A stall in the big square (`js/adventure/shop.js`, catalogue `VR.Shop.ITEMS`).
+Everything is paid from the shared wallet, each purchase with a transaction
+id (an upgrade level can only ever be charged once).
+
+| Item | Kind | Price | Effect |
+|---|---|---|---|
+| Lemon heart | upgrade ×3 | 90 / 180 / 300 | +20 max health per level |
+| Quick breath | upgrade | 120 | health returns after 2.5 s (was 4) and faster |
+| Ammo belt | upgrade ×2 | 70 / 150 | +25 % ammo carried per level |
+| Grenade pouch | upgrade | 160 | +1 impulse grenade charge |
+| Strong magnet | upgrade | 200 | course magnet lasts 50 % longer (not in races) |
+| Medkit | supply (max 3) | 25 | +50 health, H key / ✚ button |
+| Starting shield | supply (max 3) | 35 | next solo course starts with a 20 s shield |
+| Scatter shotgun / Light SMG / Sniper | weapon | 120 / 160 / 220 | into a free slot, or replaces the one in your hands |
+
+All upgrades together cost 1,270 coins. For scale: a full course pays
+≈ 20–100 coins, missions 50–100 each (once), the arena 60 (once), a won
+race +50, a won duel 150.
+
 ## 10. Export / build
 
 There is no build step — the folder **is** the game.

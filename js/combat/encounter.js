@@ -61,14 +61,15 @@
       this.mgr = mgr;
       this.fx = new VR.DuelFx(mgr.scene);
       this.enemies = new VR.EnemySystem(mgr.scene, mgr.level, this.fx, () => mgr.solidBoxes || []);
-      this.health = new VR.Health(100, { regenDelay: 4, regen: 12 });
+      const up = (id) => (VR.Shop ? VR.Shop.level(id) : 0);                // shop upgrades (js/adventure/shop.js)
+      this.health = new VR.Health(100 + 20 * up('hp'), up('regen') ? { regenDelay: 2.5, regen: 18 } : { regenDelay: 4, regen: 12 });
       this.health.onChange((hp, d) => this.hud && this.setHP());
       this.ray = new T.Ray();
       const inv = VR.Profiles.player().inventory;
       this.slots = (inv.weapons || []).filter(w => K().WEAPONS[w.id]).slice(0, 2).map(w => ({ id: w.id, mag: w.mag | 0, reserve: w.reserve | 0 }));
       this.cur = Math.min(inv.weaponSlot | 0, Math.max(0, this.slots.length - 1));
       const nd = (inv.consumables && inv.consumables.nade) || null;
-      this.nades = nd ? { has: true, charges: nd.charges !== undefined ? nd.charges : K().NADE.max, rechargeT: 0 } : { has: false, charges: 0, rechargeT: 0 };
+      this.nades = nd ? { has: true, charges: nd.charges !== undefined ? nd.charges : this.nadeMax(), rechargeT: 0 } : { has: false, charges: 0, rechargeT: 0 };
       this.flying = [];
       this.coolT = 0; this.reloadT = 0; this.switchT = 0; this.kick = 0; this.shake = 0; this.dmgFlash = 0;
       this.scoped = false; this.dead = false; this.deadT = 0;
@@ -79,6 +80,27 @@
       this.refreshGun();
     }
     get armed() { return this.slots.length > 0; }
+    /** carried ammo limit (shop: +25 % per ammo-belt level) */
+    maxReserve(id) { return Math.round(K().WEAPONS[id].reserve * (1 + 0.25 * (VR.Shop ? VR.Shop.level('ammo') : 0))); }
+    /** grenade charges (shop: +1) */
+    nadeMax() { return K().NADE.max + (VR.Shop ? VR.Shop.level('nades') : 0); }
+    /** shop upgrades bought while in the world: apply them now */
+    applyUpgrades() {
+      const up = (id) => (VR.Shop ? VR.Shop.level(id) : 0);
+      const max = 100 + 20 * up('hp');
+      if (max !== this.health.max) { const add = max - this.health.max; this.health.max = max; this.health.hp = Math.min(max, this.health.hp + Math.max(0, add)); }
+      if (up('regen')) { this.health.regenDelay = 2.5; this.health.regen = 18; }
+      this.setHP(); this.setAmmo();
+    }
+    /** a medkit from the shop (H): +50 health */
+    useMedkit() {
+      const inv = VR.Profiles.player().inventory, c = inv.consumables || (inv.consumables = {});
+      if (!(c.medkit > 0) || this.dead) return false;
+      if (this.health.hp >= this.health.max) { this.mgr.ui.caption(VR.t('shop.fullHp'), 1.4); return true; }
+      c.medkit--; this.health.heal(50); VR.Profiles.save(); this.setAmmo();
+      VR.Audio.play('powerup');
+      return true;
+    }
     get weapon() { return this.slots[this.cur] || null; }
     get wdef() { return this.weapon ? K().WEAPONS[this.weapon.id] : null; }
 
@@ -97,20 +119,20 @@
     takeWeapon(id) {
       const W = K().WEAPONS;
       if (id === 'nade') {
-        if (this.nades.has && this.nades.charges >= K().NADE.max) return 'nade';
-        this.nades.has = true; this.nades.charges = K().NADE.max; this.save(); this.setAmmo();
+        if (this.nades.has && this.nades.charges >= this.nadeMax()) return 'nade';
+        this.nades.has = true; this.nades.charges = this.nadeMax(); this.save(); this.setAmmo();
         this.mgr.ui.toast(tr('cb.got', { name: L(K().NADE.name) })); VR.Audio.play('pickup');
         return null;
       }
       const w = W[id]; if (!w) return id;
       const same = this.slots.find(s => s.id === id);
       if (same) {                                     // same weapon: take its ammo
-        if (same.reserve >= w.reserve) return id;
-        same.reserve = w.reserve; this.save(); this.setAmmo();
+        if (same.reserve >= this.maxReserve(id)) return id;
+        same.reserve = this.maxReserve(id); this.save(); this.setAmmo();
         this.mgr.ui.toast(tr('cb.refilled')); VR.Audio.play('pickup');
         return null;
       }
-      const fresh = { id, mag: w.mag, reserve: Math.round(w.reserve * 0.5) };
+      const fresh = { id, mag: w.mag, reserve: Math.round(this.maxReserve(id) * 0.5) };
       let dropped = null;
       if (this.slots.length < 2) { this.slots.push(fresh); this.cur = this.slots.length - 1; this.mgr.ui.toast(tr('cb.got', { name: L(w.name) })); }
       else {
@@ -126,15 +148,15 @@
     }
     /** what using a pickup of this weapon would do: 'take' | 'swap' | 'ammo' | 'full' */
     pickupMode(id) {
-      if (id === 'nade') return this.nades.has && this.nades.charges >= K().NADE.max ? 'full' : this.nades.has ? 'ammo' : 'take';
+      if (id === 'nade') return this.nades.has && this.nades.charges >= this.nadeMax() ? 'full' : this.nades.has ? 'ammo' : 'take';
       const same = this.slots.find(s => s.id === id);
-      if (same) return same.reserve >= K().WEAPONS[id].reserve ? 'full' : 'ammo';
+      if (same) return same.reserve >= this.maxReserve(id) ? 'full' : 'ammo';
       return this.slots.length < 2 ? 'take' : 'swap';
     }
     refill() {
       let any = false;
-      for (const s of this.slots) { const w = K().WEAPONS[s.id]; if (s.reserve < w.reserve) { s.reserve = w.reserve; any = true; } }
-      if (this.nades.has && this.nades.charges < K().NADE.max) { this.nades.charges = K().NADE.max; any = true; }
+      for (const s of this.slots) { const mx = this.maxReserve(s.id); if (s.reserve < mx) { s.reserve = mx; any = true; } }
+      if (this.nades.has && this.nades.charges < this.nadeMax()) { this.nades.charges = this.nadeMax(); any = true; }
       if (any) { this.save(); this.setAmmo(); }
       return any;
     }
@@ -166,6 +188,7 @@
     action(a) {
       if (this.dead) return true;
       if (a === 'grenade') { if (this.nades.has) this.throwNade(); return this.nades.has; }
+      if (a === 'medkit') return this.useMedkit();
       if (!this.armed) return false;
       if (a === 'fire') { this.fire(); return true; }
       if (a === 'reload') { this.startReload(); return true; }
@@ -255,9 +278,9 @@
     }
     updateNades(dt) {
       const N = K().NADE;
-      if (this.nades.has && this.nades.charges < N.max) {
+      if (this.nades.has && this.nades.charges < this.nadeMax()) {
         this.nades.rechargeT -= dt;
-        if (this.nades.rechargeT <= 0) { this.nades.charges++; this.nades.rechargeT = this.nades.charges < N.max ? N.recharge : 0; this.setAmmo(); }
+        if (this.nades.rechargeT <= 0) { this.nades.charges++; this.nades.rechargeT = this.nades.charges < this.nadeMax() ? N.recharge : 0; this.setAmmo(); }
       }
       for (let i = this.flying.length - 1; i >= 0; i--) {
         const n = this.flying[i];
@@ -378,7 +401,8 @@
         <button class="mi-tbtn" data-hold="aim">${tr('cb.t.aim')}</button>
         <button class="mi-tbtn" data-act="reload">${tr('cb.t.reload')}</button>
         <button class="mi-tbtn" data-act="swap">${tr('cb.t.swap')}</button>
-        <button class="mi-tbtn" data-act="grenade">${tr('cb.t.nade')}</button>`;
+        <button class="mi-tbtn" data-act="grenade">${tr('cb.t.nade')}</button>
+        <button class="mi-tbtn" data-act="medkit">✚</button>`;
       document.getElementById('mi-touch').appendChild(touch);
       touch.querySelectorAll('button').forEach(b => {
         const down = (e) => { e.preventDefault(); e.stopPropagation(); if (b.dataset.hold) VR.Input.hold(b.dataset.hold, true); if (b.dataset.act) VR.Input.press(b.dataset.act); };
@@ -406,7 +430,8 @@
       h.mag.textContent = s ? s.mag : '–'; h.res.textContent = s ? `/ ${s.reserve}` : '';
       h.mag.classList.toggle('low', !!s && s.mag <= Math.ceil(w.mag * 0.25));
       h.slots.innerHTML = this.slots.map((x, i) => `<i class="${i === this.cur ? 'on' : ''}">${i + 1} ${VR.L(K().WEAPONS[x.id].name)}</i>`).join('');
-      h.nades.innerHTML = this.nades.has ? `${tr('cb.nades')} <b>${NADE_ICON.repeat(this.nades.charges)}<s>${NADE_ICON.repeat(K().NADE.max - this.nades.charges)}</s></b>` : '';
+      const meds = ((VR.Profiles.player().inventory.consumables || {}).medkit) | 0;
+      h.nades.innerHTML = (meds ? `<span class="cb-med">✚ ${meds} <small>H</small></span> ` : '') + (this.nades.has ? `${tr('cb.nades')} <b>${NADE_ICON.repeat(this.nades.charges)}<s>${NADE_ICON.repeat(this.nadeMax() - this.nades.charges)}</s></b>` : '');
     }
     hitmarker(kind) {
       const el = this.hud && this.hud.hit; if (!el) return;

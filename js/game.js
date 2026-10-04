@@ -275,6 +275,7 @@
       VR.Audio.unlock();
       if (this.settings.fullscreen) VR.Fullscreen.request();      // you chose fullscreen before: back to it on PLAY
       this.resetRun();
+      if (VR.Shop) VR.Shop.useStartShield(this);                 // a shield bought in the shop (solo course only)
       // start from the menu's camera position for a smooth swoop in
       this.camera.position.copy(this.menuCamPos || this.camera.position);
       this.camPath.copy(this.camera.position);

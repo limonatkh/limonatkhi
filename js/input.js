@@ -30,7 +30,7 @@
     Space: 'jump', KeyC: 'slide', ControlLeft: 'slide', ControlRight: 'slide',
     KeyE: 'interact', KeyF: 'interact', KeyQ: 'burst',
     KeyJ: 'journal', Tab: 'journal', KeyR: 'reload',
-    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade',
+    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade', KeyH: 'medkit',
   };
   const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyC', 'ControlLeft', 'ControlRight', 'ShiftLeft']);
   const held = new Set();
