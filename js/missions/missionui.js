@@ -35,6 +35,7 @@
           </div>
           <div class="mi-topright">
             <div class="mi-timer panel" id="mi-timer" hidden></div>
+            <div class="mi-coins panel" id="mi-coins" hidden><span class="coin-ico"></span><span id="mi-coins-n">0</span></div>
             <button class="btn small mi-iconbtn" id="mi-journal-btn" data-i18n-aria="mi.journal" aria-label="${T('mi.journal')}"><span class="mi-key">J</span><span class="mi-jlabel" data-i18n="mi.journal">${T('mi.journal')}</span></button>
             <button class="btn small mi-iconbtn mi-fsbtn" id="mi-fs-btn" data-i18n-aria="fs.enter" aria-label="${T('fs.enter')}"><i class="fs-ico"></i></button>
             <button class="btn small mi-iconbtn" id="mi-pause-btn" data-i18n-aria="mi.k.pause" aria-label="${T('mi.k.pause')}"><i class="mi-pausei"></i></button>
@@ -63,7 +64,10 @@
         timer: $('#mi-timer'), cross: $('#mi-cross'), prompt: $('#mi-prompt'), caption: $('#mi-caption'),
         hotbar: $('#mi-hotbar'), cd: $('#mi-cd-fill'), toast: $('#mi-toast'), overlay: $('#mi-overlay'), card: $('#mi-card'),
         lockhint: $('#mi-lockhint'), touch: $('#mi-touch'), ability: $('#mi-ability'),
+        coins: $('#mi-coins'), coinsN: $('#mi-coins-n'),
       };
+      // the shared wallet: shown in the adventure world (every change, from anywhere)
+      VR.Wallet.onChange((c) => { this.el.coinsN.textContent = c.toLocaleString('en-US'); });
       $('#mi-journal-btn').addEventListener('click', () => { VR.Audio.play('click'); this.mgr.openJournal(); });
       $('#mi-pause-btn').addEventListener('click', () => { VR.Audio.play('click'); this.mgr.pause(); });
       $('#mi-fs-btn').addEventListener('click', (e) => { e.stopPropagation(); VR.Audio.play('click'); VR.Fullscreen.toggle(); });
@@ -74,8 +78,12 @@
     show(on) { this.root.hidden = !on; if (on) this.el.touch.hidden = !isTouch(); }
 
     // ------------------------------------------------------------ HUD
+    /** the small line above a title: "Mission 2 of 5", or the area's own label */
+    eyebrow(def, total) { return def.persistent ? L(def.eyebrow || def.name) : T('mi.missionOf', { n: def.order, total }); }
     setMission(def, run, total) {
-      this.el.mname.textContent = `${T('mi.missionOf', { n: def.order, total })} · ${L(def.name)}`;
+      this.el.mname.textContent = def.persistent ? L(def.name) : `${T('mi.missionOf', { n: def.order, total })} · ${L(def.name)}`;
+      this.el.coins.hidden = !def.persistent;
+      this.el.coinsN.textContent = VR.Wallet.of().coins.toLocaleString('en-US');
       this.el.obj.textContent = L(def.objective);
       this.current = { def, run, total };
       this.refreshObjectives(run);
@@ -156,7 +164,7 @@
         ? [[T('mi.key.left'), T('mi.k.move')], [T('mi.key.right'), T('mi.k.look')], [T('mi.t.jump'), T('mi.k.jump')], [T('mi.t.crouch'), T('mi.k.crouch')], [T('mi.t.use'), T('mi.k.interact')], [T('mi.t.burst'), T('mi.k.burst')]]
         : [[T('mi.key.wasd'), T('mi.k.move')], [T('mi.key.mouse'), T('mi.k.look')], [T('mi.key.space'), T('mi.k.jump')], ['C', T('mi.k.crouch')], ['E', T('mi.k.interact')], ['Q', T('mi.k.burst')], ['J', T('mi.k.journal')], ['Esc', T('mi.k.pause')]];
       this.open('intro', `
-        <div class="mi-eyebrow">${T('mi.missionOf', { n: def.order, total })}</div>
+        <div class="mi-eyebrow">${esc(this.eyebrow(def, total))}</div>
         <h2 class="heading mi-title">${esc(L(def.name))}</h2>
         <p class="mi-intro">${esc(L(def.intro))}</p>
         <div class="mi-objline"><span class="mi-tag">${T('mi.objective')}</span>${esc(L(def.objective))}</div>
@@ -267,16 +275,19 @@
         <button class="btn primary" id="mi-resume" data-focus>${T('mi.p.resume')}</button>
         <div class="mi-setting"><label for="mi-sens">${T('mi.p.sens')}</label><input type="range" id="mi-sens" min="0.3" max="2.5" step="0.1" value="${settings.sens}"><output id="mi-sens-v">${settings.sens.toFixed(1)}</output></div>
         <div class="mi-setting"><label for="mi-fov">${T('mi.p.fov')}</label><input type="range" id="mi-fov" min="90" max="105" step="1" value="${settings.fov}"><output id="mi-fov-v">${settings.fov}°</output></div>
-        <div class="mi-row">
+        ${handlers.persistent ? `<p class="mi-small">${T('adv.savedNote')}</p>
+        <button class="btn" id="mi-quit">${T('adv.toMenu')}</button>` : `<div class="mi-row">
           <button class="btn" id="mi-restart">${T('mi.p.restart')}</button>
           <button class="btn" id="mi-leave">${T('mi.p.leave')}</button>
         </div>
         <p class="mi-small">${T('mi.p.leaveNote')}</p>
-        <button class="btn small" id="mi-quit">${T('mi.p.quit')}</button>`,
+        <button class="btn small" id="mi-quit">${T('mi.p.quit')}</button>`}`,
         (card) => {
           card.querySelector('#mi-resume').addEventListener('click', () => { VR.Audio.play('click'); handlers.resume(); });
-          card.querySelector('#mi-restart').addEventListener('click', () => { VR.Audio.play('click'); handlers.restart(); });
-          card.querySelector('#mi-leave').addEventListener('click', () => { VR.Audio.play('click'); handlers.leave(); });
+          if (!handlers.persistent) {
+            card.querySelector('#mi-restart').addEventListener('click', () => { VR.Audio.play('click'); handlers.restart(); });
+            card.querySelector('#mi-leave').addEventListener('click', () => { VR.Audio.play('click'); handlers.leave(); });
+          }
           card.querySelector('#mi-quit').addEventListener('click', () => { VR.Audio.play('click'); handlers.quit(); });
           const sens = card.querySelector('#mi-sens'), fov = card.querySelector('#mi-fov');
           sens.addEventListener('input', () => { card.querySelector('#mi-sens-v').textContent = (+sens.value).toFixed(1); handlers.setting('sens', +sens.value); });

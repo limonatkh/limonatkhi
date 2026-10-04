@@ -138,7 +138,11 @@
           t += dt;
           if (def.spin !== false) { m.rotation.y = t * 1.2; m.position.y = Math.sin(t * 2) * 0.03 + (def.float || 0); }
         },
-        sync: (run) => { holder.visible = !e.taken && evalCond(run, def.showWhen); e.hit = boxOf(holder, 0.18); },
+        sync: (run) => {
+          // a saved area (adventure) remembers what was already picked up
+          if (run.def.persistent && run.has('got_' + (def.bonus ? def.id : (def.item || def.id)))) e.taken = true;
+          holder.visible = !e.taken && evalCond(run, def.showWhen); e.hit = boxOf(holder, 0.18);
+        },
       };
       e.hit = boxOf(holder, 0.18);
       return e;
@@ -198,7 +202,7 @@
         update: (dt) => {
           if (e.open && openT < 1) { openT = Math.min(1, openT + dt * 1.6); if (m.userData.lid) m.userData.lid.rotation.x = -1.9 * (1 - Math.pow(1 - openT, 3)); }
         },
-        sync: () => {},
+        sync: (run) => { if (!e.open && run.def.persistent && run.has(def.opens)) e.open = true; },
       };
       e.hit = boxOf(m, 0.1);
       return e;
@@ -388,7 +392,7 @@
           setTimeout(() => { run.setFlag(def.flag); VR.Audio.play('powerOn'); if (def.successText) ctx.mgr.ui.caption(L(def.successText), 3.5); }, 250);
         },
         update: (dt) => { if (pulled && t < 1) { t = Math.min(1, t + dt * 4); m.userData.arm.rotation.x = 0.7 - 1.4 * t; } },
-        sync: () => {},
+        sync: (run) => { if (!pulled && run.def.persistent && run.has(def.flag)) pulled = true; },
       };
       e.hit = boxOf(m, 0.1);
       return e;

@@ -2,6 +2,8 @@
  * GAME — state machine, main loop, camera, scoring, rules.
  * States: loading -> menu <-> character/settings -> playing <-> paused
  *         -> gameover -> (playing | menu)
+ *         menu -> adventure (NEW GAME / CONTINUE, first person; see
+ *         js/core/modes.js) -> menu
  *
  * SCORE is computed in Game.updateScore() and Game.onCoin().
  * SPEED / DIFFICULTY are computed in Game.speedAt() / Game.difficultyAt()
@@ -28,6 +30,7 @@
       this.player.setCharacter(VR.CHARACTERS[this.charIndex]);
       // mission mode (first-person) lives in its own scene, driven by this loop
       this.missions = new VR.MissionManager(this);
+      this.modes = new VR.ModeManager(this);           // new game / continue / adventure ↔ menu (js/core/modes.js)
       // no mission gates in a challenge: both players must run the same track
       this.world.gateProvider = () => (this.challenge && this.challenge.inRace ? null : this.missions.nextForGate());
       this.challenge = new VR.Challenge(this);
@@ -115,6 +118,11 @@
 
     bindUI() {
       UI.bind('playBtn', () => this.start());
+      // adventure: new game (asks first if there is a save) / continue
+      UI.bind('newGameBtn', () => { if (this.modes.hasSave()) document.getElementById('newGameConfirm').hidden = false; else this.modes.newGame(); });
+      UI.bind('newGameYes', () => { document.getElementById('newGameConfirm').hidden = true; this.modes.newGame(); });
+      UI.bind('newGameNo', () => { document.getElementById('newGameConfirm').hidden = true; });
+      UI.bind('continueBtn', () => this.modes.continueGame());
       UI.bind('againBtn', () => this.start());
       UI.bind('charBtn', () => this.setState('character'));
       UI.bind('missionsBtn', () => this.setState('missionsList'));
@@ -181,13 +189,13 @@
       VR.Input.onPause(() => {
         if (this.state === 'duel') return this.duel.onPauseKey();
         if (this.state === 'duelPick' || this.state === 'duelEnter' || this.state === 'duelReturn') return;
-        if (this.state === 'mission') this.missions.onPauseKey();
+        if (this.state === 'mission' || this.state === 'adventure') this.missions.onPauseKey();
         else if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume();
       });
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) return;
         if (this.state === 'playing') this.pause();
-        else if (this.state === 'mission') this.missions.pause();
+        else if (this.state === 'mission' || this.state === 'adventure') this.missions.pause();
       });
     }
 
@@ -202,12 +210,12 @@
     // ------------------------------------------------------------ states
     setState(s) {
       this.state = s;
-      const map = { missionsList: 'missionsList', menu: 'menu', character: 'character', settings: 'settings', paused: 'pause', gameover: 'gameover', playing: null, loading: 'loading', challenge: 'challenge', chresult: 'chresult' };
+      const map = { adventure: null, missionsList: 'missionsList', menu: 'menu', character: 'character', settings: 'settings', paused: 'pause', gameover: 'gameover', playing: null, loading: 'loading', challenge: 'challenge', chresult: 'chresult' };
       UI.show(map[s]);
       UI.hud(s === 'playing' || s === 'paused' || s === 'dying' || (s === 'gateEnter' && !this.missionFromMenu) || s === 'countdown' || s === 'duelPick' || s === 'duelEnter');
       if (s !== 'playing' && this.duel) this.duel.ui.showPrompt(false);
       VR.Input.setEnabled(s === 'playing');
-      if (s === 'menu') UI.menuStats(this.best, this.bank);
+      if (s === 'menu') { UI.menuStats(this.best, this.bank); this.refreshMenuButtons(); }
       if (s === 'missionsList') this.renderMissionList();
       if (s === 'character') {
         UI.character(VR.CHARACTERS[this.charIndex]);
@@ -226,6 +234,19 @@
       this.setState('menu');
       this.loop();
       this.challenge.boot();                       // opened from an invite link?
+    }
+
+    /** main menu: CONTINUE only when there is an adventure to continue */
+    refreshMenuButtons() {
+      const has = this.modes.hasSave();
+      document.getElementById('continueBtn').hidden = !has;
+      document.getElementById('newGameBtn').classList.toggle('primary', !has);
+      document.getElementById('newGameConfirm').hidden = true;
+    }
+    /** NEW GAME replaced the save: refresh everything that shows it */
+    onProfileReplaced() {
+      this.wallet = VR.Wallet.of();
+      UI.menuStats(this.best, this.bank);
     }
 
     // shared coins / best score of the player (profile), read by the menu and the HUD
@@ -699,6 +720,7 @@
       else if (st === 'settings' && this.settingsReturn !== 'paused') this.updateMenu(dt);
       else if (st === 'gateEnter') this.updateGateEnter(dt);
       else if (st === 'mission' || st === 'gateReturn') this.updateMissionMode(dt);
+      else if (st === 'adventure') this.missions.update(dt);
       else if (st === 'countdown') this.updateCountdown(dt);
       else if (st === 'duelEnter') this.updateDuelEnter(dt);
       else if (st === 'duel' || st === 'duelReturn') this.updateDuelMode(dt);
@@ -706,7 +728,7 @@
       this.challenge.update(dt);
       this.duel.tick(dt);
       this.updateFade(dt);
-      if (this.state === 'mission' || this.state === 'gateReturn') this.missions.render(this.renderer);
+      if (this.state === 'mission' || this.state === 'gateReturn' || this.state === 'adventure') this.missions.render(this.renderer);
       else if (this.state === 'duel' || this.state === 'duelReturn') this.duel.render(this.renderer);
       else {
         this.collect.fx.mesh.visible = true;

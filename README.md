@@ -217,6 +217,38 @@ materials change), so a new biome costs nothing at runtime.
   versions still open with their data.
 - Device preferences (settings, character, language, name) stay separate.
 
+## Adventure: New Game / Continue and the start area
+
+The main menu starts the **adventure** (first person):
+
+- **New Game** (لعبة جديدة) — starts a blank save and puts you in the
+  start area with its intro. If a save exists it asks first; the old save
+  is kept on the device as `cubeexpress.profiles.backup`.
+- **Continue** (متابعة) — shown only when an adventure exists; brings you
+  back to the same area, the same spot, with doors, pickups and coins as
+  you left them (also after closing the browser).
+- **Runner course** (مضمار الجري) — still reachable from the menu for now;
+  later it opens from a portal inside the world.
+
+Pieces:
+
+| File | What it does |
+|---|---|
+| `js/core/modes.js` | `VR.ModeManager`: `newGame()`, `continueGame()`, `enterAdventure(area)`, `quitToMenu()` |
+| `js/adventure/hub.js` | the start area: environment `hub`, its definition (`VR.ADVENTURE.areas.hub`) and the `coins` component |
+| `js/missions/missions.js` | runs adventure areas too: a definition with `persistent: true` is never "completed"; it is restored and saved |
+
+An adventure area is written exactly like a mission (anchors, entities,
+flags, objectives). Saving: flags about the world (a door opened) go to
+`Profiles.world(area).flags`; flags about the player (coins, items picked
+up, notes read) to `player.progress.areas[area].flags`; carried items to
+`player.inventory.tools`; the position to `player.location` (every few
+seconds, on pause and when leaving).
+
+`coins` component: `{ id, type: 'coins', points: [[x,y,z], …], value }`.
+Walking through a coin pays it into the shared wallet once
+(transaction id `world:<area>:<id>_<n>`).
+
 ## 10. Export / build
 
 There is no build step — the folder **is** the game.

@@ -7,7 +7,7 @@
  *     inventory   { weapons, tools, consumables }
  *     upgrades    { id: level }
  *     progress    { missions, areas, flags }
- *     location    where to continue (set by the mode manager later)
+ *     location    where to continue: { area, pos, yaw } (mode manager)
  *     stats       { best, duel }
  *   VR.Profiles.world(areaId)  saved state of one area of the world
  *                               (open doors, defeated enemies…), shared by
@@ -100,8 +100,20 @@
     player(id) { const d = this.load(); return d.players[id || d.active]; },
     /** the saved state of one area of the world (created on first use) */
     world(areaId) { const d = this.load(); return d.world[areaId] || (d.world[areaId] = {}); },
-    /** for tests / a future "new game": forget everything in memory and storage */
+    /** for tests: forget everything in memory and storage (the next load migrates the old keys again) */
     resetAll() { this.data = null; try { localStorage.removeItem(PREFIX + KEY); } catch (e) { /* unavailable */ } },
+    /** NEW GAME: keep a copy of the current save (`profiles.backup`), then start a
+     *  blank player and a blank world. The old separate keys are not copied in again. */
+    newGame() {
+      const old = this.load();
+      store.set(KEY + '.backup', Object.assign({}, old, { backedUp: Date.now() }));
+      const id = old.active || 'p1';
+      this.data = { version: VERSION, active: id, players: { [id]: blankPlayer(id) }, world: {}, migrated: 'new-game' };
+      this.save();
+      return this.data;
+    },
+    /** is there a game in progress to continue? (the adventure has been started) */
+    hasAdventure(id) { const p = this.player(id); return !!(p && p.location); },
   };
 
   VR.Profiles = Profiles;

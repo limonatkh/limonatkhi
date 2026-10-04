@@ -9,6 +9,12 @@
  *  finish(success)   RETURNING → hands control back to game.js, which
  *                    fades to the runner and restores the saved run
  *  exit()            tear the mission world down (COMPLETED / ENDED)
+ *
+ * PERSISTENT AREAS (def.persistent, the adventure world — js/adventure/):
+ * the same machinery, but the area is never "completed": its flags are
+ * restored from the save when you enter and saved on every change, items
+ * you carry stay with the player, and where you stand is saved (so
+ * CONTINUE brings you back there). See enterArea() / saveArea().
  * ===================================================================== */
 (function () {
   const T = THREE;
@@ -25,7 +31,6 @@
       this.ctrl = new VR.FirstPersonController(this.camera);
       this.hands = new VR.HandsView();
       this.ui = new VR.MissionUI(this);
-      this.progress = MS().Progress.load();
       this.settings = Object.assign({ sens: 1, fov: FP().FOV }, VR.UI.store.get('fpSettings', {}));
       this.run = null; this.level = null;
       this.entities = []; this.interactables = []; this.lockables = [];
@@ -45,6 +50,8 @@
         for (const e of d.entities || []) if (!VR.Missions.Components[e.type]) console.warn(`[mission ${d.id}] unknown entity type ${e.type}`);
       }
     }
+    /** mission progress lives in the player profile (a NEW GAME replaces it) */
+    get progress() { return MS().Progress.load(); }
     byId(id) { return this.defs.find(d => d.id === id) || null; }
     isUnlocked(def) { return (def.requires || []).every(id => this.progress.completed[id]); }
     /** Which mission the next gate on the railway should lead to. */
@@ -61,18 +68,51 @@
     }
 
     // ------------------------------------------------------------ lifecycle
-    enter(def) {
+    enter(def, opts = {}) {
       this.active = true; this.paused = false;
       this.run = new (MS().MissionRun)(def, this);
       this.run.go('entering');
+      if (def.persistent) this.restoreArea(this.run);
       this.hands.hold(null);
       this.hands.setCharacter(VR.CHARACTERS[this.game.charIndex]);
       this.hands.setTone('white');
-      this.buildWorld(def);
+      this.buildWorld(def, opts.location);
       VR.Input.setMode('fp'); VR.Input.setFPEnabled(false);
       this.ui.show(true);
       this.ui.setMission(def, this.run, this.defs.length);
-      this.ui.showIntro(def, this.defs.length, () => this.startActive());
+      if (def.persistent) { this.onInventory(this.run); this.saveArea(); }
+      if (opts.intro === false) this.startActive();
+      else this.ui.showIntro(def, this.defs.length, () => this.startActive());
+    }
+    /** Enter a saved area of the adventure world (see the header). */
+    enterArea(def, { location = null, intro = false } = {}) { this.enter(def, { location, intro }); }
+
+    // ---- saving a persistent area
+    // Flags about the WORLD (a door opened) are saved with the world, so later
+    // every player in it shares them; flags about YOU (coins and items you
+    // picked up, notes you read) are saved with the player.
+    static personalFlag(f) { return /^(got_|coin_|read_|inspected_|heard_)/.test(f); }
+    restoreArea(run) {
+      const id = run.def.id, P = VR.Profiles;
+      const mine = (P.player().progress.areas[id] || {}).flags || [];
+      const world = P.world(id).flags || [];
+      for (const f of [...world, ...mine]) run.flags.add(f);
+      run.inventory = (P.player().inventory.tools || []).filter(it => it.area === id).map(it => Object.assign({}, it));
+      run.selected = 0;
+    }
+    saveArea(withLocation = true) {
+      const run = this.run;
+      if (!run || !run.def.persistent) return;
+      const id = run.def.id, P = VR.Profiles, p = P.player();
+      const flags = [...run.flags];
+      p.progress.areas[id] = Object.assign(p.progress.areas[id] || {}, { flags: flags.filter(MissionManager.personalFlag) });
+      P.world(id).flags = flags.filter(f => !MissionManager.personalFlag(f));
+      p.inventory.tools = (p.inventory.tools || []).filter(it => it.area !== id).concat(run.inventory.map(it => Object.assign({}, it, { area: id })));
+      if (withLocation && this.ctrl && run.state !== 'entering') {
+        const q = this.ctrl.pos;
+        p.location = { area: id, pos: [+q.x.toFixed(2), +q.y.toFixed(2), +q.z.toFixed(2)], yaw: +this.ctrl.yaw.toFixed(3), t: Date.now() };
+      } else if (!p.location) p.location = { area: id, pos: null, yaw: 0, t: Date.now() };
+      P.save();
     }
     startActive() {
       // "Start mission" is a tap: a good moment to go fullscreen if you chose it
@@ -138,6 +178,7 @@
     /** Hard exit (quit to main menu). */
     abort() {
       if (!this.run) return;
+      if (this.run.def.persistent) this.saveArea();
       if (['active', 'entering'].includes(this.run.state)) this.run.go('cancelled');
       if (['cancelled', 'failed', 'objective_completed'].includes(this.run.state)) this.run.go('returning');
       this.exit();
@@ -153,10 +194,12 @@
       this.pause();
     }
     pause() {
-      if (!this.run || this.run.state !== 'active' || this.paused) return;
+      if (!this.run || this.run.state !== 'active' || (this.paused && this.ui.modal === 'pause')) return;
       if (this.ui.modal) this.ui.close();
       this.paused = true;
+      if (this.run.def.persistent) this.saveArea();
       this.ui.showPause(this.settings, {
+        persistent: !!this.run.def.persistent,
         resume: () => this.resume(),
         restart: () => this.retry(),
         leave: () => this.leave(),
@@ -170,7 +213,7 @@
       if (this.run && this.run.state === 'active' && !this.paused) { VR.Input.setFPEnabled(true); VR.Input.requestLock(); }
     }
     openJournal() {
-      if (!this.run || this.run.state !== 'active' || this.paused) return;
+      if (!this.run || this.run.state !== 'active' || (this.paused && this.ui.modal === 'pause')) return;
       if (this.ui.modal === 'journal') return this.ui.close();
       if (this.ui.modal) return;
       this.ui.showJournal(this.run);
@@ -186,10 +229,12 @@
       }
       for (const l of this.lockables) if (run.has(l.flag)) l.ent.lock();
       this.ui.refreshObjectives(run);
+      if (run.def.persistent) { this.saveArea(false); return; }
       if (run.state === 'active' && MS().evalCond(run, run.def.success)) this.complete();
     }
     onInventory(run) {
       this.ui.setInventory(run);
+      if (run.def.persistent && run === this.run) this.saveArea(false);
       const it = run.selectedItem();
       this.hands.hold(it ? this.itemModel(it.model) : null);
     }
@@ -197,7 +242,7 @@
     itemModel(name) { const M = VR.MissionModels; return M[name] ? M[name]() : M.smallLemon(); }
 
     // ------------------------------------------------------------ world
-    buildWorld(def) {
+    buildWorld(def, location = null) {
       this.clearWorld();
       const L = VR.MissionEnvironments[def.environment]();
       this.level = L;
@@ -230,6 +275,10 @@
       for (const e of this.entities) e.sync && e.sync(this.run);
       this.solidBoxes = L.solids.map(s => ({ s, box: new T.Box3(new T.Vector3(...s.min), new T.Vector3(...s.max)) }));
       this.ctrl.reset(L.spawn);
+      if (location && location.pos) {               // CONTINUE: back where you were (the spawn stays the respawn point)
+        this.ctrl.reset({ pos: location.pos, yaw: location.yaw || 0 });
+        this.ctrl.spawn = L.spawn;
+      }
       this.ctrl.update(0.016, L, { x: 0, y: 0 }, false);
       this.camera.fov = this.settings.fov; this.camera.updateProjectionMatrix();
       this.stepAcc = 0; this.target = null;
@@ -284,6 +333,7 @@
       } else VR.Input.takeLook();
       if (run.state === 'active' && !this.paused) {
         run.time += dt;
+        if (run.def.persistent && (this.saveT = (this.saveT || 0) + dt) > 3) { this.saveT = 0; this.saveArea(); }
         if (run.def.timeLimit && run.time >= run.def.timeLimit) this.fail();
       }
       for (const e of this.entities) e.update && e.update(dt, run);

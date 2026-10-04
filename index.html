@@ -204,6 +204,12 @@
   .mi-topright { position: absolute; right: 12px; top: max(10px, env(safe-area-inset-top)); display: flex; gap: 8px; align-items: start; }
   .mi-timer { font-family: var(--display); font-size: 22px; padding: 6px 12px 8px; font-variant-numeric: tabular-nums; }
   .mi-timer.warn { color: #ff8a80; }
+  .mi-coins { font-family: var(--display); font-size: 20px; padding: 6px 12px 8px; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; direction: ltr; }
+  .mi-coins[hidden] { display: none; }
+  .ng-confirm { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
+  .ng-confirm[hidden] { display: none; }
+  .ng-confirm p { margin: 0; font-size: 13px; opacity: .85; }
+  .runner-btn { font-size: 15px; }
   .mi-iconbtn { min-width: 0; height: 44px; display: inline-flex; align-items: center; gap: 2px; }
   .mi-pausei { display: block; width: 12px; height: 14px; border-left: 4px solid var(--text); border-right: 4px solid var(--text); box-sizing: border-box; }
   .mi-cross { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.55); transition: transform .08s; }
@@ -592,7 +598,14 @@
       <div class="chip panel"><span class="lbl" data-i18n="menu.best">Best</span><span id="menuBest">0</span></div>
       <div class="chip panel"><span class="coin-ico"></span><span id="menuBank">0</span></div>
     </div>
-    <button class="btn primary" id="playBtn" data-i18n="menu.play">PLAY</button>
+    <button class="btn primary" id="continueBtn" data-i18n="menu.continue" hidden>CONTINUE</button>
+    <button class="btn" id="newGameBtn" data-i18n="menu.newGame">NEW GAME</button>
+    <div class="ng-confirm panel" id="newGameConfirm" hidden>
+      <b data-i18n="adv.confirmTitle">Start a new game?</b>
+      <p data-i18n="adv.confirmText"></p>
+      <div class="menu-row"><button class="btn" id="newGameNo" data-i18n="adv.confirmNo">CANCEL</button><button class="btn primary" id="newGameYes" data-i18n="adv.confirmYes">START NEW GAME</button></div>
+    </div>
+    <button class="btn runner-btn" id="playBtn"><span data-i18n="menu.runner">RUNNER COURSE</span></button>
     <button class="btn lemon" id="challengeBtn"><span class="vs-ico" aria-hidden="true">⚔</span> <span data-i18n="menu.challenge">CHALLENGE A FRIEND</span></button>
     <button class="btn wait-btn" id="waitBtn"><span class="vs-ico" aria-hidden="true">⌛</span><span class="wait-txt"><b data-i18n="menu.wait">WAIT FOR A PLAYER</b><small data-i18n="menu.waitSub">1v1 Sniper Arena</small></span></button>
     <div class="menu-row">
@@ -774,6 +787,7 @@
 <script src="js/ui.js"></script>
 <script src="js/core/profile.js"></script>
 <script src="js/core/wallet.js"></script>
+<script src="js/core/modes.js"></script>
 <script src="js/missions/symbols.js"></script>
 <script src="js/missions/text.js"></script>
 <script src="js/missions/models.js"></script>
@@ -785,6 +799,7 @@
 <script src="js/missions/missionui.js"></script>
 <script src="js/missions/video.js"></script>
 <script src="js/missions/missions.js"></script>
+<script src="js/adventure/hub.js"></script>
 <script src="lib/mqtt.min.js"></script>
 <script src="js/challenge/net.js"></script>
 <script src="js/challenge/challenge.js"></script>
