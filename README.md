@@ -130,9 +130,14 @@ section's regions.
   the end can be reached, moving sideways only as fast as a player can at
   this speed. The layout is accepted only if every branch, at every metre,
   still has a way through. Jump/slide obstacles are spaced by real airtime.
-- Coins: one line per branch that weaves inside the region and flows with
-  it (narrowing, splitting, merging), goes around rocks, arcs over jumps,
-  dips under slides and runs up rock shelves. Never rows of three.
+- Coins: one line per branch, placed where a runner really is: the edges
+  of the walkable ground and whole swipes (`DODGE_STEP`) in from an edge,
+  places every runner can reach. A line keeps its relative place when the
+  route narrows, bends, splits or merges (exactly like the runner), moves
+  only the way a swipe does (no coin mid-swipe), carries on from one
+  section into the next, goes around rocks, arcs over jumps, dips under
+  slides and runs up rock shelves. Never between two places, never rows
+  of three.
 
 ### Collisions: stumble first
 

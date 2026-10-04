@@ -18,10 +18,11 @@
  * a fork the player took, there is no dead end. Rejected layouts are
  * regenerated.
  *
- * Coins follow the route: one line per branch that weaves gently inside
- * the region, flows with it when it narrows, splits or merges, goes
- * around blocks, arcs over jump obstacles, ducks under slides and runs up
- * onto rock steps. Never three parallel rows.
+ * Coins follow the runner's real ways: one line per branch on the places a
+ * runner rests (centre / one swipe over / the edge), flowing with the
+ * route like the runner does, moving over exactly like a swipe to go
+ * around blocks, arcing over jump obstacles, ducking under slides and
+ * running up onto rock steps. Never between two places, never three rows.
  *
  * HOW TO ADD A RECIPE: write a function (g) => {...} using g.single /
  * g.hurdle / g.rows and add it to RECIPES with a weight function.
@@ -301,43 +302,118 @@
     }
     return y;
   }
-  /** one line of coins flowing along the branch it is on */
-  function coinLine(g, z0, x0, every = 1) {
-    let x = x0, joined = 0;
+  /*
+   * Coins sit where a runner actually runs. The runner rests at the centre of
+   * the walkable span or a whole swipe (DODGE_STEP) away from it (clamped at the
+   * edges), and keeps that RELATIVE place when the route narrows, bends,
+   * splits or merges (player.js). A coin line does exactly the same: it keeps a
+   * relative place in its region, and changes place only the way a swipe does
+   * (one coin half-way through the move), so running through the line collects
+   * every coin — never coins in between two places.
+   */
+  const relOf = (a, b, x) => (b - a < 0.01 ? 0.5 : Math.max(0, Math.min(1, (x - a) / (b - a))));
+  /**
+   * The places EVERY runner can get to in this span, whatever they did before:
+   * the two edges (swipe toward one until you stop) and whole swipes in from an
+   * edge. (Places coming from both edges that are within a hand's width merge.)
+   */
+  function restXs(a, b) {
+    if (b - a < 0.6) return [(a + b) / 2];
+    const out = [];
+    const add = (x) => { const near = out.findIndex(o => Math.abs(o - x) < 0.35); if (near >= 0) out[near] = (out[near] + x) / 2; else out.push(x); };
+    for (let k = 0; a + k * C.DODGE_STEP <= b + 0.01; k++) add(a + k * C.DODGE_STEP);
+    for (let k = 0; b - k * C.DODGE_STEP >= a - 0.01; k++) add(b - k * C.DODGE_STEP);
+    add(b);
+    return out.sort((p, q) => p - q);
+  }
+  const onGrid = (a, b, x) => restXs(a, b).some(r => Math.abs(r - x) < 0.3);
+  /** one line of coins following one runner's way along the branch it is on */
+  function coinLine(g, z0, x0, every = 1, exact = false) {
+    let joined = 0;
     const before = g.coins.slice();                        // lines laid down earlier
     // where branches have merged, this line joins the one already there (no side-by-side rows)
     const taken = (z, r) => before.some(c => Math.abs(c.z - z) < 1.1 && c.x >= r.a - 0.01 && c.x <= r.b + 0.01);
     const side = x0 < 0 ? -1 : 1;
-    const phase = g.rnd() * Math.PI * 2, freq = 0.12 + g.rnd() * 0.1, amp = g.rnd() * 0.32;
-    let n = 0;
+    // start on the nearest resting place
+    let r = VR.Route.pick(g.regs[Math.floor(z0)], x0, side), [a, b] = g.usable(r);
+    let x = exact ? Math.max(a, Math.min(b, x0)) : restXs(a, b).reduce((p, q) => (Math.abs(q - x0) < Math.abs(p - x0) ? q : p));
+    let rel = relOf(a, b, x), regW = r.b - r.a, sinceMove = 0, n = 0, dodging = false;
+    // how far sideways a runner gets per 2 m at this section's speed: flowing with
+    // the route (FOLLOW_SPEED) or in the middle of a swipe (DODGE_STEP / DODGE_TIME)
+    const spd = Math.max(8, g.speed);
+    const followStep = 2 * C.FOLLOW_SPEED / spd, dodgeStep = 2 * (C.DODGE_STEP / C.DODGE_TIME) / spd;
+    // a place is bad if a rock (or the route's edge) is in the way over the next metres,
+    // or the fairness map says there is no way on from it
+    const look = Math.min(9, 5 + Math.ceil(spd * C.DODGE_TIME));
+    const bad = (zi, xx) => {
+      for (let k = 0; k <= look; k++) {
+        const zz = Math.min(L - 1, zi + k), c = g.code[zz][ci(xx)];
+        if (c === B || c === OUT || (c === R && g.code[zi][ci(xx)] !== R && g.code[zi][ci(xx)] !== P)) return true;
+      }
+      return !g.G[zi][ci(xx)];
+    };
     for (let z = z0; z < L - 1; z += 2) {
       const zi = Math.floor(z);
-      const r = VR.Route.pick(g.regs[zi], x, side);
-      const [a, b] = g.usable(r);
-      let xd = a + (0.5 + amp * Math.sin(phase + z * freq)) * (b - a);
-      // keep to cells that lead on (the fairness map), away from rocks ahead
-      const bad = (xx) => { for (let k = 0; k <= 4; k++) { const zz = Math.min(L - 1, zi + k); const c = g.code[zz][ci(xx)]; if (c === B || c === OUT || (c === R && g.code[zi][ci(xx)] !== R && g.code[zi][ci(xx)] !== P)) return true; } return !g.G[zi][ci(xx)]; };
-      if (bad(xd)) {
-        let best = null;
-        for (let i = ci(a); i <= ci(b); i++) { const xx = cx(i); if (!bad(xx) && (best === null || Math.abs(xx - x) < Math.abs(best - x))) best = xx; }
-        if (best !== null) xd = best;
+      r = VR.Route.pick(g.regs[zi], x, side);
+      [a, b] = g.usable(r);
+      // a new region (split / merge): keep the same spot, like the runner does
+      if (Math.abs((r.b - r.a) - regW) > 0.8 || x < r.a - 0.05 || x > r.b + 0.05) rel = relOf(a, b, x);
+      regW = r.b - r.a;
+      let target = a + rel * (b - a);
+      // rock ahead (or now and then, for fun): swipe over to a free place, one or two swipes
+      const off = !onGrid(a, b, target);
+      if (!dodging && b - a > 0.6 && (bad(zi, target) || (off && sinceMove > 2) || (sinceMove > 6 && g.rnd() < 0.14))) {
+        // only what a player can do: 1-3 swipes from here (clamped at the edge)
+        const opts = [];
+        for (const s of [-1, 1]) for (const k of [1, 2, 3]) {
+          const t = Math.max(a, Math.min(b, target + s * k * C.DODGE_STEP));
+          if (Math.abs(t - target) < 0.6 || bad(zi, t) || opts.some(o => Math.abs(o.t - t) < 0.05)) continue;
+          opts.push({ s, t, k, grid: onGrid(a, b, t) });
+        }
+        if (opts.length) {
+          // back onto the grid first (e.g. out to an edge), then the fewest swipes
+          const o = opts.sort((p, q) => (q.grid - p.grid) || p.k - q.k || g.rnd() - 0.5)[0];
+          target = o.t; rel = relOf(a, b, target); dodging = true; sinceMove = 0;
+        }
       }
-      const maxStep = 1.3;
-      x += Math.max(-maxStep, Math.min(maxStep, xd - x));
-      x = Math.max(a, Math.min(b, x));
+      // move like the runner: quickly during a swipe, otherwise flowing with the route
+      const mx = dodging ? dodgeStep : followStep;
+      x += Math.max(-mx, Math.min(mx, target - x));
+      x = Math.max(r.a + 0.2, Math.min(r.b - 0.2, x));
+      const midSwipe = dodging;
+      if (dodging && Math.abs(target - x) < 0.05) dodging = false;
+      sinceMove++;
+      // no coin in the middle of a swipe: coins sit only on the places before and after
+      // it, so they are collected whenever the player swipes in that gap
+      if (midSwipe && dodging) continue;
+      if (!dodging && bad(zi, x) && g.code[zi][ci(x)] !== FREE) continue;   // nothing good: leave a gap
       if (taken(z, r)) { if (++joined >= 2) break; continue; }
       joined = 0;
       const c = g.code[zi][ci(x)];
       if (c === B || c === OUT) continue;
+      // only where any runner can be: a too-narrow ridge, or on the grid (just after a
+      // merge the line is still swiping back onto it: no coin for those few metres)
+      const reachable = (b - a <= 1.5 && Math.max(Math.abs(x - a), Math.abs(x - b)) <= 0.75) || restXs(a, b).some(q => Math.abs(q - x) <= 0.4);
+      if (!reachable) continue;
       if ((n++ % every) !== 0) continue;
       g.coins.push({ x, y: coinY(g, x, z), z });
     }
+    // where a runner on this line is at the end of the section (the next section carries on)
+    const rl = VR.Route.pick(g.regs[L - 1], x, side), [ea, eb] = g.usable(rl);
+    g.coinEnds.push(Math.max(ea, Math.min(eb, ea + rel * (eb - ea))));
   }
-  function addCoins(g, safe) {
+  function addCoins(g, safe, carried) {
     const route = g.route;
-    const start = g.regs[2];
-    // one line per branch (a split gets a second, lighter line on the other branch)
-    start.forEach((r) => coinLine(g, 2, (r.a + r.b) / 2 + (g.rnd() - 0.5) * (r.b - r.a) * 0.3));
+    const start = g.regs[0];
+    g.coinEnds = [];
+    // one line per branch, carrying on from where the last section's line ended (so a
+    // runner who followed it is still on it); a branch without one starts on a resting place
+    start.forEach((r) => {
+      const prev = (carried || []).find(x => x >= r.a - 0.05 && x <= r.b + 0.05);
+      if (prev !== undefined) coinLine(g, 0, prev, 1, true);
+      else { const [a, b] = g.usable(r); coinLine(g, 0, g.pick(restXs(a, b))); }
+    });
+    // a split gets a second, lighter line on the other branch
     if (route.splitting) {
       const zs = Math.min(L - 4, Math.ceil(route.span[0] + 14));
       const regs = g.regs[zs];
@@ -377,7 +453,7 @@
         if (verify(g)) plan = g;
       }
       if (!plan) { plan = new Plan(rnd, difficulty, speed, route); plan.patternName = 'fallback'; verify(plan); }
-      addCoins(plan, safe);
+      addCoins(plan, safe, ctx.coinStart);
       if (!safe && rnd() < ctx.powerupChance && plan.coins.length > 6) {
         const i = 3 + ((rnd() * (plan.coins.length - 6)) | 0);
         const c = plan.coins.splice(i, 1)[0];

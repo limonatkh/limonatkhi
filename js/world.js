@@ -198,7 +198,9 @@
       const plan = VR.Patterns.generate({
         rnd: this.rnd, difficulty, speed, safe, route: sec.route, noFalls: !!sec.tunnel,
         powerupChance: 0.16 + difficulty * 0.08,
+        coinStart: idx ? this.coinEnds : [0],        // coin lines carry on from the last section
       });
+      this.coinEnds = plan.coinEnds;
       chunk.pattern = plan.patternName;
       chunk.plan = plan;
 
