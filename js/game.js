@@ -31,12 +31,13 @@
       // mission mode (first-person) lives in its own scene, driven by this loop
       this.missions = new VR.MissionManager(this);
       this.modes = new VR.ModeManager(this);           // new game / continue / adventure ↔ menu (js/core/modes.js)
-      // no mission gates in a challenge: both players must run the same track
-      this.world.gateProvider = () => (this.challenge && this.challenge.inRace ? null : this.missions.nextForGate());
+      // the runner is a finite course now (js/runner/course.js): no mission gates and no
+      // 1v1 gates on it. Missions are reached through doors in the adventure world.
+      this.world.gateProvider = null;
       this.challenge = new VR.Challenge(this);
       // 1v1 Sniper Arena: gates beside the track, invites, the arena itself
       this.duel = new VR.DuelManager(this);
-      this.world.duelGateProvider = () => this.duel.gateAvailable();
+      this.world.duelGateProvider = null;
       this.fade = { value: 0, target: 0, speed: 3 };
       this.fadeEl = document.getElementById('fade');
       this.countdownEl = document.getElementById('countdown');
@@ -127,6 +128,7 @@
       UI.bind('charBtn', () => this.setState('character'));
       UI.bind('missionsBtn', () => this.setState('missionsList'));
       UI.bind('mlBack', () => this.setState('menu'));
+      UI.bind('duelBtn', () => { VR.Audio.unlock(); this.duel.openPickerFromMenu(); });
       UI.bind('waitBtn', () => { if (this.settings.fullscreen) VR.Fullscreen.request(); this.duel.openWaitingArena(); });
       UI.bind('charPrev', () => this.cycleChar(-1));
       UI.bind('charNext', () => this.cycleChar(1));
@@ -140,17 +142,6 @@
       UI.bind('goMenu', () => this.toMenu());
       // Esc on the challenge screens goes back
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.state === 'challenge') this.challenge.leave(true); });
-      // secret-code continue
-      UI.bind('codeBtn', () => UI.openCodeForm());
-      document.getElementById('codeInput').addEventListener('input', () => {
-        const m = document.getElementById('codeMsg'); m.textContent = ''; m.className = 'code-msg';
-      });
-      document.getElementById('codeForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        VR.Audio.unlock();
-        const result = this.tryContinue(document.getElementById('codeInput').value);
-        UI.codeResult(result);
-      });
       UI.bind('optSfx', () => { this.settings.sfx = !this.settings.sfx; this.applySettings(); });
       UI.bind('optMusic', () => {
         this.settings.music = !this.settings.music; this.applySettings();
@@ -256,9 +247,10 @@
 
     resetRun(seed = null) {
       this.runId = VR.uid(); this.runEnds = 0;      // every run pays its coins once (wallet txIds)
-      this.usedCodes = new Set();                  // each secret code works once per run
-      this.canContinue = false;
-      this.deathState = null;
+      this.courseT = 0;                            // seconds on the course (the finish time)
+      this.finishing = false; this.finishT = 0;    // crossed the line: slowing down to a stop
+      this.finished = false;
+      this.nearToast = false; this.raceStopped = false; this.stopDecel = 0;
       this.player.reset();
       this.powerups.reset();
       this.world.reset(seed);
@@ -353,15 +345,11 @@
     gameOver() {
       this.setState('dying');
       VR.Input.setEnabled(false);
-      // remember where the run ended so a secret code can continue it
-      const p = this.player;
       this.runEnds++;
-      this.deathState = { x: p.x, y: p.y, z: p.z, coinsBanked: this.coins, end: this.runEnds };
-      this.canContinue = true;                     // one continue per death
       this.player.groundAtDeath = this.world.surfaceAt(this.player.x, this.player.z, this.player.y + 0.01, 0.3).h;
       this.player.die();
       const racing = this.challenge.inRace;
-      if (racing) { this.canContinue = false; this.challenge.onLocalDeath(); }   // no secret codes in a challenge
+      if (racing) this.challenge.onLocalDeath();
       VR.Audio.play('crash');
       VR.Audio.setMusicVolume(0.25);
       this.shake = 0.5;
@@ -371,41 +359,45 @@
       setTimeout(() => {
         if (this.state !== 'dying') return;                // left in the meantime
         if (racing && this.challenge.inRace) { this.challenge.showResult(); return; }
-        UI.gameOver({ score: this.score, dist: this.distance, coins: this.coins, best: this.best, isBest });
+        UI.courseResult({ kind: 'crash', score: this.score, dist: this.distance, total: VR.Course.finishDistance(), coins: this.coins, best: this.best, isBest, bestTime: VR.Profiles.player().stats.bestTime });
         this.setState('gameover');
       }, 1300);
     }
 
-    /**
-     * Secret-code continue. Only valid on the Game Over screen, once per
-     * death, and each code only once per run.
-     * Returns 'ok' | 'wrong' | 'used' | 'unavailable'.
-     */
-    tryContinue(text) {
-      if (this.state !== 'gameover' || !this.canContinue || !this.deathState) return 'unavailable';
-      const code = VR.SecretCodes.check(text);
-      if (!code) return 'wrong';
-      if (this.usedCodes.has(code)) return 'used';
-      this.usedCodes.add(code);
-      this.canContinue = false;
-      this.revive();
-      return 'ok';
+    /* ==============================================================
+     * FINISH LINE (js/runner/course.js): the run ends, the runner slows
+     * to a stop, the coins are paid and the result screen comes up.
+     * ============================================================ */
+    crossFinish() {
+      if (this.finishing || this.finished) return;
+      this.finishing = true; this.finishT = 0;
+      this.runEnds++;
+      const time = this.courseT;
+      this.finishTime = time;
+      const st = VR.Profiles.player().stats;
+      this.newBestTime = !st.bestTime || time < st.bestTime;
+      if (this.newBestTime) { st.bestTime = +time.toFixed(2); VR.Profiles.save(); }
+      if (this.score > this.best) { this.best = this.score; this.newBest = true; } else this.newBest = false;
+      this.wallet.credit(this.coins, `run:${this.runId}:finish`, 'run');
+      VR.Audio.play('success');
+      UI.toast(VR.t('go.title.finish'), 1400);
+      if (this.challenge.inRace) this.challenge.onLocalFinish(time);
     }
-
-    revive() {
-      const d = this.deathState;
-      // coins were paid at death; the run goes on and pays them again at its next end
-      if (d.coinsBanked > 0) this.wallet.debit(Math.min(d.coinsBanked, this.wallet.coins), `run:${this.runId}:continue:${d.end}`, 'continue');
-      this.player.revive(d);
-      // short star power so the obstacle that ended the run is cleared
-      this.powerups.timers.invincible = Math.max(this.powerups.remaining('invincible'), 3);
-      this.hitCooldown = 0.3;
-      this.shake = 0;
-      this.clock.getDelta();
-      this.setState('playing');
-      VR.Audio.play('powerup');
-      VR.Audio.setMusicVolume(1);
-      UI.toast(VR.t('toast.continue'), 1200);
+    /** a race was decided while you were still running: your run stops here (coins kept) */
+    stopForRaceEnd() {
+      if (this.state !== 'playing' || this.finishing || this.finished) return;
+      this.finishing = true; this.finishT = 0; this.raceStopped = true;
+      this.runEnds++;
+      this.wallet.credit(this.coins, `run:${this.runId}:end:${this.runEnds}`, 'run');
+    }
+    showFinish() {
+      this.finishing = false; this.finished = true;
+      VR.Input.setEnabled(false);
+      if (this.challenge.inRace || this.raceStopped) { this.raceStopped = false; this.challenge.showResult(); return; }
+      UI.courseResult({ kind: 'finish', score: this.score, dist: this.distance, total: VR.Course.finishDistance(), coins: this.coins,
+        best: this.best, isBest: this.newBest, time: this.finishTime, bestTime: VR.Profiles.player().stats.bestTime, isBestTime: this.newBestTime });
+      this.setState('gameover');
+      VR.Audio.setMusicVolume(0.4);
     }
 
     /* ==============================================================
@@ -436,7 +428,7 @@
         score: this.score, distance: this.distance, coins: this.coins, multiplier: this.multiplier, speed: this.speed,
         powerups: Object.assign({}, this.powerups.timers),
         player: p.snapshot(), stumbleT: this.stumbleT,
-        usedCodes: [...this.usedCodes], canContinue: this.canContinue, hitCooldown: this.hitCooldown, lastBiome: this.lastBiome,
+        courseT: this.courseT, hitCooldown: this.hitCooldown, lastBiome: this.lastBiome,
         world: { chunkIndex: this.world.chunkIndex, nextZ: this.world.nextZ, chunks: this.world.chunks.length, obstacles: this.world.obstacles.length },
         camPath: this.camPath.toArray(), lookPath: this.lookPath.toArray(),
       };
@@ -447,7 +439,7 @@
       this.multiplier = snap.multiplier; this.speed = snap.speed;
       this.powerups.timers = Object.assign({}, snap.powerups);
       p.restore(snap.player); this.stumbleT = snap.stumbleT || 0;
-      this.usedCodes = new Set(snap.usedCodes); this.canContinue = snap.canContinue; this.hitCooldown = snap.hitCooldown;
+      this.courseT = snap.courseT || 0; this.hitCooldown = snap.hitCooldown;
       // the world was frozen, so it must be exactly as we left it
       const w = this.world;
       this.restoreCheck = w.chunkIndex === snap.world.chunkIndex && w.nextZ === snap.world.nextZ && w.chunks.length === snap.world.chunks && w.obstacles.length === snap.world.obstacles;
@@ -749,11 +741,21 @@
 
     updatePlaying(dt) {
       const p = this.player;
-      let a; while ((a = VR.Input.next())) { if (a === 'interact') this.duel.onRunnerInteract(); else p.action(a, this); }
+      let a;
+      if (this.finishing) { while (VR.Input.next()); }      // past the line: no more steering
+      else while ((a = VR.Input.next())) { if (a === 'interact') this.duel.onRunnerInteract(); else p.action(a, this); }
 
       this.powerups.update(dt);
       const boost = this.powerups.active('boost');
       let target = this.speedAt(this.distance) * (boost ? C.POWERUPS.boost.speedFactor : 1);
+      if (this.finishing) {
+        // ease to a stop within STOP_IN metres of the line
+        this.finishT += dt;
+        if (!this.stopDecel) this.stopDecel = Math.max(4, this.speed) ** 2 / (2 * VR.Course.CONFIG.STOP_IN);   // constant: stops within STOP_IN m
+        this.speed = Math.max(0, this.speed - this.stopDecel * dt);
+        target = this.speed;
+        if (this.speed < 0.6 || this.finishT > 4) { this.speed = 0; this.showFinish(); return; }
+      } else this.courseT += dt;
       // just tripped: a short slowdown that eases back
       if (this.stumbleT > 0) { this.stumbleT = Math.max(0, this.stumbleT - dt); target *= 1 - (1 - C.STUMBLE_SLOW) * (this.stumbleT / C.STUMBLE_RECOVER); }
       this.speed += (target - this.speed) * Math.min(1, dt * (this.stumbleT > 0 ? 8 : 2.5));
@@ -770,8 +772,11 @@
       this.duel.roadUpdate(p);
       if (this.checkGates()) return;
       if (this.hitCooldown > 0) this.hitCooldown -= dt;
-      this.resolveCollisions();
+      if (!this.finishing) this.resolveCollisions();
       if (this.state !== 'playing') return;
+      // the finish line
+      if (!this.finishing && this.world.finishZ !== null && p.z <= this.world.finishZ) this.crossFinish();
+      if (!this.nearToast && this.world.finishZ !== null && p.z - this.world.finishZ < 160) { this.nearToast = true; UI.toast(VR.t('toast.finishNear'), 1400); }
       this.collect.update(dt, p, this);
 
       p.shieldMesh.visible = this.powerups.active('shield');
@@ -789,6 +794,7 @@
       this.updateEnvironment(dt);
       this.updateCamera(dt);
       UI.setHUD(this.score, this.distance, this.coins, this.multiplier);
+      UI.setCourse(this.distance, VR.Course.finishDistance(), this.courseT, this.challenge.oppProgress ? this.challenge.oppProgress() : null);
       UI.setPowerups(this.powerups);
     }
 

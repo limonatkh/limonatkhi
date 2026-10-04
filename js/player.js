@@ -291,21 +291,6 @@
     }
 
     // bring the player back after a secret-code continue
-    revive(d) {
-      this.dead = false; this.deathTimer = 0;
-      this.x = d.x; this.y = d.y; this.z = d.z;
-      const r = this.region();
-      this.x = clamp(this.x, ...Player.span(r)); this.prevX = this.x;
-      this.rel = Player.relAt(r, this.x); this.regionW = r.b - r.a; this.dodgeX = null;
-      this.vy = 0; this.grounded = false; this.slideTimer = 0; this.pendingSlide = false;
-      this.stumbleAnim = 0; this.vulnerable = 0;
-      this.flash = 1.5;
-      const rig = this.rig;
-      rig.inner.rotation.set(0, 0, 0); rig.inner.position.set(0, 0, 0);
-      for (const k in rig.parts) rig.parts[k].rotation.set(0, 0, 0);
-      this.place();
-    }
-
     /** the run state that must survive a mission / duel (game.js snapshotRun) */
     snapshot() {
       return { x: this.x, y: this.y, z: this.z, rel: this.rel, side: this.side, regionW: this.regionW, vulnerable: this.vulnerable };

@@ -31,9 +31,11 @@ VR.CONFIG = {
   // speed = START + (MAX - START) * (1 - e^(-distance / RAMP))
   SPEED_START: 13,
   SPEED_MAX: 31,
-  SPEED_RAMP: 3200,
+  // the runner is a finite course (≈1.15 km, js/runner/course.js): the ramps are
+  // short enough that the end of the course is clearly faster and harder
+  SPEED_RAMP: 1500,
   // difficulty 0..1 used by the chunk generator
-  DIFFICULTY_RAMP: 4200,
+  DIFFICULTY_RAMP: 1800,
 
   // ---------- World generation ----------
   CHUNK_LENGTH: 40,
@@ -62,7 +64,8 @@ VR.CONFIG = {
   },
   MAGNET_RADIUS: 6,
 
-  // ---------- Mission gates (entrances along the mountain route) ----------
+  // ---------- Mission gates (not on the course any more: missions are reached
+  // through doors in the adventure world; kept for the return countdown) ----------
   MISSION_GATE_FIRST_CHUNK: 7,       // first gate ≈ 250 m into a run
   MISSION_GATE_GAP_MIN: 16,          // then one every 16-24 chunks (≈ 640-960 m)
   MISSION_GATE_GAP_MAX: 24,

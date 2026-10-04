@@ -332,17 +332,33 @@ There is no build step — the folder **is** the game.
 - Bonus pickup: the voxel lemon (worth 5 coins) in `js/collectibles.js`
   (the `gems` set); its spawn chance is in `js/patterns.js → addCoins`.
 
-## Secret-code continue
+## The runner course (finite)
 
-- `js/secrets.js` stores only salted SHA-256 fingerprints, never the codes.
-  Input is trimmed, inner spaces collapsed, and invisible Arabic marks
-  (tatweel, harakat, direction marks) removed before hashing.
-- Rules (`js/game.js → tryContinue`): only on the Game Over screen, one
-  continue per death, each code once per run. Play Again resets both.
-- The run resumes where it ended with score, distance and coins kept, plus
-  3 seconds of star power so the obstacle that ended the run is cleared.
-- **To add a code:** run `VR.SecretCodes.fingerprint('new code')` in the
-  browser console and paste the result into `FINGERPRINTS`.
+The third-person runner is an optional **course with a start and a finish**
+(`js/runner/course.js`, tuning in `VR.Course.CONFIG`):
+
+- 30 sections of mountain route (≈1.15 km to the line, about a minute at
+  the course's speed curve). The last 4 sections always lead back to the
+  wide ridge; the finish section is straight with a chequered arch, then a
+  few empty run-out sections; nothing is generated after that.
+- Crossing the line ends the run: the runner slows to a stop within 45 m,
+  the coins are paid once (`run:<id>:finish`), the time is kept (best time
+  in `profile.stats.bestTime`), and the result screen shows time, coins
+  and best time.
+- A crash also ends the course, with the coins collected so far (result
+  screen with how far along the course you got). There is **no continue**:
+  the secret codes were removed.
+- No mission gates and no 1v1 gates on the course. Missions are reached
+  through the doors in the adventure world; 1v1 duels from the main menu
+  (**1v1 with an online player**, or **Wait for a player**).
+- HUD: a progress bar with the course time (and the other runner's place in
+  a race).
+
+**Race (Challenge a friend):** both players run the same course (same
+seed). The **first to reach the finish wins** — coins do not decide it —
+and gets a **coin bag (+50)**, paid once per round. When one player
+finishes, the other's run stops there (keeping their coins). If nobody
+finishes (both crash), the one who got further wins.
 
 ---
 
@@ -508,7 +524,7 @@ Menu → **تحدَّ صديقًا / Challenge a friend**.
    HUD shows their score and how far ahead or behind they are. Players never collide.
 5. When both have crashed, the higher score wins. **Rematch** (both press it) starts a new track.
 
-Fairness: secret codes and mission gates are disabled during a challenge.
+Fairness: both players run exactly the same course; the first to the finish wins (see "The runner course").
 
 How it works (no server of our own — the game is a static site):
 

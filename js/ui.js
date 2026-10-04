@@ -104,37 +104,26 @@
     menuStats(best, bank) { $('menuBest').textContent = fmt(best); $('menuBank').textContent = fmt(bank); },
     character(def) { $('charName').textContent = VR.L(def.name); $('charTag').textContent = VR.L(def.tagline) || ''; },
 
-    openCodeForm() {
-      $('codeBtn').hidden = true;
-      $('codeForm').hidden = false;
-      $('codeMsg').textContent = ''; $('codeMsg').className = 'code-msg';
-      $('codeInput').focus();
-    },
-    codeResult(result) {
-      const msg = $('codeMsg');
-      const text = VR.t('code.' + result);
-      msg.textContent = text;
-      msg.className = 'code-msg ' + (result === 'ok' ? 'good' : 'bad');
-      if (result !== 'ok') {
-        const f = $('codeForm'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake');
-        VR.Audio.play('stumble');
-        $('codeInput').select();
-      } else $('codeInput').blur();
-    },
-    resetCodeForm() {
-      $('codeBtn').hidden = false;
-      $('codeForm').hidden = true;
-      $('codeInput').value = '';
-      $('codeMsg').textContent = ''; $('codeMsg').className = 'code-msg';
-    },
-
-    gameOver({ score, dist, coins, best, isBest }) {
-      this.resetCodeForm();
-      $('goScore').textContent = fmt(score);
-      $('goDist').innerHTML = `<span class="num">${fmt(dist)}</span> ${VR.t('unit.m')}`;
+    /** result of a course: kind 'finish' (crossed the line) or 'crash' */
+    courseResult({ kind, score, dist, total, coins, best, isBest, time, bestTime, isBestTime }) {
+      const fin = kind === 'finish';
+      $('goTitle').textContent = VR.t(fin ? 'go.title.finish' : 'go.title.crash');
+      $('goTitle').className = 'heading ' + (fin ? 'win' : '');
+      $('goMainLbl').textContent = VR.t(fin ? 'go.time' : 'go.progress');
+      $('goScore').textContent = fin ? VR.Course.fmtTime(time) : Math.min(99, Math.floor(100 * dist / total)) + '%';
+      $('goDist').innerHTML = fin ? `<span class="num">${fmt(total)}</span> ${VR.t('unit.m')}` : `<span class="num">${fmt(Math.min(dist, total))} / ${fmt(total)}</span> ${VR.t('unit.m')}`;
       $('goCoins').textContent = fmt(coins);
-      $('goBest').textContent = fmt(best);
-      $('newBest').hidden = !isBest;
+      $('goBest').textContent = bestTime ? VR.Course.fmtTime(bestTime) : '–';
+      $('newBest').hidden = !(fin && isBestTime);
+      $('newBest').textContent = VR.t('go.newBestTime');
+    },
+    /** the progress bar along the top of the runner HUD */
+    setCourse(dist, total, t, opp) {
+      $('courseFill').style.transform = `scaleX(${Math.max(0, Math.min(1, dist / total))})`;
+      $('courseTime').textContent = VR.Course.fmtTime(t);
+      const o = $('courseOpp');
+      o.hidden = opp === null || opp === undefined;
+      if (!o.hidden) o.style.left = (Math.max(0, Math.min(1, opp)) * 100) + '%';
     },
 
     setToggle(id, on, onText = VR.t('on'), offText = VR.t('off')) {

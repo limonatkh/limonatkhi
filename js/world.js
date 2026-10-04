@@ -99,19 +99,25 @@
       this.nextGateChunk = C.MISSION_GATE_FIRST_CHUNK;
       this.duelGates = [];
       this.nextDuelChunk = 3;
+      this.finishZ = null;            // path z of the finish line, once its section exists (js/runner/course.js)
     }
 
     currentBiomeKey() { return this.biomeOrder[this.biomeIdx % this.biomeOrder.length]; }
 
     /** Which section comes next: one whose route starts where the last one ended. */
-    nextSection(biome, difficulty) {
+    nextSection(biome, difficulty, idx = this.chunkIndex) {
+      const CC = VR.Course.CONFIG;
       if (this.queue.length) return this.queue.shift();
+      if (idx >= CC.CHUNKS) return 'ridge';                    // finish + run-out: wide, straight, empty
       if (this.chunkIndex < 4) return 'ridge';
+      const steer = idx >= CC.CHUNKS - CC.STEER_BEFORE;        // the last sections lead back to the wide ridge
       const bias = biome.bias || {};
       const names = [], w = [];
       for (const k in VR.SECTIONS) {
         const s = VR.SECTIONS[k];
         if (s.from !== this.profile || k === 'tunnel_end') continue;
+        if (steer && (s.to !== 'W' || k === 'tunnel_start')) continue;
+        if (k === 'tunnel_start' && idx >= CC.CHUNKS - CC.STEER_BEFORE - 1) continue;
         let wt = s.w(difficulty);
         if (k === 'tunnel_start') wt = 0.45 * (bias.tunnel || 0) * (0.5 + difficulty);
         if (k === 'arch') wt *= bias.arch || 1;
@@ -119,6 +125,7 @@
         if (k === this.lastSection && s.restricted) wt *= 0.3;     // vary the narrow bits
         if (wt > 0) { names.push(k); w.push(wt); }
       }
+      if (!names.length) return VR.Course.towardWide(this.profile) || 'ridge';
       let r = this.rnd() * w.reduce((a, b) => a + b, 0), pick = names[0];
       for (let i = 0; i < names.length; i++) { r -= w[i]; if (r <= 0) { pick = names[i]; break; } }
       if (pick === 'tunnel_start') this.queue.push('tunnel_end');
@@ -126,7 +133,7 @@
     }
     /** How this section bends and climbs. */
     nextShape(sec, idx) {
-      if (idx < 3) return { k: 0, slope: 0 };
+      if (idx < 3 || idx >= VR.Course.CONFIG.CHUNKS) return { k: 0, slope: 0 };
       let k = 0;
       if (sec.turn && this.rnd() < 0.65) {
         k = TURNS[(this.rnd() * TURNS.length) | 0];
@@ -170,7 +177,7 @@
       this.biomeLeft--;
       const biomeKey = this.currentBiomeKey();
       const biome = VR.BIOMES[biomeKey];
-      const style = this.nextSection(biome, difficulty);
+      const style = this.nextSection(biome, difficulty, idx);
       const sec = VR.SECTIONS[style];
       this.lastSection = style; this.profile = sec.to;
       const shape = this.nextShape(sec, idx);
@@ -193,6 +200,21 @@
         chunk.bent = g;
       }
 
+      // ---- finish line + run-out: no obstacles, coins or gates
+      const CC = VR.Course.CONFIG;
+      if (idx >= CC.CHUNKS) {
+        if (idx === CC.CHUNKS) {
+          const key = 'finish_' + VR.lang;
+          if (!this.pool.has(key)) this.pool.define(key, () => VR.Course.buildArch());
+          const arch = this.pool.get(key);
+          this.track.place(arch, 0, 0, z0 - CC.LINE_AT);
+          chunk.parts.push(arch);
+          this.finishZ = z0 - CC.LINE_AT;
+        }
+        chunk.gates = []; chunk.duelGates = [];
+        this.chunks.push(chunk);
+        return chunk;
+      }
       // ---- content
       const safe = idx < C.SAFE_START_CHUNKS + 2;
       const plan = VR.Patterns.generate({
@@ -337,7 +359,7 @@
 
     update(dt, player, speed, difficulty, game, keepBehind = false) {
       // stream chunks
-      while (this.nextZ > player.z - C.CHUNKS_AHEAD * L) this.spawnChunk(difficulty, speed);
+      while (this.nextZ > player.z - C.CHUNKS_AHEAD * L && this.chunkIndex <= VR.Course.CONFIG.CHUNKS + VR.Course.CONFIG.RUNOUT) this.spawnChunk(difficulty, speed);
       while (!keepBehind && this.chunks.length && this.chunks[0].z0 - L > player.z + 30) this.releaseChunk(this.chunks[0]);
       // falling rocks
       for (const o of this.obstacles) {
@@ -358,6 +380,7 @@
     // keep path coordinates small on long runs (the world itself doesn't move)
     shift(dz) {
       this.nextZ += dz;
+      if (this.finishZ !== null) this.finishZ += dz;
       this.track.shift(dz);
       for (const c of this.chunks) c.z0 += dz;
       for (const o of this.obstacles) o.z += dz;

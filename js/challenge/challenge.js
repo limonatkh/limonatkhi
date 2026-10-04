@@ -10,12 +10,14 @@
  *           player appears as a see-through "ghost" with a name tag on
  *           the same track; the HUD shows their score and the gap.
  *           Players never collide with each other.
- *  Result:  when both have crashed, the higher score wins. Secret codes
- *           and mission gates are off in a challenge, to keep it fair.
+ *  Result:  the course is finite (js/runner/course.js): the FIRST to reach
+ *           the finish wins (by course time) and gets a coin bag. If nobody
+ *           reaches it (both crash), the one who got further wins. When one
+ *           player finishes, the other's run stops there (coins kept).
  *  Rematch: both press Rematch -> new seed, new race.
  *
  * Protocol (JSON):  hi {name, ch, host, round}  start {seed, round}
- *   s {r, d, x, y, sl, gr, vy, sp, sc, c}  dead {r, sc, d, c}  again {r}  bye
+ *   s {r, d, x, y, sl, gr, vy, sp, sc, c, tm}  dead {r, sc, d, c}  fin {r, tm, d, c, sc}  stop {r, d, c}  again {r}  bye
  * ===================================================================== */
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -28,7 +30,7 @@
   Object.assign(VR.I18N.STRINGS.en, {
     'menu.challenge': 'CHALLENGE A FRIEND',
     'ch.title': 'Challenge a friend',
-    'ch.intro': 'Invite a friend and you both run the same track at the same time. Highest score wins!',
+    'ch.intro': 'Invite a friend and you both run the same course at the same time. First to the finish wins a coin bag!',
     'ch.name': 'Your name', 'ch.defaultName': 'Player',
     'ch.create': 'CREATE INVITE', 'ch.or': 'or type your friend\'s code', 'ch.codePh': 'ROOM CODE', 'ch.join': 'JOIN',
     'ch.back': 'BACK', 'ch.leave': 'LEAVE',
@@ -52,7 +54,7 @@
   Object.assign(VR.I18N.STRINGS.ar, {
     'menu.challenge': 'تحدَّ صديقًا',
     'ch.title': 'تحدَّ صديقًا',
-    'ch.intro': 'ادعُ صديقك وتركضان على الطريق نفسه في اللحظة نفسها. صاحب النقاط الأعلى يفوز!',
+    'ch.intro': 'ادعُ صديقك وتركضان على المضمار نفسه في اللحظة نفسها. أول من يصل النهاية يفوز بكيس عملات!',
     'ch.name': 'اسمك', 'ch.defaultName': 'لاعب',
     'ch.create': 'إنشاء دعوة', 'ch.or': 'أو اكتب كود صديقك', 'ch.codePh': 'كود الغرفة', 'ch.join': 'انضمام',
     'ch.back': 'رجوع', 'ch.leave': 'خروج',
@@ -314,6 +316,15 @@
           if (m.r !== this.round) break;
           this.onOppDead(m);
           break;
+        case 'fin':
+          if (m.r !== this.round) break;
+          this.onOppFinish(m);
+          break;
+        case 'stop':                                  // their run stopped because I finished
+          if (m.r !== this.round) break;
+          if (this.opp) { this.opp.stopped = true; this.opp.dist = m.d; this.opp.coins = m.c; if (this.opp.st) this.opp.st.d = m.d; }
+          this.renderResult();
+          break;
         case 'duel':
           this.game.duel.onFriendMessage(m.d);
           break;
@@ -355,6 +366,51 @@
       this.renderResult();
     }
 
+    /** the other player crossed the finish line */
+    onOppFinish(m) {
+      const o = this.opp;
+      if (o.finished) return;
+      o.finished = true; o.time = m.tm; o.dist = m.d; o.coins = m.c; o.final = m.sc; o.score = m.sc;
+      if (o.st) o.st.d = m.d;
+      // still running (and not already faster): the race is lost, the run stops here
+      if (this.phase === 'race' && !this.me.dead && !this.me.finished) {
+        VR.UI.toast(VR.t('ch.t.oppFinished', { name: this.oppName() }), 1800);
+        this.me.stopped = true; this.me.dist = this.game.distance; this.me.coins = this.game.coins; this.me.score = Math.floor(this.game.score);
+        this.phase = 'done';
+        this.link && this.link.send({ t: 'stop', r: this.round, d: +this.me.dist.toFixed(2), c: this.me.coins });
+        this.game.stopForRaceEnd();
+      }
+      this.renderResult();
+    }
+    /** progress of the other runner along the course (0..1), for the HUD bar */
+    oppProgress() {
+      if (!this.inRace || !this.opp) return null;
+      const o = this.opp, d = o.finished ? VR.Course.finishDistance() : (o.shownD || (o.st ? o.st.d : 0));
+      return d / VR.Course.finishDistance();
+    }
+    /**
+     * Who won. 'win' | 'lose' | 'draw' | null (not decided yet).
+     * First to the finish wins; nobody finished: the one who got further.
+     */
+    outcome() {
+      const me = this.me, o = this.opp || {};
+      if (!me) return null;
+      const meOut = me.dead || me.stopped || o.left;
+      if (me.finished && o.finished) return Math.abs(me.time - o.time) < 0.005 ? 'draw' : me.time < o.time ? 'win' : 'lose';
+      if (me.finished) {
+        if (o.dead || o.left || o.stopped) return 'win';
+        if (o.st && o.st.tm > me.time + 0.05) return 'win';             // they are already slower than my time
+        return null;
+      }
+      if (o.finished) return 'lose';
+      if (meOut && (o.dead || o.left)) {
+        const od = o.dist || (o.st && o.st.d) || 0, md = me.dist || 0;
+        if (o.left && !o.dead) return 'win';
+        return Math.abs(md - od) < 0.5 ? 'draw' : md > od ? 'win' : 'lose';
+      }
+      return null;
+    }
+
     // ---------------------------------------------------------- round flow
     hostStart() {
       if (!this.isHost || !this.opp || !this.opp.here) return;
@@ -367,8 +423,10 @@
     beginRound(seed, round) {
       this.round = round;
       const o = this.opp;
-      Object.assign(o, { st: null, stAt: 0, dead: false, final: 0, score: 0, dist: 0, coins: 0, again: false, lost: false, left: false, shownD: 0 });
-      this.me = { dead: false, score: 0, again: false, passed: false };
+      Object.assign(o, { st: null, stAt: 0, dead: false, final: 0, score: 0, dist: 0, coins: 0, again: false, lost: false, left: false, shownD: 0,
+        finished: false, time: 0, stopped: false });
+      this.me = { dead: false, score: 0, again: false, passed: false, finished: false, time: 0, stopped: false };
+      this.seed = seed; this.bagPaid = false; this.bagShown = 0;
       this.sendT = 0; this.hudT = 0;
       this.phase = 'countdown';
       // automatic colours: the host keeps white, the guest runs in grey ("سكني")
@@ -405,6 +463,15 @@
       this.link && this.link.send({ t: 'dead', r: this.round, sc: this.me.score, d: g.distance, c: g.coins });
       this.phase = 'done';
     }
+    /** Called by the game the moment the local runner crosses the finish line. */
+    onLocalFinish(time) {
+      if (!this.inRace || this.me.finished || this.me.dead || this.me.stopped) return;
+      const g = this.game;
+      this.me.finished = true; this.me.time = time; this.me.score = Math.floor(g.score);
+      this.me.dist = VR.Course.finishDistance(); this.me.coins = g.coins;
+      this.link && this.link.send({ t: 'fin', r: this.round, tm: +time.toFixed(3), d: this.me.dist, c: g.coins, sc: this.me.score });
+      this.phase = 'done';
+    }
     /** Called by the game after the crash animation: show the race result. */
     showResult() {
       this.game.setState('chresult');
@@ -415,34 +482,46 @@
       if (this.phase !== 'done' || !this.me) return;
       const o = this.opp || {};
       const oppName = this.oppName();
-      const oppScore = Math.floor(o.dead ? o.final : (o.score || 0));
-      const final = !!o.dead;
-      let title, cls;
-      if (!final) { title = VR.t('ch.r.waitTitle'); cls = ''; }
-      else if (this.me.score > oppScore) { title = VR.t('ch.r.win'); cls = 'win'; }
-      else if (this.me.score < oppScore) { title = VR.t('ch.r.lose'); cls = 'lose'; }
-      else { title = VR.t('ch.r.draw'); cls = 'draw'; }
+      const res = this.outcome();
+      const final = res !== null;
+      const T = VR.Course.fmtTime;
+      let title = VR.t('ch.r.waitTitle'), cls = '';
+      if (res === 'win') { title = VR.t('ch.r.win'); cls = 'win'; }
+      else if (res === 'lose') { title = VR.t('ch.r.lose'); cls = 'lose'; }
+      else if (res === 'draw') { title = VR.t('ch.r.draw'); cls = 'draw'; }
+      // the winner's coin bag, paid once per round
+      if (res === 'win' && !this.bagPaid) {
+        this.bagPaid = true;
+        const bag = VR.Course.CONFIG.RACE_WIN_BAG;
+        if (VR.Wallet.of().credit(bag, `race:${this.seed}:${this.round}:win`, 'race')) { this.bagShown = bag; VR.Audio.play('powerup'); }
+      }
       $('crTitle').textContent = title; $('crTitle').className = 'heading ' + cls;
+      const total = VR.Course.finishDistance();
+      const line = (fin, time, dist) => fin ? T(time) : `${Math.min(99, Math.floor(100 * (dist || 0) / total))}%`;
       $('crMeName').textContent = this.myName();
-      $('crMeScore').textContent = fmt(this.me.score);
-      $('crMeDist').innerHTML = `<span class="num">${fmt(this.me.dist || 0)}</span> ${VR.t('unit.m')}`;
+      $('crMeScore').textContent = line(this.me.finished, this.me.time, this.me.dist);
+      $('crMeDist').innerHTML = `<span class="num">${fmt(this.me.dist || 0)}</span> ${VR.t('unit.m')} · <span class="coin-ico"></span> ${fmt(this.me.coins || 0)}`;
       $('crOppName').textContent = oppName;
-      $('crOppScore').textContent = fmt(oppScore);
-      const od = o.dead ? (o.dist || (o.st && o.st.d) || 0) : (o.st ? o.st.d : 0);
+      const od = o.finished ? total : o.dead ? (o.dist || (o.st && o.st.d) || 0) : (o.st ? o.st.d : 0);
+      $('crOppScore').textContent = line(o.finished, o.time, od);
       $('crOppDist').innerHTML = `<span class="num">${fmt(od)}</span> ${VR.t('unit.m')}`;
-      $('crOppState').textContent = final ? VR.t('ch.r.out') : VR.t('ch.r.live');
-      $('crOppState').className = 'cr-state ' + (final ? 'out' : 'live');
-      $('crMe').classList.toggle('lead', final && this.me.score > oppScore);
-      $('crOpp').classList.toggle('lead', final && oppScore > this.me.score);
+      const oState = o.finished ? 'ch.r.finished' : (o.dead || o.left) ? 'ch.r.out' : 'ch.r.live';
+      $('crOppState').textContent = VR.t(oState);
+      $('crOppState').className = 'cr-state ' + (o.finished ? 'live' : (o.dead || o.left) ? 'out' : 'live');
+      $('crMe').classList.toggle('lead', res === 'win');
+      $('crOpp').classList.toggle('lead', res === 'lose');
 
       let msg = '';
       if (o.left) msg = VR.t('ch.r.left', { name: oppName });
       else if (o.lost && !final) msg = VR.t('ch.r.disconnected', { name: oppName });
-      else if (!final) msg = VR.t('ch.r.running', { name: oppName }) + ' · ' + (oppScore > this.me.score ? VR.t('ch.r.oppAhead', { name: oppName }) : VR.t('ch.r.youAhead'));
+      else if (!final) msg = VR.t('ch.r.running', { name: oppName });
       else if (this.me.again) msg = VR.t('ch.r.againWait', { name: oppName });
       else if (o.again) msg = VR.t('ch.r.againAsk', { name: oppName });
+      else if (res === 'win' && this.me.finished) msg = VR.t('ch.r.meFirst') + (this.bagShown ? ' · ' + VR.t('ch.r.bag', { coins: this.bagShown }) : '');
+      else if (res === 'lose' && o.finished) msg = VR.t('ch.r.oppFirst', { name: oppName });
+      else if (res === 'win' && this.bagShown) msg = VR.t('ch.r.bag', { coins: this.bagShown });
       $('crStatus').textContent = msg;
-      $('crStatus').className = 'ch-status' + (o.again && !this.me.again ? ' good' : '');
+      $('crStatus').className = 'ch-status' + (o.again && !this.me.again ? ' good' : res === 'win' ? ' good' : '');
       // rematch once the round is over and the other player is still in the room
       $('crAgain').hidden = !final || !!o.left;
       $('crAgain').disabled = !!this.me.again;
@@ -488,10 +567,10 @@
           this.sendT = SEND_EVERY;
           const p = g.player;
           this.link.send({ t: 's', r: this.round, d: +g.distance.toFixed(2), x: +p.x.toFixed(2), y: +p.y.toFixed(2),
-            sl: p.sliding ? 1 : 0, gr: p.grounded ? 1 : 0, vy: +p.vy.toFixed(1), sp: +g.speed.toFixed(1), sc: Math.floor(g.score), c: g.coins });
+            sl: p.sliding ? 1 : 0, gr: p.grounded ? 1 : 0, vy: +p.vy.toFixed(1), sp: +g.speed.toFixed(1), sc: Math.floor(g.score), c: g.coins, tm: +g.courseT.toFixed(2) });
         }
-        // passing a crashed opponent's score
-        if (o.dead && !this.me.passed && g.score > o.final) { this.me.passed = true; VR.UI.toast(VR.t('ch.t.passed', { name: this.oppName() }), 1400); VR.Audio.play('powerup'); }
+        // passing a crashed opponent
+        if (o.dead && !this.me.passed && g.distance > (o.dist || 0)) { this.me.passed = true; VR.UI.toast(VR.t('ch.t.passed', { name: this.oppName() }), 1400); VR.Audio.play('powerup'); }
       }
       this.updateGhost(dt, now);
       this.hudT -= dt;

@@ -147,7 +147,19 @@
       if (this.game.state !== 'playing' || !this.nearGate) return;
       this.ui.showPrompt(false);
       this.game.setState('duelPick');
-      this.pickOpen = true; this.pickNotice = null;
+      this.pickOpen = true; this.pickNotice = null; this.pickFromMenu = false;
+      if (VR.Online.enabled && !VR.Online.connected) VR.Online.connect();
+      this.renderPicker();
+    }
+    /**
+     * Main menu → "1v1 with an online player": the same list of players, opened
+     * from the menu (the runner course has no 1v1 gates any more). After the duel
+     * you come back to the menu.
+     */
+    openPickerFromMenu() {
+      if (this.game.state !== 'menu' || this.match || this.pickOpen) return;
+      if (!this.game.settings.online) { this.game.settings.online = true; this.game.applySettings(); VR.UI.toast(VR.t('du.onlineOn'), 1400); }
+      this.pickOpen = true; this.pickNotice = null; this.pickFromMenu = true;
       if (VR.Online.enabled && !VR.Online.connected) VR.Online.connect();
       this.renderPicker();
     }
@@ -182,6 +194,7 @@
     closePicker() {
       if (this.pending) this.cancelInvite();
       this.pickOpen = false; this.ui.hidePicker();
+      if (this.pickFromMenu) { this.pickFromMenu = false; return; }
       if (this.game.state === 'duelPick') this.game.resumeAfterPause();
     }
 

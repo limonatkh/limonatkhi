@@ -206,6 +206,12 @@
   .mi-timer.warn { color: #ff8a80; }
   .mi-coins { font-family: var(--display); font-size: 20px; padding: 6px 12px 8px; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; direction: ltr; }
   .mi-coins[hidden] { display: none; }
+  .course-bar { position: absolute; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 72px); transform: translateX(-50%); width: min(46vw, 360px); height: 12px; background: rgba(14,17,26,.65); border: 2px solid var(--ink); direction: ltr; }
+  .course-bar #courseFill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: var(--lemon); transform-origin: left; transform: scaleX(0); }
+  .course-bar .course-opp { position: absolute; top: -5px; width: 6px; height: 18px; margin-left: -3px; background: #b9c3d6; border: 2px solid var(--ink); }
+  .course-bar .course-opp[hidden] { display: none; }
+  .course-bar .course-flag { position: absolute; right: -6px; top: -14px; font-size: 16px; }
+  .course-bar #courseTime { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); font-family: 'Pixelify Sans', monospace; font-size: 15px; color: #fff; text-shadow: 0 2px 0 var(--ink); }
   .ng-confirm { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
   .ng-confirm[hidden] { display: none; }
   .ng-confirm p { margin: 0; font-size: 13px; opacity: .85; }
@@ -638,6 +644,7 @@
     </div>
     <button class="btn runner-btn" id="playBtn"><span data-i18n="menu.runner">RUNNER COURSE</span></button>
     <button class="btn lemon" id="challengeBtn"><span class="vs-ico" aria-hidden="true">⚔</span> <span data-i18n="menu.challenge">CHALLENGE A FRIEND</span></button>
+    <button class="btn lemon" id="duelBtn"><span class="vs-ico" aria-hidden="true">🎯</span> <span data-i18n="menu.duel">1v1 WITH AN ONLINE PLAYER</span></button>
     <button class="btn wait-btn" id="waitBtn"><span class="vs-ico" aria-hidden="true">⌛</span><span class="wait-txt"><b data-i18n="menu.wait">WAIT FOR A PLAYER</b><small data-i18n="menu.waitSub">1v1 Sniper Arena</small></span></button>
     <div class="menu-row">
       <button class="btn" id="charBtn" data-i18n="menu.character">CHARACTER</button>
@@ -690,6 +697,7 @@
   <div id="vsHud" class="vs-hud panel" hidden>
     <span class="vs-tag" data-i18n="ch.vs">VS</span><b id="vsName"></b><span id="vsScore" class="num">0</span><span id="vsGap" class="vs-gap"></span>
   </div>
+  <div class="course-bar" id="courseBar"><i id="courseFill"></i><i class="course-opp" id="courseOpp" hidden></i><b class="course-flag">🏁</b><span id="courseTime" class="num">0:00.00</span></div>
   <div id="powerbars"></div>
 </div>
 <div id="toast" dir="auto"></div>
@@ -773,24 +781,13 @@
 <!-- GAME OVER -->
 <section id="gameover" class="screen dim" hidden>
   <div class="card panel">
-    <h2 class="heading" data-i18n="go.title">Game Over</h2>
+    <h2 class="heading" id="goTitle" data-i18n="go.title">Game Over</h2>
     <div class="newbest" id="newBest" hidden data-i18n="go.newBest">NEW BEST!</div>
     <div class="result-grid">
-      <div class="result big"><div class="lbl" data-i18n="go.final">Final score</div><div class="val" id="goScore">0</div></div>
-      <div class="result"><div class="lbl" data-i18n="go.distance">Distance</div><div class="val" id="goDist">0 m</div></div>
+      <div class="result big"><div class="lbl" id="goMainLbl" data-i18n="go.final">Final score</div><div class="val" id="goScore">0</div></div>
+      <div class="result"><div class="lbl" id="goDistLbl" data-i18n="go.progress">Course</div><div class="val" id="goDist">0 m</div></div>
       <div class="result"><div class="lbl" data-i18n="go.coins">Coins</div><div class="val"><span class="coin-ico"></span><span id="goCoins">0</span></div></div>
-      <div class="result big result-best"><div class="lbl" data-i18n="go.best">Best score</div><div class="val" id="goBest">0</div></div>
-    </div>
-    <div class="secret">
-      <button class="btn lemon" id="codeBtn" type="button" data-i18n="code.button">إدخال كود سري</button>
-      <form id="codeForm" class="code-form" hidden autocomplete="off">
-        <label for="codeInput" class="code-label" data-i18n="code.label">اكتب الكود السري لمتابعة الجولة</label>
-        <div class="code-row">
-          <input id="codeInput" class="code-input" type="text" dir="auto" spellcheck="false" autocomplete="off" autocapitalize="off">
-          <button class="btn lemon small" id="codeSubmit" type="submit" data-i18n="code.submit">متابعة</button>
-        </div>
-        <p id="codeMsg" class="code-msg" role="status" aria-live="polite"></p>
-      </form>
+      <div class="result big result-best"><div class="lbl" data-i18n="go.bestTime">Best time</div><div class="val" id="goBest">–</div></div>
     </div>
     <button class="btn primary" id="againBtn" data-i18n="go.again">PLAY AGAIN</button>
     <button class="btn" id="goMenu" data-i18n="go.menu">MAIN MENU</button>
@@ -810,9 +807,9 @@
 <script src="js/track.js"></script>
 <script src="js/terrain.js"></script>
 <script src="js/patterns.js"></script>
-<script src="js/secrets.js"></script>
 <script src="js/collectibles.js"></script>
 <script src="js/backdrop.js"></script>
+<script src="js/runner/course.js"></script>
 <script src="js/world.js"></script>
 <script src="js/player.js"></script>
 <script src="js/ui.js"></script>
