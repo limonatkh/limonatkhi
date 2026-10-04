@@ -17,6 +17,9 @@
  *   quitToMenu()     save and go back to the main menu
  *   enterMission(id, returnTo)   a door in the world: fade out, play the
  *                    mission, then come back to the door (backFromMission)
+ *   enterCourse(returnTo)        the runner portal: fade out, the runner
+ *                    course (third person); after its result screen
+ *                    backFromCourse() returns to the portal (first person)
  *
  * The player's place is saved in the profile (`location`), so CONTINUE
  * works after closing the browser.
@@ -61,6 +64,22 @@
     quitToMenu() { this.game.toMenu(); }
 
     // ---- doors: adventure → mission → back to the same door
+    enterCourse(returnTo) {
+      const g = this.game;
+      if (this.pending || g.state !== 'adventure') return false;
+      this.pending = { course: true, returnTo };
+      g.missions.freeze(true);
+      g.fade.target = 1;
+      VR.Audio.play('portal');
+      return true;
+    }
+    /** the course's result screen: "Back to the square" */
+    backFromCourse() {
+      const g = this.game;
+      g.courseFrom = null;
+      const loc = VR.Profiles.player().location;
+      this.enterAdventure(loc && VR.ADVENTURE.areas[loc.area] ? loc.area : VR.ADVENTURE.START, { location: loc, fadeIn: true });
+    }
     enterMission(missionId, returnTo) {
       const g = this.game, def = g.missions.byId(missionId);
       if (!def || this.pending || g.state !== 'adventure') return false;
@@ -79,6 +98,12 @@
       const p = VR.Profiles.player();                  // …then: come back in front of the door
       p.location = Object.assign({ t: Date.now() }, pd.returnTo);
       VR.Profiles.save();
+      if (pd.course) {                                 // the runner course, then back here
+        g.courseFrom = 'adventure';
+        g.start();
+        g.fade.target = 0;
+        return;
+      }
       g.missionFrom = 'adventure';
       g.missions.origin = 'adventure';
       g.missions.enter(pd.def);

@@ -105,8 +105,10 @@
     character(def) { $('charName').textContent = VR.L(def.name); $('charTag').textContent = VR.L(def.tagline) || ''; },
 
     /** result of a course: kind 'finish' (crossed the line) or 'crash' */
-    courseResult({ kind, score, dist, total, coins, best, isBest, time, bestTime, isBestTime }) {
+    courseResult({ kind, score, dist, total, coins, best, isBest, time, bestTime, isBestTime, fromWorld }) {
       const fin = kind === 'finish';
+      // from the runner portal: the main button takes you back into the world
+      $('againBtn').textContent = VR.t(fromWorld ? 'portal.back' : 'go.again');
       $('goTitle').textContent = VR.t(fin ? 'go.title.finish' : 'go.title.crash');
       $('goTitle').className = 'heading ' + (fin ? 'win' : '');
       $('goMainLbl').textContent = VR.t(fin ? 'go.time' : 'go.progress');

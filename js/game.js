@@ -118,13 +118,13 @@
     }
 
     bindUI() {
-      UI.bind('playBtn', () => this.start());
       // adventure: new game (asks first if there is a save) / continue
       UI.bind('newGameBtn', () => { if (this.modes.hasSave()) document.getElementById('newGameConfirm').hidden = false; else this.modes.newGame(); });
       UI.bind('newGameYes', () => { document.getElementById('newGameConfirm').hidden = true; this.modes.newGame(); });
       UI.bind('newGameNo', () => { document.getElementById('newGameConfirm').hidden = true; });
       UI.bind('continueBtn', () => this.modes.continueGame());
-      UI.bind('againBtn', () => this.start());
+      // the result screen of a course: back into the world when it came from the portal
+      UI.bind('againBtn', () => (this.courseFrom === 'adventure' ? this.modes.backFromCourse() : this.start()));
       UI.bind('charBtn', () => this.setState('character'));
       UI.bind('missionsBtn', () => this.setState('missionsList'));
       UI.bind('mlBack', () => this.setState('menu'));
@@ -331,7 +331,7 @@
 
     toMenu() {
       this.missionFromMenu = false;
-      this.missionFrom = null; this.missions.origin = null; this.modes.pending = null;
+      this.missionFrom = null; this.missions.origin = null; this.modes.pending = null; this.courseFrom = null;
       if (this.duel.match || this.duel.pending || this.duel.pickOpen) this.duel.abort();
       if (this.challenge.active) this.challenge.leave(false);
       if (this.missions.active) this.missions.abort();
@@ -357,10 +357,11 @@
       const isBest = this.score > this.best;
       if (isBest) this.best = this.score;
       this.wallet.credit(this.coins, `run:${this.runId}:end:${this.runEnds}`, 'run');
+      if (!racing) VR.Rules.portal.used();           // the portal rests after every course run (js/core/rules.js)
       setTimeout(() => {
         if (this.state !== 'dying') return;                // left in the meantime
         if (racing && this.challenge.inRace) { this.challenge.showResult(); return; }
-        UI.courseResult({ kind: 'crash', score: this.score, dist: this.distance, total: VR.Course.finishDistance(), coins: this.coins, best: this.best, isBest, bestTime: VR.Profiles.player().stats.bestTime });
+        UI.courseResult({ kind: 'crash', score: this.score, dist: this.distance, total: VR.Course.finishDistance(), coins: this.coins, best: this.best, isBest, bestTime: VR.Profiles.player().stats.bestTime, fromWorld: this.courseFrom === 'adventure' });
         this.setState('gameover');
       }, 1300);
     }
@@ -380,6 +381,7 @@
       if (this.newBestTime) { st.bestTime = +time.toFixed(2); VR.Profiles.save(); }
       if (this.score > this.best) { this.best = this.score; this.newBest = true; } else this.newBest = false;
       this.wallet.credit(this.coins, `run:${this.runId}:finish`, 'run');
+      if (!this.challenge.inRace) VR.Rules.portal.used();
       VR.Audio.play('success');
       UI.toast(VR.t('go.title.finish'), 1400);
       if (this.challenge.inRace) this.challenge.onLocalFinish(time);
@@ -396,7 +398,7 @@
       VR.Input.setEnabled(false);
       if (this.challenge.inRace || this.raceStopped) { this.raceStopped = false; this.challenge.showResult(); return; }
       UI.courseResult({ kind: 'finish', score: this.score, dist: this.distance, total: VR.Course.finishDistance(), coins: this.coins,
-        best: this.best, isBest: this.newBest, time: this.finishTime, bestTime: VR.Profiles.player().stats.bestTime, isBestTime: this.newBestTime });
+        best: this.best, isBest: this.newBest, time: this.finishTime, bestTime: VR.Profiles.player().stats.bestTime, isBestTime: this.newBestTime, fromWorld: this.courseFrom === 'adventure' });
       this.setState('gameover');
       VR.Audio.setMusicVolume(0.4);
     }

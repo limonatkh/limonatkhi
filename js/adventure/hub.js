@@ -29,7 +29,6 @@
   // ------------------------------------------------------------------ text
   Object.assign(VR.I18N.STRINGS.en, {
     'menu.newGame': 'NEW GAME', 'menu.continue': 'CONTINUE', 'menu.runner': 'RUNNER COURSE',
-    'menu.runnerNote': 'The runner course is reached from here for now; later it opens from a portal in the world.',
     'adv.confirmTitle': 'Start a new game?', 'adv.confirmText': 'Your saved adventure, coins and progress will be replaced. A copy of the old save is kept on this device.',
     'adv.confirmYes': 'START NEW GAME', 'adv.confirmNo': 'CANCEL',
     'adv.savedNote': 'Your progress and position are saved automatically.', 'adv.toMenu': 'SAVE AND GO TO MAIN MENU',
@@ -40,7 +39,6 @@
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'menu.newGame': 'لعبة جديدة', 'menu.continue': 'متابعة', 'menu.runner': 'مضمار الجري',
-    'menu.runnerNote': 'مضمار الجري متاح من هنا مؤقتًا؛ لاحقًا يُفتح من بوابة داخل العالم.',
     'adv.confirmTitle': 'بدء لعبة جديدة؟', 'adv.confirmText': 'سيُستبدل تقدّمك المحفوظ وعملاتك. تبقى نسخة من الحفظ القديم على هذا الجهاز.',
     'adv.confirmYes': 'ابدأ لعبة جديدة', 'adv.confirmNo': 'إلغاء',
     'adv.savedNote': 'يُحفظ تقدّمك ومكانك تلقائيًا.', 'adv.toMenu': 'احفظ وارجع للقائمة الرئيسية',
@@ -232,7 +230,8 @@
     L.box(-14.4, 3.2, -44.7, -14, 4.4, -41.3, STONE, false); L.collider(-14.4, 3.2, -44.7, -14, TOP, -41.3);
     floor(-14.4, -44.5, -14, -41.5, 'cobble');
     L.anchor('arenaGate', -14.2, 0, -43, PI / 2);
-    L.anchor('shop', 8.4, 0, -37.6, 0);                                      // the shop stall, facing the gate
+    L.anchor('shop', 8.4, 0, -37.6, 0);
+    L.anchor('portal', -9.6, 0, -35.4, PI / 2);                              // the runner portal, facing east                                      // the shop stall, facing the gate
     L.anchor('arenaSign', -13.95, 3.75, -43, -PI / 2);
     L.anchor('arenaRespawn', -11.8, 0, -43, PI / 2);
     L.anchor('pistolRack', -12.4, 0, -38.6, PI / 2);
@@ -412,6 +411,8 @@
       { id: 'gardenNote', type: 'text', at: 'gardenNote', style: 'chalk', size: 0.12, width: 1.8,
         title: { en: 'Garden board', ar: 'لوحة الحديقة' },
         text: { en: 'You found the hidden garden.\nMore of the world opens soon.', ar: 'وجدت الحديقة المخفية.\nأجزاء أخرى من العالم تُفتح قريبًا.' } },
+      // ---- the runner portal (js/adventure/portal.js, rule in js/core/rules.js)
+      { id: 'portal', type: 'runnerPortal', at: 'portal' },
       // ---- the shop stall in the square (js/adventure/shop.js)
       { id: 'shop', type: 'shopkeeper', at: 'shop' },
       // ---- training arena: the first weapon outside, the rest inside, and a fight in three waves

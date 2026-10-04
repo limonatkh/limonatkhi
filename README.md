@@ -227,8 +227,7 @@ The main menu starts the **adventure** (first person):
 - **Continue** (متابعة) — shown only when an adventure exists; brings you
   back to the same area, the same spot, with doors, pickups and coins as
   you left them (also after closing the browser).
-- **Runner course** (مضمار الجري) — still reachable from the menu for now;
-  later it opens from a portal inside the world.
+- The runner course opens from the **runner portal** in the big square (below).
 
 Pieces:
 
@@ -313,6 +312,24 @@ weapon · G grenade · E pick up. Touch: FIRE / AIM / R / ⇄ / G buttons.
 Saved: weapons and ammo (`inventory.weapons`), grenades
 (`inventory.consumables.nade`), what lies on the ground
 (`Profiles.world('hub').pickups`), and whether the arena was cleared.
+
+### Runner portal (the way into the course)
+
+The runner course is no longer in the main menu. It is reached through the
+**runner portal** in the big square, just inside the gate (west side)
+(`js/adventure/portal.js`, mode switch in `js/core/modes.js`).
+
+- The rule lives in its own file, `js/core/rules.js`
+  (`VR.Rules.RULES.runnerPortal`): the portal wakes up when the start
+  area's first puzzle is solved (`plaza_open`), and after every course run
+  (finished or crashed) it **rests 2 minutes of real time** (saved as
+  `progress.runnerPortalAt`, so closing the game does not skip it). Its
+  sign shows the time left. Leaving a run from the pause menu does not
+  start the rest. Race runs never touch it.
+- Using it: fade out → the course (third person). The return point (in
+  front of the portal, facing away from it) is saved first, so the result
+  screen's **Back to the square** — or CONTINUE after quitting — brings you
+  back there in first person. The course's coins are already in the wallet.
 
 ### Shop (متجر الليمون)
 
