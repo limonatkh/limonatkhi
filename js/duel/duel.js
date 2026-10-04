@@ -521,10 +521,10 @@
       const reward = forfeited ? 0 : win === true ? D.REWARD_WIN : D.REWARD_LOSE;
       m.result = { win, reward };
       // stats + coins (banked straight away, so nothing depends on the run)
-      const st = VR.UI.store.get('duelStats', { w: 0, l: 0, d: 0 });
+      const st = VR.Profiles.player().stats.duel;
       if (win === true) st.w++; else if (win === false) st.l++; else st.d++;
-      VR.UI.store.set('duelStats', st);
-      if (reward) { this.game.bank += reward; VR.UI.store.set('bank', this.game.bank); }
+      VR.Profiles.save();
+      if (reward) VR.Wallet.of().credit(reward, `duel:${m.did}`, 'duel');
       VR.Audio.play(win === true ? 'success' : win === false ? 'crash' : 'buzz');
       m.autoT = 8; m.autoAt = performance.now() + 8000;
       const col = VR.DuelArena.COLORS;

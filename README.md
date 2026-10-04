@@ -199,6 +199,24 @@ Then add `'volcano'` to `VR.BIOME_ORDER` and a name `'biome.volcano'` in
 Every section's voxels are built once and reused by all biomes (only the
 materials change), so a new biome costs nothing at runtime.
 
+## Player profile and coins (saving)
+
+| What | Where |
+|---|---|
+| Everything that belongs to the player: coins, items, upgrades, mission / area progress, best score, duel stats | `js/core/profile.js` → `VR.Profiles.player()` (saved as `cubeexpress.profiles`, with a version number) |
+| The state of a world area (doors, enemies…), separate from the player | `VR.Profiles.world(areaId)` |
+| Coins, shared by every mode | `js/core/wallet.js` → `VR.Wallet.of()` |
+
+- Players are stored in a map by id (only `p1` now), so several players can
+  later each keep their own data.
+- Every reward is a wallet transaction with an id (`run:<id>:end:<n>`,
+  `mission:<runId>`, `duel:<matchId>`); an id that was already paid is
+  ignored, so no reward can be paid twice.
+- First start of this version: the old keys (`bank`, `best`, `missions`,
+  `duelStats`) are copied into the profile and left in place, so older
+  versions still open with their data.
+- Device preferences (settings, character, language, name) stay separate.
+
 ## 10. Export / build
 
 There is no build step — the folder **is** the game.
@@ -332,7 +350,7 @@ bonus rewards and achievements are saved and granted once.
   "Mission gate ahead!" toast warns you. Steer through it.
 * Shortcuts in the browser console while a run is going:
   * `VR.game.enterGate({ missionId: 'm2' })` jumps straight into mission 2.
-  * `localStorage.removeItem('cubeexpress.missions')` resets mission progress.
+  * `VR.Profiles.player().progress.missions = { completed: {}, secondary: {}, achievements: [], plays: {} }; VR.Profiles.save()` resets mission progress.
   * `VR.game.missions.run.flags` shows the current puzzle state.
 
 ## Adding a mission

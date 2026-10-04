@@ -477,6 +477,7 @@
       this.time = 0; this.mistakes = 0; this.hintsUsed = 0;
       this.history = [S.NOT_STARTED];
       this.rewarded = false;
+      this.uid = VR.uid();                                 // pays its rewards once (wallet txId)
     }
     go(next) {
       const ok = (ALLOWED[this.state] || []).includes(next);
@@ -529,11 +530,9 @@
    * PROGRESS + REWARDS (saved between sessions)
    * ================================================================ */
   const Progress = {
-    load() {
-      const p = VR.UI.store.get('missions', null) || {};
-      return { completed: p.completed || {}, secondary: p.secondary || {}, achievements: p.achievements || [], plays: p.plays || {} };
-    },
-    save(p) { VR.UI.store.set('missions', p); },
+    // mission progress is part of the player profile (js/core/profile.js)
+    load() { return VR.Profiles.player().progress.missions; },
+    save(p) { VR.Profiles.player().progress.missions = p; VR.Profiles.save(); },
   };
   const ACHIEVEMENTS = {
     first_mission: 'First Gate: complete a mission',
@@ -546,7 +545,7 @@
       if (run.rewarded) return run.rewardSummary;
       const def = run.def;
       const first = !progress.completed[def.id];
-      const out = { score: 0, coins: 0, lines: [], achievements: [], firstTime: first };
+      const out = { score: 0, coins: 0, lines: [], achievements: [], firstTime: first, txId: 'mission:' + run.uid };
       if (first) {
         out.score += def.rewards.score || 0; out.coins += def.rewards.coins || 0;
         out.lines.push({ key: 'rw.complete', score: def.rewards.score || 0, coins: def.rewards.coins || 0 });

@@ -15,8 +15,9 @@
     constructor() {
       this.state = 'loading';
       this.settings = Object.assign({ sfx: true, music: true, quality: 'high', fps: false, online: true }, UI.store.get('settings', {}));
-      this.best = UI.store.get('best', 0);
-      this.bank = UI.store.get('bank', 0);
+      // coins and best score live in the player profile (js/core/profile.js, wallet.js)
+      this.wallet = VR.Wallet.of();
+      this.runId = VR.uid(); this.runEnds = 0;
       this.charIndex = Math.max(0, VR.CHARACTERS.findIndex(c => c.id === UI.store.get('character', 'pip')));
 
       this.initRenderer();
@@ -227,7 +228,13 @@
       this.challenge.boot();                       // opened from an invite link?
     }
 
+    // shared coins / best score of the player (profile), read by the menu and the HUD
+    get bank() { return this.wallet.coins; }
+    get best() { return VR.Profiles.player().stats.best; }
+    set best(v) { VR.Profiles.player().stats.best = Math.floor(v); VR.Profiles.save(); }
+
     resetRun(seed = null) {
+      this.runId = VR.uid(); this.runEnds = 0;      // every run pays its coins once (wallet txIds)
       this.usedCodes = new Set();                  // each secret code works once per run
       this.canContinue = false;
       this.deathState = null;
@@ -326,7 +333,8 @@
       VR.Input.setEnabled(false);
       // remember where the run ended so a secret code can continue it
       const p = this.player;
-      this.deathState = { x: p.x, y: p.y, z: p.z, coinsBanked: this.coins };
+      this.runEnds++;
+      this.deathState = { x: p.x, y: p.y, z: p.z, coinsBanked: this.coins, end: this.runEnds };
       this.canContinue = true;                     // one continue per death
       this.player.groundAtDeath = this.world.surfaceAt(this.player.x, this.player.z, this.player.y + 0.01, 0.3).h;
       this.player.die();
@@ -336,8 +344,8 @@
       VR.Audio.setMusicVolume(0.25);
       this.shake = 0.5;
       const isBest = this.score > this.best;
-      if (isBest) { this.best = Math.floor(this.score); UI.store.set('best', this.best); }
-      this.bank += this.coins; UI.store.set('bank', this.bank);
+      if (isBest) this.best = this.score;
+      this.wallet.credit(this.coins, `run:${this.runId}:end:${this.runEnds}`, 'run');
       setTimeout(() => {
         if (this.state !== 'dying') return;                // left in the meantime
         if (racing && this.challenge.inRace) { this.challenge.showResult(); return; }
@@ -364,8 +372,8 @@
 
     revive() {
       const d = this.deathState;
-      // coins were banked at death; they'll be banked again at the next death
-      this.bank -= d.coinsBanked; UI.store.set('bank', this.bank);
+      // coins were paid at death; the run goes on and pays them again at its next end
+      if (d.coinsBanked > 0) this.wallet.debit(Math.min(d.coinsBanked, this.wallet.coins), `run:${this.runId}:continue:${d.end}`, 'continue');
       this.player.revive(d);
       // short star power so the obstacle that ended the run is cleared
       this.powerups.timers.invincible = Math.max(this.powerups.remaining('invincible'), 3);
@@ -469,7 +477,7 @@
         // played from the missions list: no run to go back to; coins go to the bank
         this.missions.exit();
         const r = this.returnRewards;
-        if (r && r.coins) { this.bank += r.coins; UI.store.set('bank', this.bank); }
+        if (r && r.coins) this.wallet.credit(r.coins, r.txId, 'mission');
         this.toMenu(); this.fade.target = 0;
         this.setState('missionsList');
         if (r && (r.score || r.coins)) setTimeout(() => UI.toast(VR.t('toast.reward', { score: r.score.toLocaleString('en-US'), coins: r.coins }), 2200), 300);
