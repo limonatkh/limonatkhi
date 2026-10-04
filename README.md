@@ -249,6 +249,28 @@ seconds, on pause and when leaving).
 Walking through a coin pays it into the shared wallet once
 (transaction id `world:<area>:<id>_<n>`).
 
+### The adventure loop (doors, signs, hidden places)
+
+- **Five doors** in the big square lead to missions m1–m5 (same missions,
+  unchanged puzzles). The lamp above a door: red = locked (it says which
+  mission opens it), yellow = open, green = done. Going through a door
+  fades out, plays the mission, and brings you back in front of the same
+  door — after the results, after leaving, or on CONTINUE if you quit to
+  the menu from inside. Mission coins are paid to the shared wallet.
+- **Progress across areas:** every completed mission gives the square the
+  flag `done_<mission>` (derived from mission progress, never stored twice).
+- **Cross-area clue:** a finished door shows a sign; the panel by the east
+  wall wants the signs of doors 1, 2, 3 in order and opens a hidden gate to
+  the garden (a bonus lemon and coins worth 5).
+- **Hidden passage:** a low gap in the courtyard's west wall (crouch or
+  slide) leads to a small nook with coins and a note pointing to the garden.
+- **Objective tracker:** an area can have `chapters: [{ title, objectives }]`;
+  the HUD shows the first chapter that is not finished.
+- **Coins in areas:** each mission area has a few coins near where you
+  arrive; collected coins are remembered per player
+  (`progress.areas[<area>].coins`), so they stay gone even though a
+  mission's own flags reset on replay.
+
 ## 10. Export / build
 
 There is no build step — the folder **is** the game.

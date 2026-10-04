@@ -338,6 +338,7 @@
 
     toMenu() {
       this.missionFromMenu = false;
+      this.missionFrom = null; this.missions.origin = null; this.modes.pending = null;
       if (this.duel.match || this.duel.pending || this.duel.pickOpen) this.duel.abort();
       if (this.challenge.active) this.challenge.leave(false);
       if (this.missions.active) this.missions.abort();
@@ -494,6 +495,10 @@
     }
     updateMissionMode(dt) {
       this.missions.update(dt);
+      if (this.state === 'gateReturn' && this.fade.value >= 0.99 && this.missionFrom === 'adventure') {
+        // entered through a door in the adventure world: back to that door
+        return this.modes.backFromMission(this.returnRewards);
+      }
       if (this.state === 'gateReturn' && this.fade.value >= 0.99 && this.missionFromMenu) {
         // played from the missions list: no run to go back to; coins go to the bank
         this.missions.exit();
@@ -720,7 +725,7 @@
       else if (st === 'settings' && this.settingsReturn !== 'paused') this.updateMenu(dt);
       else if (st === 'gateEnter') this.updateGateEnter(dt);
       else if (st === 'mission' || st === 'gateReturn') this.updateMissionMode(dt);
-      else if (st === 'adventure') this.missions.update(dt);
+      else if (st === 'adventure') { this.missions.update(dt); this.modes.update(dt); }
       else if (st === 'countdown') this.updateCountdown(dt);
       else if (st === 'duelEnter') this.updateDuelEnter(dt);
       else if (st === 'duel' || st === 'duelReturn') this.updateDuelMode(dt);

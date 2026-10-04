@@ -89,7 +89,7 @@
       const st = this.game.state;
       if (this.match && this.match.solo) return '';          // waiting in the arena: anyone may come and play
       if (this.match || (this.pending && !this.pending.auto)) return 'duel';
-      if (['mission', 'gateEnter', 'gateReturn'].includes(st)) return 'mission';
+      if (['mission', 'gateEnter', 'gateReturn', 'adventure'].includes(st)) return 'mission';   // the adventure world counts as a mission for invites
       if (['duelEnter', 'duel', 'duelReturn'].includes(st)) return 'duel';
       if (st === 'duelPick') return 'busy';
       if (this.game.challenge.inRace && kind !== 'friend') return 'race';

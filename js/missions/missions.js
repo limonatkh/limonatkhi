@@ -69,7 +69,7 @@
 
     // ------------------------------------------------------------ lifecycle
     enter(def, opts = {}) {
-      this.active = true; this.paused = false;
+      this.active = true; this.paused = false; this.frozen = false;
       this.run = new (MS().MissionRun)(def, this);
       this.run.go('entering');
       if (def.persistent) this.restoreArea(this.run);
@@ -97,6 +97,8 @@
       const mine = (P.player().progress.areas[id] || {}).flags || [];
       const world = P.world(id).flags || [];
       for (const f of [...world, ...mine]) run.flags.add(f);
+      // progress made in OTHER areas: done_<mission> for every completed mission (derived, never saved)
+      for (const mid in this.progress.completed) run.flags.add('done_' + mid);
       run.inventory = (P.player().inventory.tools || []).filter(it => it.area === id).map(it => Object.assign({}, it));
       run.selected = 0;
     }
@@ -104,7 +106,7 @@
       const run = this.run;
       if (!run || !run.def.persistent) return;
       const id = run.def.id, P = VR.Profiles, p = P.player();
-      const flags = [...run.flags];
+      const flags = [...run.flags].filter(f => !f.startsWith('done_'));
       p.progress.areas[id] = Object.assign(p.progress.areas[id] || {}, { flags: flags.filter(MissionManager.personalFlag) });
       P.world(id).flags = flags.filter(f => !MissionManager.personalFlag(f));
       p.inventory.tools = (p.inventory.tools || []).filter(it => it.area !== id).concat(run.inventory.map(it => Object.assign({}, it, { area: id })));
@@ -186,7 +188,7 @@
 
     // ------------------------------------------------------------ pause / modals
     onPauseKey() {
-      if (!this.run) return;
+      if (!this.run || this.frozen) return;
       const m = this.ui.modal;
       if (m === 'pause') return this.resume();
       if (m === 'intro' || m === 'results' || m === 'failed') return;
@@ -208,6 +210,11 @@
       });
     }
     resume() { this.paused = false; this.ui.close(); }
+    /** stop taking input for a moment (fading out through a door) */
+    freeze(on) {
+      this.frozen = !!on;
+      if (on) { this.ui.close(); this.ui.setPrompt(null); VR.Input.setFPEnabled(false); VR.Input.releaseLock(); }
+    }
     onModal(open) {
       if (open) { VR.Input.setFPEnabled(false); VR.Input.releaseLock(); this.ui.setPrompt(null); return; }
       if (this.run && this.run.state === 'active' && !this.paused) { VR.Input.setFPEnabled(true); VR.Input.requestLock(); }
@@ -300,7 +307,7 @@
     update(dt) {
       if (!this.active || !this.run) return;
       const run = this.run, ctrl = this.ctrl, L = this.level;
-      const playing = run.state === 'active' && !this.paused && !this.ui.modal;
+      const playing = run.state === 'active' && !this.paused && !this.ui.modal && !this.frozen;
       let look = { x: 0, y: 0 };
       if (playing) {
         const move = VR.Input.moveVector();

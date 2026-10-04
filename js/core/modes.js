@@ -15,6 +15,8 @@
  *   continueGame()   back into the adventure where you left it
  *   enterAdventure() enter an area (location: where to stand)
  *   quitToMenu()     save and go back to the main menu
+ *   enterMission(id, returnTo)   a door in the world: fade out, play the
+ *                    mission, then come back to the door (backFromMission)
  *
  * The player's place is saved in the profile (`location`), so CONTINUE
  * works after closing the browser.
@@ -44,18 +46,58 @@
       const area = VR.ADVENTURE.areas[loc.area] ? loc.area : VR.ADVENTURE.START;
       this.enterAdventure(area, { intro: false, location: area === loc.area ? loc : null });
     }
-    enterAdventure(areaId, { intro = false, location = null } = {}) {
+    enterAdventure(areaId, { intro = false, location = null, fadeIn = false } = {}) {
       const g = this.game, def = VR.ADVENTURE.areas[areaId];
       if (!def) { console.warn('[modes] unknown area', areaId); return; }
       VR.Audio.unlock();
-      if (g.settings.fullscreen) VR.Fullscreen.request();
+      if (g.settings.fullscreen && !fadeIn) VR.Fullscreen.request();
       if (g.missions.active) g.missions.abort();
-      g.fade.value = g.fade.target = 0; g.updateFade(0);
+      g.fade.value = fadeIn ? 1 : 0; g.fade.target = 0; g.updateFade(0);
+      this.pending = null;
       g.setState('adventure');
       g.missions.enterArea(def, { intro, location });
       VR.Audio.setMusicVolume(0.35);
     }
     quitToMenu() { this.game.toMenu(); }
+
+    // ---- doors: adventure → mission → back to the same door
+    enterMission(missionId, returnTo) {
+      const g = this.game, def = g.missions.byId(missionId);
+      if (!def || this.pending || g.state !== 'adventure') return false;
+      this.pending = { def, returnTo };
+      g.missions.freeze(true);
+      g.fade.target = 1;
+      VR.Audio.play('portal');
+      return true;
+    }
+    /** every frame while in the adventure (game loop) */
+    update() {
+      const g = this.game, pd = this.pending;
+      if (!pd || g.fade.value < 0.99) return;
+      this.pending = null;
+      g.missions.abort();                              // saves the area…
+      const p = VR.Profiles.player();                  // …then: come back in front of the door
+      p.location = Object.assign({ t: Date.now() }, pd.returnTo);
+      VR.Profiles.save();
+      g.missionFrom = 'adventure';
+      g.missions.origin = 'adventure';
+      g.missions.enter(pd.def);
+      g.setState('mission');
+      g.fade.target = 0;
+    }
+    /** the mission ended (results, leave or fail): pay, then back into the world */
+    backFromMission(rewards) {
+      const g = this.game;
+      g.missionFrom = null;
+      g.missions.exit();
+      g.missions.origin = null;
+      if (rewards && rewards.coins) g.wallet.credit(rewards.coins, rewards.txId, 'mission');
+      const loc = VR.Profiles.player().location;
+      this.enterAdventure(loc && VR.ADVENTURE.areas[loc.area] ? loc.area : VR.ADVENTURE.START, { location: loc, fadeIn: true });
+      if (rewards && (rewards.score || rewards.coins)) {
+        setTimeout(() => g.missions.ui.toast(VR.t('toast.reward', { score: (rewards.score || 0).toLocaleString('en-US'), coins: rewards.coins || 0 }), 2600), 400);
+      }
+    }
   }
 
   VR.ModeManager = ModeManager;

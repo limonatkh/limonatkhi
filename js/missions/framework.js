@@ -261,7 +261,8 @@
         l.material.color.setHex(solved ? 0x5fdc5f : flash > 0 ? flashColor : i < input.length ? 0xffc93c : 0x333a40);
       });
       setLamps();
-      const panel = { id: def.id, def, obj: m, kind: null, prompt: () => null, use: () => {}, hit: new T.Box3(), sync: () => {}, children: [],
+      const panel = { id: def.id, def, obj: m, kind: null, prompt: () => null, use: () => {}, hit: new T.Box3(), children: [],
+        sync: (run) => { if (!solved && run.def.persistent && run.has(def.flag)) { solved = true; setLamps(); } },
         update: (dt) => {
           if (flash > 0) { flash -= dt; if (flash <= 0) setLamps(); }
           m.userData.buttons.forEach(b => { b.position.z += (0 - b.position.z) * Math.min(1, dt * 12); });
@@ -514,7 +515,13 @@
       this.mgr.ui.toast(tr('t.journal'));
       VR.Audio.play('clue');
     }
-    objectiveSteps() { return (this.def.objectives || []).map(o => ({ text: o.text, done: evalCond(this, o.done) })); }
+    objectiveSteps() { return (this.chapter() ? this.chapter().objectives : this.def.objectives || []).map(o => ({ text: o.text, done: evalCond(this, o.done) })); }
+    /** areas with CHAPTERS (def.chapters: [{ title, objectives }]): the first one not finished yet */
+    chapter() {
+      const ch = this.def.chapters;
+      if (!ch || !ch.length) return null;
+      return ch.find(c => !c.objectives.every(o => evalCond(this, o.done))) || ch[ch.length - 1];
+    }
     secondaryStatus() {
       return (this.def.secondary || []).map(s => {
         let done = false, detail = '';

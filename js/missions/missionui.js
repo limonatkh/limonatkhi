@@ -15,9 +15,13 @@
   const KIND_ICON = { inspect: '◉', collect: '✋', interact: '⚙' };
   const isTouch = () => window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
+  /** a few lines read differently when the mission was entered from the adventure world (key + '.adv') */
+  let currentMgr = null;
+  const RT = (k) => (currentMgr && currentMgr.origin === 'adventure' && VR.I18N.STRINGS.en[k + '.adv'] ? T(k + '.adv') : T(k));
+
   class MissionUI {
     constructor(mgr) {
-      this.mgr = mgr;
+      this.mgr = mgr; currentMgr = mgr;
       this.root = document.getElementById('mission-ui');
       this.modal = null;
       this.toastTimer = 0; this.captionTimer = 0;
@@ -91,6 +95,8 @@
       this.setInventory(run);
     }
     refreshObjectives(run) {
+      const ch = run.chapter && run.chapter();
+      if (ch) this.el.obj.textContent = L(ch.title);
       const steps = run.objectiveSteps();
       const cur = steps.find(s => !s.done);
       const doneN = steps.filter(s => s.done).length;
@@ -280,7 +286,7 @@
           <button class="btn" id="mi-restart">${T('mi.p.restart')}</button>
           <button class="btn" id="mi-leave">${T('mi.p.leave')}</button>
         </div>
-        <p class="mi-small">${T('mi.p.leaveNote')}</p>
+        <p class="mi-small">${RT('mi.p.leaveNote')}</p>
         <button class="btn small" id="mi-quit">${T('mi.p.quit')}</button>`}`,
         (card) => {
           card.querySelector('#mi-resume').addEventListener('click', () => { VR.Audio.play('click'); handlers.resume(); });
@@ -313,7 +319,7 @@
           ${summary.achievements.map(a => `<div class="mi-ach">★ ${esc(T('ach.' + a))}</div>`).join('')}
         </div>
         ${stats.items.length ? `<p class="mi-small">${T('mi.r.items', { list: stats.items.map(x => esc(L(x))).join(VR.isRTL() ? '، ' : ', ') })}</p>` : ''}
-        <button class="btn primary" id="mi-return" data-focus>${T('mi.r.return')}</button>`,
+        <button class="btn primary" id="mi-return" data-focus>${RT('mi.r.return')}</button>`,
         (card) => card.querySelector('#mi-return').addEventListener('click', () => { VR.Audio.play('click'); onReturn(); }));
     }
 
@@ -321,10 +327,10 @@
       this.open('failed', `
         <div class="mi-eyebrow">${esc(L(run.def.name))}</div>
         <h2 class="heading">${T('mi.f.title')}</h2>
-        <p class="mi-intro">${T('mi.f.text')}</p>
+        <p class="mi-intro">${RT('mi.f.text')}</p>
         <div class="mi-row">
           <button class="btn lemon" id="mi-retry" data-focus>${T('mi.f.retry')}</button>
-          <button class="btn" id="mi-fret">${T('mi.r.return')}</button>
+          <button class="btn" id="mi-fret">${RT('mi.r.return')}</button>
         </div>`,
         (card) => {
           card.querySelector('#mi-retry').addEventListener('click', () => { VR.Audio.play('click'); onRetry(); });
