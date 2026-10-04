@@ -55,26 +55,58 @@
         return vb;
       },
     },
+    // SLIDE obstacles: the opening you slide through (|x| < pass) is completely clear
+    // below the beam; supports stand outside it and are solid
     arch: {                                          // SLIDE under: a stone lintel on two pillars
-      kind: 'slide', w: 2.8, length: 0.6, standable: false, scalable: true,
-      colliders: [{ x0: -1.4, x1: 1.4, y0: 1.05, y1: 3.4, z0: -0.6, z1: 0 }],
+      kind: 'slide', w: 3.8, pass: 1.4, length: 0.6, standable: false, scalable: true,
+      colliders: [
+        { x0: -1.9, x1: 1.9, y0: 1.05, y1: 3.4, z0: -0.6, z1: 0 },
+        { x0: -1.9, x1: -1.4, y0: 0, y1: 1.05, z0: -0.6, z1: 0 },
+        { x0: 1.4, x1: 1.9, y0: 0, y1: 1.05, z0: -0.6, z1: 0 },
+      ],
       build() {
         const vb = new VR.VoxelBuilder();
-        for (const s of [-1, 1]) { vb.addBox(s * 1.2, 0, -0.3, 0.5, 2.4, 0.55, 'cobble'); vb.addBox(s * 1.2, 2.4, -0.3, 0.6, 0.8, 0.6, 'stone'); }
-        vb.addBox(0, 1.15, -0.3, 2.9, 1.15, 0.55, 'stone');
-        vb.addBox(0, 2.3, -0.3, 2.3, 0.18, 0.5, MOSS);
+        for (const s of [-1, 1]) { vb.addBox(s * 1.65, 0, -0.3, 0.5, 2.4, 0.55, 'cobble'); vb.addBox(s * 1.65, 2.4, -0.3, 0.6, 0.8, 0.6, 'stone'); }
+        vb.addBox(0, 1.15, -0.3, 3.9, 1.15, 0.55, 'stone');
+        vb.addBox(0, 2.3, -0.3, 3.0, 0.18, 0.5, MOSS);
         vb.addBox(-0.5, 2.48, -0.3, 0.9, 0.5, 0.5, 'cobble');
         return vb;
       },
     },
-    leaning: {                                       // SLIDE under: two leaning stone pillars
-      kind: 'slide', w: 2.8, length: 0.7, standable: false, scalable: true,
-      colliders: [{ x0: -1.4, x1: 1.4, y0: 1.05, y1: 3.4, z0: -0.7, z1: 0 }],
+    leaning: {                                       // SLIDE under: two stone pillars leaning together
+      kind: 'slide', w: 3.8, pass: 1.4, length: 0.7, standable: false, scalable: true,
+      colliders: [
+        { x0: -1.9, x1: 1.9, y0: 1.05, y1: 3.4, z0: -0.7, z1: 0 },
+        { x0: -2.1, x1: -1.4, y0: 0, y1: 1.05, z0: -0.7, z1: 0 },
+        { x0: 1.4, x1: 2.1, y0: 0, y1: 1.05, z0: -0.7, z1: 0 },
+      ],
       build() {
         const vb = new VR.VoxelBuilder();
-        for (const s of [-1, 1]) for (let i = 0; i < 6; i++) vb.addBox(s * (1.25 - i * 0.2), i * 0.5, -0.35, 0.55, 0.52, 0.6, i % 2 ? 'stone' : 'cobble');
-        vb.addBox(0, 1.2, -0.35, 1.6, 1.0, 0.65, 'cobble');            // wedged block
-        vb.addBox(0, 2.2, -0.35, 1.0, 0.6, 0.6, 'stone');
+        // bases outside the opening, leaning in above slide height
+        for (const s of [-1, 1]) for (let i = 0; i < 6; i++) vb.addBox(s * (1.85 - i * 0.16), i * 0.5, -0.35, 0.5, 0.52, 0.6, i % 2 ? 'stone' : 'cobble');
+        vb.addBox(0, 1.2, -0.35, 2.0, 1.0, 0.65, 'cobble');            // wedged block
+        vb.addBox(0, 2.2, -0.35, 1.2, 0.6, 0.6, 'stone');
+        return vb;
+      },
+    },
+    lintel: {                                        // SLIDE under: a stone beam (pieces of a wide hurdle)
+      kind: 'slide', w: 2.8, length: 0.6, standable: false, scalable: true,      // no supports: all of it is open
+      colliders: [{ x0: -1.4, x1: 1.4, y0: 1.05, y1: 3.4, z0: -0.6, z1: 0 }],
+      build() {
+        const vb = new VR.VoxelBuilder();
+        vb.addBox(0, 1.15, -0.3, 2.82, 1.1, 0.55, 'stone');
+        vb.addBox(0, 2.25, -0.3, 2.82, 0.16, 0.5, MOSS);
+        vb.addBox(0.6, 2.41, -0.3, 0.8, 0.45, 0.5, 'cobble');
+        return vb;
+      },
+    },
+    post: {                                          // the beam's supports, standing at the route's edge
+      kind: 'deco', w: 0.5, length: 0.6, standable: false,
+      colliders: [],
+      build() {
+        const vb = new VR.VoxelBuilder();
+        vb.addBox(0, -0.8, -0.3, 0.5, 3.2, 0.6, 'cobble');
+        vb.addBox(0, 2.4, -0.3, 0.65, 0.5, 0.7, 'stone');
         return vb;
       },
     },

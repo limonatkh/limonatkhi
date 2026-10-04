@@ -633,8 +633,10 @@
      *      first time   -> STUMBLE: you trip, slow down for a moment and are
      *                      VULNERABLE for VULNERABLE_TIME (red ring, HUD)
      *      while vulnerable -> crash (a shield saves you once)
-     *  - a 'block' (boulder, pillar, falling rock) or 'slide' obstacle hit
-     *    head-on: crash (a shield saves you once), as before
+     *  - clipping just the EDGE of a 'block' (boulder, pillar, falling rock) or
+     *    of a slide obstacle's support: the same stumble, and you are shoved off it
+     *  - a 'block' or 'slide' obstacle hit full on: crash (a shield saves you
+     *    once), as before
      */
     resolveCollisions() {
       if (this.hitCooldown > 0) return;
@@ -647,11 +649,18 @@
         this.world.smash(o); VR.Audio.play('shieldBreak'); this.shake = 0.12;
         return;
       }
-      const trip = hit.side || o.kind === 'jump' || o.kind === 'step';
+      // clipping only the EDGE of a big rock / a pillar (less than ~half your body) is a
+      // glancing hit: you trip and are pushed off it, like over a low obstacle
+      const glancing = !hit.side && (o.kind === 'block' || o.kind === 'slide') && hit.overlap !== undefined && hit.overlap < 0.42;
+      const trip = hit.side || glancing || o.kind === 'jump' || o.kind === 'step';
       if (trip && p.vulnerable <= 0) {
         // first hit: stumble, you don't die
         p.stumble(hit.side);
-        if (!hit.side) o.tripped = true;                  // you stumble over it, it no longer blocks you
+        if (glancing) {
+          const hw = C.PLAYER_HALF_WIDTH + 0.08;
+          p.dodgeX = p.x < (hit.bx0 + hit.bx1) / 2 ? hit.bx0 - hw : hit.bx1 + hw;     // shoved off its edge
+        }
+        if (!hit.side) o.tripped = true;                  // you stumble past it, it no longer blocks you
         this.stumbleT = C.STUMBLE_RECOVER;
         this.hitCooldown = 0.45;
         this.shake = 0.22;
@@ -793,13 +802,20 @@
       // which branch the camera rides on: the runner's (by order), so behind a split it is
       // on the runner's side of the mountain; behind a merge it stays on its own branch
       const pregs = tr.regionsAt(p.z), cregs = tr.regionsAt(tz);
-      let rc;
-      if (cregs.length <= pregs.length) {
-        const kIdx = Math.max(0, pregs.indexOf(VR.Route.pick(pregs, p.x, p.side)));
-        rc = cregs[pregs.length === 1 ? 0 : Math.round(kIdx * (cregs.length - 1) / (pregs.length - 1))];
-      } else rc = VR.Route.pick(cregs, this.camPath.x, 0);
-      const bx = VR.Player.xAt(rc, rel);
-      const tx = bx - clamp(bx * 0.25, -0.65, 0.65);
+      let rc, bx;
+      if (cregs.length < pregs.length) {
+        // the route splits between the camera and the runner: stay right behind the
+        // runner (absolute x), so the camera is already on the runner's side of the fork
+        rc = VR.Route.pick(cregs, p.x, p.side);
+        bx = clamp(p.x, rc.a + 0.3, rc.b - 0.3);
+      } else {
+        if (cregs.length === pregs.length) rc = cregs[Math.max(0, pregs.indexOf(VR.Route.pick(pregs, p.x, p.side)))];
+        else rc = VR.Route.pick(cregs, this.camPath.x, 0);           // behind a merge: keep its own branch
+        bx = VR.Player.xAt(rc, rel);
+      }
+      // lean a little toward the middle of the branch (more of the route in view), never across it
+      const mid = (rc.a + rc.b) / 2;
+      const tx = bx - clamp((bx - mid) * 0.25, -0.65, 0.65);
       let ty = C.CAMERA_HEIGHT + p.y * 0.62 + this.camBump + (this.portrait ? 2.6 : 0);
       const k = 1 - Math.exp(-dt * 6);
       const cam = this.camPath;

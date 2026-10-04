@@ -120,7 +120,7 @@ come from the seeded random generator.
 section's regions.
 
 - Obstacles (`prefabs.js`): `rock_low`, `log`, `crevice` (jump over),
-  `arch`, `leaning` stone pillars (slide under), `boulder`, `pillar`,
+  `arch`, `leaning` stone pillars, `lintel` beams (slide under), `boulder`, `pillar`,
   `rockfall` (a rock that falls from the mountain as you come; its landing
   spot is marked) — go around — and `step` (a rock shelf you run up onto).
   Jump/slide obstacles can be stretched to span a whole ridge (`hurdle`).
@@ -143,9 +143,16 @@ section's regions.
   your feet and a red screen edge) and are **vulnerable** for
   `VULNERABLE_TIME` (2.6 s). A second hit while vulnerable ends the run.
   No second hit → back to normal.
-- A **block** (boulder, pillar, falling rock) or **slide** obstacle hit
-  head-on ends the run, as before. A shield saves you once; star / boost
-  smash obstacles.
+- Clipping only the **edge** of a block (boulder, pillar, falling rock) or
+  of a slide obstacle's support (less than ~0.4 m of your body) is a glancing
+  hit: the same stumble, and you are shoved off it.
+- A **block** or **slide** obstacle hit full on ends the run, as before.
+  A shield saves you once; star / boost smash obstacles.
+
+Slide obstacles have a completely clear opening below the beam; their
+supports stand outside it (and count as solid in the fairness check). A
+slide hurdle across a whole ridge is one long beam held by posts beyond
+the route's edges.
 
 ## 7. Difficulty and speed
 

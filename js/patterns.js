@@ -76,7 +76,7 @@
       const w = def.w * sx, len = def.length;
       if (z < ZMIN || z + len > ZMAX) return false;
       // spanning obstacles may hang a little over the edge; blocks stand fully on the route
-      const tol = def.kind === 'jump' || def.kind === 'slide' ? 0.4 : -0.15;
+      const tol = def.kind === 'jump' ? 0.4 : def.kind === 'slide' ? 0.55 : -0.15;
       for (let zz = Math.floor(z); zz <= Math.min(L - 1, Math.ceil(z + len)); zz++) {
         if (this.reserved[zz]) return false;
         const r = VR.Route.pick(this.regs[zz], x, 0);
@@ -100,12 +100,14 @@
       const pad = PHW + (def.kind === 'block' ? 0.15 : 0);      // a little safety margin around rocks
       const w = def.w * sx, x0 = x - w / 2 - pad, x1 = x + w / 2 + pad;
       const code = def.kind === 'jump' ? J : def.kind === 'slide' ? S : def.kind === 'block' ? B : P;
+      // a slide obstacle's supports are solid: only its opening can be slid through
+      const open = def.pass ? def.pass * sx - PHW : Infinity;
       for (let zz = Math.floor(z); zz < Math.min(L, Math.ceil(z + def.length)); zz++) {
         const c = def.kind === 'step' && zz >= z + def.ramp.len ? R : code;
-        for (let i = ci(x0); i <= ci(x1); i++) if (this.walk[zz][i]) this.code[zz][i] = c;
+        for (let i = ci(x0); i <= ci(x1); i++) if (this.walk[zz][i]) this.code[zz][i] = Math.abs(cx(i) - x) <= open ? c : B;
       }
       if (def.kind === 'jump') this.jumps.push({ x0: x - w / 2, x1: x + w / 2, zc: z + def.length / 2 });
-      if (def.kind === 'slide') this.slides.push({ x0: x - w / 2, x1: x + w / 2, z0: z, z1: z + def.length });
+      if (def.kind === 'slide') { const hp = (def.pass || def.w / 2) * sx; this.slides.push({ x0: x - hp, x1: x + hp, z0: z, z1: z + def.length }); }
       if (def.kind === 'step') this.steps.push({ x0: x - w / 2, x1: x + w / 2, z, ramp: def.ramp.len, h: def.ramp.h, len: def.length });
     }
     /** one obstacle at (x, z) */
@@ -119,9 +121,23 @@
     }
     /** a jump / slide obstacle stretched across a whole region (pieces side by side) */
     hurdle(kind, z, region) {
-      const types = kind === 'jump' ? ['rock_low', 'log', 'crevice', 'rock_low'] : ['arch', 'leaning'];
+      const types = kind === 'jump' ? ['rock_low', 'log', 'crevice', 'rock_low'] : ['lintel'];
       const type = this.pick(types), def = VR.OBSTACLE_TYPES[type];
       const W = region.b - region.a;
+      if (kind === 'slide') {
+        // one beam across the whole route, held by posts beyond its edges: the
+        // whole width is a clear opening to slide through
+        const n = Math.max(1, Math.round(W / def.w)), pw = W / n, sx = pw / def.w;
+        if (!this.spacingOk(def, region.a, region.b, z)) return false;
+        for (let zz = Math.floor(z); zz <= Math.ceil(z + def.length); zz++) if (this.reserved[Math.min(L - 1, zz)]) return false;
+        if (z < ZMIN || z + def.length > ZMAX) return false;
+        const at = (zz) => VR.Route.pick(this.regs[Math.min(L - 1, Math.floor(zz))], (region.a + region.b) / 2, 0);
+        const r0 = at(z), r1 = at(z + def.length);
+        if (Math.abs(r0.a - r1.a) > 0.3 || Math.abs(r0.b - r1.b) > 0.3) return false;      // not where the route moves
+        for (let k = 0; k < n; k++) { const x = region.a + pw * (k + 0.5); this.mark(def, x, z, sx); this.obstacles.push({ type, x, z, sx }); }
+        for (const x of [region.a - 0.3, region.b + 0.3]) this.obstacles.push({ type: 'post', x, z, sx: 1 });
+        return true;
+      }
       const n = Math.max(1, Math.round(W / (def.w * 1.15)));
       const pw = W / n, sx = Math.max(0.6, Math.min(1.6, pw / def.w));
       if (!this.spacingOk(def, region.a, region.b, z)) return false;

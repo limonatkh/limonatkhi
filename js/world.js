@@ -412,7 +412,9 @@
           if (o.standable && c.y1 - p.y <= 0.3) continue;       // standing on it
           const wasOverlappingX = prevX + hw > bx0 && prevX - hw < bx1;
           const side = !wasOverlappingX || (Math.abs(p.lateralVel || 0) > 1 && p.z < bz1 - 0.6);
-          return { side, obstacle: o };
+          // how much of the body overlaps it sideways (small = clipped its edge)
+          const overlap = Math.min(px1, bx1) - Math.max(px0, bx0);
+          return { side, obstacle: o, overlap, bx0, bx1 };
         }
       }
       return null;
