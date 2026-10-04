@@ -570,38 +570,14 @@
     // aim comes from the controller (not the camera, which carries recoil, shake and roll)
     eyePos(out) { const c = this.ctrl; return out.set(c.pos.x, c.pos.y + c.eye, c.pos.z); }
     aimDir(out) { const c = this.ctrl, cp = Math.cos(c.pitch); return out.set(-Math.sin(c.yaw) * cp, Math.sin(c.pitch), -Math.cos(c.yaw) * cp); }
+    // ---- shared with the single-player combat (js/combat/weaponkit.js)
     /** Head and body boxes of a player standing at feet position p. */
-    boxesAt(p, low) {
-      const h = low ? FP().CROUCH_HEIGHT : FP().HEIGHT;
-      const head = new T.Box3(new T.Vector3(p.x - 0.24, p.y + h - 0.46, p.z - 0.24), new T.Vector3(p.x + 0.24, p.y + h + 0.02, p.z + 0.24));
-      const body = new T.Box3(new T.Vector3(p.x - 0.34, p.y, p.z - 0.34), new T.Vector3(p.x + 0.34, p.y + h - 0.46, p.z + 0.34));
-      return { head, body };
-    }
-    wallDist(o, d, max = 200) {
-      this.ray.set(o, d);
-      let best = max;
-      for (const b of this.solidBoxes) {
-        if (b.containsPoint(o)) continue;
-        const hit = this.ray.intersectBox(b, this._w);
-        if (hit) { const dist = hit.distanceTo(o); if (dist < best) best = dist; }
-      }
-      return best;
-    }
+    boxesAt(p, low) { return VR.WeaponKit.boxesAt(p, low); }
+    wallDist(o, d, max = 200) { return VR.WeaponKit.wallDist(this.ray, this.solidBoxes, o, d, max); }
     /** Ray against one set of boxes, blocked by walls. */
     trace(o, d, sets) {
-      const wall = this.wallDist(o, d);
-      this.ray.set(o, d);
-      let best = null;
-      for (const s of sets) {
-        for (const part of ['head', 'body']) {
-          const hit = this.ray.intersectBox(s[part], this._w);
-          if (!hit) continue;
-          const dist = hit.distanceTo(o);
-          if (dist < wall && (!best || dist < best.dist - 0.01)) best = { part, dist };
-        }
-      }
-      const end = o.clone().addScaledVector(d, best ? best.dist : Math.min(wall, 200));
-      return { hit: best ? best.part : null, end, wall };
+      const r = VR.WeaponKit.traceParts(this.ray, this.solidBoxes, o, d, sets.map(s => ({ parts: { head: s.head, body: s.body } })));
+      return { hit: r.hit, end: r.end, wall: r.wall };
     }
 
     fire() {
@@ -715,14 +691,7 @@
       for (let i = this.nades.length - 1; i >= 0; i--) {
         const n = this.nades[i];
         n.t += dt;
-        let boom = null;
-        const steps = 3, sdt = dt / steps;
-        for (let s = 0; s < steps && !boom; s++) {
-          n.vel.y -= 22 * sdt;
-          const prev = n.pos.clone();
-          n.pos.addScaledVector(n.vel, sdt);
-          if (this.solidBoxes.some(b => b.containsPoint(n.pos))) { boom = prev; }
-        }
+        let boom = VR.WeaponKit.stepNade(n, dt, this.solidBoxes);
         n.obj.position.copy(n.pos); n.obj.rotation.x += dt * 9; n.obj.rotation.z += dt * 5;
         if (!n.mine) { if (n.t > 3) { this.scene.remove(n.obj); this.nades.splice(i, 1); } continue; }
         if (!boom && this.avatar && n.pos.distanceTo(this._v.copy(this.avatar.pos).setY(this.avatar.pos.y + 0.9)) < 0.9) boom = n.pos.clone();
@@ -741,23 +710,7 @@
     }
     /** Push me away from a blast. Under the feet = rocket jump. No damage. */
     impulse(p) {
-      const c = this.ctrl;
-      const center = this._v.copy(c.pos); center.y += 0.9;
-      const dist = center.distanceTo(p);
-      if (dist > D.NADE_R) return;
-      const k = 1 - (dist / D.NADE_R) * 0.55;
-      const dir = center.clone().sub(p);
-      if (dir.lengthSq() < 1e-4) dir.set(0, 1, 0);
-      dir.normalize();
-      const flat = Math.hypot(c.pos.x - p.x, c.pos.z - p.z);
-      if (p.y < c.pos.y + 0.7 && flat < 1.8) { dir.y += 1.1; dir.normalize(); }     // blast under the feet
-      c.vel.addScaledVector(dir, D.NADE_PUSH * k);
-      c.vel.y = Math.min(c.vel.y, 18);
-      const h = Math.hypot(c.vel.x, c.vel.z);
-      if (h > 20) { c.vel.x *= 20 / h; c.vel.z *= 20 / h; }
-      c.grounded = false; c.coyote = 0; c.inBurst = true; c.slideTimer = 0;
-      c.burstFov = 7;
-      this.shake = Math.max(this.shake, 0.22);
+      if (VR.WeaponKit.impulse(this.ctrl, p, D.NADE_R, D.NADE_PUSH, this._v)) this.shake = Math.max(this.shake, 0.22);
     }
 
     onOppState(d) {

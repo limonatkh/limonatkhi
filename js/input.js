@@ -30,7 +30,7 @@
     Space: 'jump', KeyC: 'slide', ControlLeft: 'slide', ControlRight: 'slide',
     KeyE: 'interact', KeyF: 'interact', KeyQ: 'burst',
     KeyJ: 'journal', Tab: 'journal', KeyR: 'reload',
-    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3',
+    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade',
   };
   const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyC', 'ControlLeft', 'ControlRight', 'ShiftLeft']);
   const held = new Set();
@@ -76,10 +76,10 @@
   // mouse buttons (1v1 arena): left = fire while the mouse is captured, right = aim/scope
   window.addEventListener('mousedown', (e) => {
     if (mode !== 'fp' || !fpEnabled) return;
-    if (e.button === 0 && locked()) fpQueue.push('fire');
+    if (e.button === 0 && locked()) { fpQueue.push('fire'); touchHold.add('fire'); }
     if (e.button === 2) touchHold.add('aim');
   });
-  window.addEventListener('mouseup', (e) => { if (e.button === 2) touchHold.delete('aim'); });
+  window.addEventListener('mouseup', (e) => { if (e.button === 2) touchHold.delete('aim'); if (e.button === 0) touchHold.delete('fire'); });
   window.addEventListener('contextmenu', (e) => { if (mode === 'fp') e.preventDefault(); });
   window.addEventListener('wheel', (e) => {
     if (mode === 'fp' && fpEnabled) fpQueue.push(e.deltaY > 0 ? 'slotNext' : 'slotPrev');
@@ -173,6 +173,8 @@
       return l > 1 ? { x: x / l, y: y / l } : { x, y };
     },
     aimHeld() { return touchHold.has('aim'); },
+    /** fire button held (automatic weapons): left mouse button while captured, or the touch FIRE button */
+    fireHeld() { return touchHold.has('fire'); },
     crouchHeld() { return held.has('KeyC') || held.has('ControlLeft') || held.has('ControlRight') || touchHold.has('crouch'); },
     takeLook() { const r = { x: look.x, y: look.y }; look.x = look.y = 0; return r; },
     nextAction() { return fpQueue.shift(); },

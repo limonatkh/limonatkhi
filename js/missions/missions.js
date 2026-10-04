@@ -109,6 +109,7 @@
       const flags = [...run.flags].filter(f => !f.startsWith('done_'));
       p.progress.areas[id] = Object.assign(p.progress.areas[id] || {}, { flags: flags.filter(MissionManager.personalFlag) });
       P.world(id).flags = flags.filter(f => !MissionManager.personalFlag(f));
+      if (this.combat) this.combat.save();
       p.inventory.tools = (p.inventory.tools || []).filter(it => it.area !== id).concat(run.inventory.map(it => Object.assign({}, it, { area: id })));
       if (withLocation && this.ctrl && run.state !== 'entering') {
         const q = this.ctrl.pos;
@@ -243,6 +244,7 @@
       this.ui.setInventory(run);
       if (run.def.persistent && run === this.run) this.saveArea(false);
       const it = run.selectedItem();
+      if (this.combat && this.combat.armed) return;          // the weapon is in your hands
       this.hands.hold(it ? this.itemModel(it.model) : null);
     }
     registerLockable(flag, ent) { if (flag) this.lockables.push({ flag, ent }); }
@@ -269,6 +271,8 @@
         return { def, light: l };
       });
       this.poweredBulbs = [];
+      // single-player combat (areas with `combat: true`): weapons, health, enemies (js/combat/)
+      if (def.combat && VR.CombatSystem) this.combat = new VR.CombatSystem(this);
       const ctx = { level: L, scene: sc, mgr: this, run: this.run };
       this.entities = []; this.interactables = []; this.lockables = [];
       for (const ed of def.entities) {
@@ -292,6 +296,7 @@
       this.game.renderer.compile(sc, this.camera);
     }
     clearWorld() {
+      if (this.combat) { this.combat.dispose(); this.combat = null; }
       const sc = this.scene;
       for (const child of [...sc.children]) {
         sc.remove(child);
@@ -307,12 +312,14 @@
     update(dt) {
       if (!this.active || !this.run) return;
       const run = this.run, ctrl = this.ctrl, L = this.level;
-      const playing = run.state === 'active' && !this.paused && !this.ui.modal && !this.frozen;
+      const cb = this.combat;
+      const playing = run.state === 'active' && !this.paused && !this.ui.modal && !this.frozen && !(cb && cb.dead);
       let look = { x: 0, y: 0 };
       if (playing) {
         const move = VR.Input.moveVector();
         let a;
         while ((a = VR.Input.nextAction())) {
+          if (cb && cb.action(a)) continue;           // fire, reload, weapon slots, grenade
           if (a === 'jump') ctrl.jump();
           else if (a === 'slide') ctrl.slidePress();
           else if (a === 'burst') { if (ctrl.burst(move)) VR.Audio.play('burst'); else if (ctrl.burstCooldown > 0) this.ui.caption(VR.t('c.burstCharging'), 1); }
@@ -322,7 +329,7 @@
           else if (a.startsWith('slot')) run.select(+a.slice(4) - 1);
         }
         look = VR.Input.takeLook();
-        ctrl.look(look.x, look.y, FP().MOUSE_SENS * this.settings.sens);
+        ctrl.look(look.x, look.y, FP().MOUSE_SENS * this.settings.sens * (cb && cb.scoped ? 0.35 : 1));
         const evs = ctrl.update(dt, L, move, VR.Input.crouchHeld());
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');
@@ -337,7 +344,11 @@
         }
         this.updateTarget();
         this.ui.lockHint(!VR.Input.isLocked());
-      } else VR.Input.takeLook();
+      } else {
+        VR.Input.takeLook();
+        if (cb && cb.dead) ctrl.update(dt, L, { x: 0, y: 0 }, false);   // keep falling / standing while down
+      }
+      if (cb) cb.update(dt, playing, look);
       if (run.state === 'active' && !this.paused) {
         run.time += dt;
         if (run.def.persistent && (this.saveT = (this.saveT || 0) + dt) > 3) { this.saveT = 0; this.saveArea(); }
@@ -346,7 +357,7 @@
       for (const e of this.entities) e.update && e.update(dt, run);
       this.hands.update(dt, ctrl, look);
       this.hands.setBrightness(this.lightLevel());
-      const fov = this.settings.fov + ctrl.burstFov;
+      const fov = (cb && cb.scoped ? 32 : this.settings.fov) + ctrl.burstFov;
       if (Math.abs(this.camera.fov - fov) > 0.05) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
       this.ui.setTimer(run);
       this.ui.setAbility(ctrl.burstCooldown, FP().BURST_COOLDOWN);
@@ -403,7 +414,7 @@
 
     render(renderer) {
       renderer.render(this.scene, this.camera);
-      if (this.run && this.run.state !== 'entering') {
+      if (this.run && this.run.state !== 'entering' && !(this.combat && this.combat.scoped)) {
         const ac = renderer.autoClear;
         renderer.autoClear = false;
         renderer.clearDepth();

@@ -421,12 +421,20 @@
             t = Math.min(1, t + dt * 0.45);
             const k = 1 - Math.pow(1 - t, 3);
             m.userData.leaves[0].rotation.y = -1.7 * k; m.userData.leaves[1].rotation.y = 1.7 * k;
+          } else if (!open && t > 0) {                     // closing again (def.closes)
+            t = Math.max(0, t - dt * 1.6);
+            const k = 1 - Math.pow(1 - t, 3);
+            m.userData.leaves[0].rotation.y = -1.7 * k; m.userData.leaves[1].rotation.y = 1.7 * k;
           }
         },
         sync: (run) => {
           if (!open && evalCond(run, def.openWhen)) {
             open = true; solid.enabled = false; VR.Audio.play('gate');
             m.userData.light.material.color.setHex(0x5fdc5f);
+          } else if (open && def.closes && !evalCond(run, def.openWhen)) {
+            // a gate that can close again (e.g. while a fight is on)
+            open = false; solid.enabled = true; VR.Audio.play('gate');
+            m.userData.light.material.color.setHex(0xe5433a);
           }
         },
       };

@@ -227,7 +227,17 @@
     floor(-14, -55, 14, -31.4, 'grass_top');
     L.box(-2.2, -0.01, -45, 2.2, 0.005, -31.4, 'cobble', false);              // path to the fountain
     wall(-14.4, -31.4, -8.4, -31, 4); wall(8.4, -31.4, 14.4, -31, 4);
-    wall(-14.4, -55, -14, -31.4, 4.4);
+    // west wall: the gate to the training arena
+    wall(-14.4, -55, -14, -44.5, 4.4); wall(-14.4, -41.5, -14, -31.4, 4.4);
+    L.box(-14.4, 3.2, -44.7, -14, 4.4, -41.3, STONE, false); L.collider(-14.4, 3.2, -44.7, -14, TOP, -41.3);
+    floor(-14.4, -44.5, -14, -41.5, 'cobble');
+    L.anchor('arenaGate', -14.2, 0, -43, PI / 2);
+    L.anchor('arenaSign', -13.95, 3.75, -43, -PI / 2);
+    L.anchor('arenaRespawn', -11.8, 0, -43, PI / 2);
+    L.anchor('pistolRack', -12.4, 0, -38.6, PI / 2);
+    L.box(-13.2, 0, -39.4, -11.6, 0.6, -37.8, 'planks');                     // a little table for the first weapon
+    L.anchor('arenaNote', -13.97, 1.7, -36.4, -PI / 2);
+    arena(L, wall, floor, TOP);
     // east wall with a hidden gate (opens with the symbol panel) to the garden
     wall(14, -55, 14.4, -44.5, 4.4); wall(14, -41.5, 14.4, -31.4, 4.4);
     L.box(14, 3.2, -44.7, 14.4, 4.4, -41.3, STONE, false); L.collider(14, 3.2, -44.7, 14.4, TOP, -41.3);
@@ -270,6 +280,33 @@
     }
     return L.finish();
   }
+  /* ---- the training arena (x -40..-14.4, z -54..-32), west of the square */
+  function arena(L, wall, floor, TOP) {
+    const M = VR.MissionModels;
+    floor(-40, -54, -14.4, -32, 'gravel');
+    wall(-40.4, -54.4, -14.4, -54, 5); wall(-40.4, -32, -14.4, -31.6, 5); wall(-40.4, -54, -40, -32, 5);
+    const low = (x0, z0, x1, z1, h = 1.1) => L.box(x0, 0, z0, x1, h, z1, 'brick');
+    low(-24.3, -47.5, -23.7, -44.5); low(-24.3, -41.5, -23.7, -38.5);              // low cover near the middle
+    low(-31, -52, -28, -51.4); low(-31, -34.6, -28, -34);
+    for (const [x, z] of [[-30, -38.5], [-30, -47.5], [-33, -43]]) L.box(x - 0.6, 0, z - 0.6, x + 0.6, 3.2, z + 0.6, 'stone_bricks');   // pillars
+    L.place(M.crate(1.2), -19.5, 0, -40.2, 0.2); L.place(M.crate(1.2), -19.4, 0, -46.0, 0.5);
+    L.place(M.crate(1.2), -35.6, 0, -50.8, 0.3); L.place(M.barrel(), -26.5, 0, -33.2); L.place(M.barrel(), -26.5, 0, -52.8);
+    // sniper platform (north-west) with steps
+    L.box(-39.6, 0, -36.2, -35.4, 2.0, -32.4, 'planks');
+    for (let i = 0; i < 5; i++) L.box(-35.4 + i * 0.5, 0, -35.6, -34.9 + i * 0.5, 2.0 - i * 0.4, -34.0, 'planks');
+    L.box(-39.6, 2.0, -36.3, -35.4, 2.9, -36.2, 'iron', false); L.collider(-39.6, 2.0, -36.3, -35.4, 2.9, -36.2);   // railing
+    L.anchor('sniperSpot', -37.6, 2.0, -34.2, -PI / 2);
+    L.anchor('shotgunSpot', -20.6, 0, -50.4, -PI / 2);
+    L.anchor('smgSpot', -20.6, 0, -35.6, -PI / 2);
+    L.anchor('nadeSpot', -27.0, 0, -50.2, -PI / 2);
+    L.anchor('ammo1', -16.0, 0, -52.6, 0); L.anchor('ammo2', -16.0, 0, -33.4, 0);
+    L.anchor('arenaZone', -20.5, 0, -43, 0);
+    L.anchor('bell', -16.4, 0, -47.6, 0);
+    for (const [x, z] of [[-17, -34], [-17, -52], [-38, -52], [-38, -40]]) {
+      L.place(M.lampPost(4.6), x, 0, z, x < -30 ? -PI / 2 : PI / 2, true, 0.12);
+      L.light(x + (x < -30 ? 0.6 : -0.6), 4.3, z, 0xffe6b8, 16, 14);
+    }
+  }
   VR.MissionEnvironments.hub = hub;
 
   /* ==================================================================
@@ -281,7 +318,7 @@
   const DOOR_MARKS = ['leaf', 'sun', 'moon', 'drop', 'star'];     // shown on a door once its area is done
 
   const HUB = {
-    id: 'hub', persistent: true, order: 0, environment: 'hub',
+    id: 'hub', persistent: true, combat: true, order: 0, environment: 'hub',
     name: { en: 'Lemon Square', ar: 'ساحة الليمون' },
     eyebrow: { en: 'Adventure', ar: 'المغامرة' },
     intro: {
@@ -298,6 +335,12 @@
       { text: { en: 'Unlock the gate', ar: 'افتح قفل البوابة' }, done: 'plaza_open' },
       { text: { en: 'Enter the big square', ar: 'ادخل الساحة الكبرى' }, done: 'in_plaza' },
     ] }, {
+      title: { en: 'Training arena', ar: 'ساحة التدريب' },
+      objectives: [
+        { text: { en: 'Take the pistol by the arena gate', ar: 'خذ المسدس عند بوابة الساحة' }, done: 'got_weapon_pistol' },
+        { text: { en: 'Clear the training arena', ar: 'طهّر ساحة التدريب' }, done: 'arena_clear' },
+      ],
+    }, {
       title: { en: 'Go through the five doors', ar: 'اعبر الأبواب الخمسة' },
       objectives: DOOR_NAMES.map((n, i) => ({ text: { en: `Door ${i + 1}: ${n.en}`, ar: `الباب ${AR_NUM[i]}: ${n.ar}` }, done: 'done_m' + (i + 1) })),
     }, {
@@ -368,6 +411,28 @@
       { id: 'gardenNote', type: 'text', at: 'gardenNote', style: 'chalk', size: 0.12, width: 1.8,
         title: { en: 'Garden board', ar: 'لوحة الحديقة' },
         text: { en: 'You found the hidden garden.\nMore of the world opens soon.', ar: 'وجدت الحديقة المخفية.\nأجزاء أخرى من العالم تُفتح قريبًا.' } },
+      // ---- training arena: the first weapon outside, the rest inside, and a fight in three waves
+      { id: 'arenaSignTxt', type: 'text', at: 'arenaSign', style: 'sign', size: 0.21, width: 3.0, inspect: false,
+        text: { en: 'Training arena', ar: 'ساحة التدريب' } },
+      { id: 'arenaNote', type: 'text', at: 'arenaNote', style: 'paper', size: 0.07, width: 1.4,
+        title: { en: 'Arena rules', ar: 'قواعد الساحة' },
+        text: { en: 'Take the pistol and walk in.\nGuards keep their distance, runners rush you,\nand the heavy one is weak only on its back.\nG throws an impulse grenade.',
+                ar: 'خذ المسدس وادخل.\nالحرّاس يبقون على مسافة، والعدّاؤون يندفعون نحوك،\nأما الثقيل فنقطة ضعفه في ظهره فقط.\nG ترمي قنبلة دفع.' } },
+      { id: 'pistolRack', type: 'weaponPickup', at: 'pistolRack', offset: [0, 0.6, 0], weapon: 'pistol' },
+      { id: 'shotgunPick', type: 'weaponPickup', at: 'shotgunSpot', weapon: 'shotgun' },
+      { id: 'smgPick', type: 'weaponPickup', at: 'smgSpot', weapon: 'smg' },
+      { id: 'sniperPick', type: 'weaponPickup', at: 'sniperSpot', weapon: 'sniper' },
+      { id: 'nadePick', type: 'weaponPickup', at: 'nadeSpot', weapon: 'nade' },
+      { id: 'ammo1', type: 'ammoCrate', at: 'ammo1' }, { id: 'ammo2', type: 'ammoCrate', at: 'ammo2' },
+      { id: 'arenaGate', type: 'gate', at: 'arenaGate', w: 3, h: 3.2, openWhen: ['plaza_open', '!arena_fight'], closes: true,
+        name: { en: 'Arena gate', ar: 'بوابة الساحة' }, closedText: { en: 'Closed until the fight is over.', ar: 'مغلقة حتى ينتهي القتال.' } },
+      { id: 'arena', type: 'encounter', zone: { at: 'arenaZone', size: [3, 4, 8] }, bellAt: 'bell', respawn: 'arenaRespawn',
+        flag: 'arena_clear', reward: 60,
+        waves: [
+          [{ type: 'normal', at: [-34, -38.6], yaw: -PI / 2 }, { type: 'normal', at: [-34, -47.4], yaw: -PI / 2 }],
+          [{ type: 'fast', at: [-37, -50], yaw: -PI / 2 }, { type: 'fast', at: [-37, -38], yaw: -PI / 2 }, { type: 'normal', at: [-36.5, -43], yaw: -PI / 2 }],
+          [{ type: 'heavy', at: [-36.5, -43], yaw: -PI / 2 }, { type: 'fast', at: [-34, -52.4], yaw: -PI / 2 }, { type: 'normal', at: [-32, -33.4], yaw: -PI / 2 }],
+        ] },
       // the hidden nook behind the courtyard's low gap
       { id: 'c_nook', type: 'coins', value: 2, points: [[-9.6, 0.6, -18.2], [-10.4, 0.6, -19.0], [-9.6, 0.6, -19.8]] },
       { id: 'nookNote', type: 'text', at: 'nookNote', style: 'paper', size: 0.07, width: 1.2,

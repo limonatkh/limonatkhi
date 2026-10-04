@@ -271,6 +271,49 @@ Walking through a coin pays it into the shared wallet once
   (`progress.areas[<area>].coins`), so they stay gone even though a
   mission's own flags reset on replay.
 
+### Single-player combat (training arena)
+
+West of the big square is the **training arena**. The first weapon (lemon
+pistol) lies on a table by its gate; inside are more weapons, grenades,
+two ammo crates and a bell.
+
+| Piece | File |
+|---|---|
+| Shared shooting maths (also used by the 1v1 duel, unchanged behaviour) | `js/combat/weaponkit.js` |
+| Health (damage, regeneration, death) | `js/combat/health.js` |
+| Enemies and their AI | `js/combat/enemies.js` |
+| Player weapons, HUD, pickups, ammo crates, encounters | `js/combat/encounter.js` |
+
+**Weapons** (two slots + grenades; `WEAPONS` in weaponkit.js):
+
+| Weapon | Damage | Head | Fire rate | Magazine / max reserve | Notes |
+|---|---|---|---|---|---|
+| Lemon pistol | 24 | ×2 | 0.26 s | 12 / 72 | first weapon |
+| Scatter shotgun | 9 × 11 | ×1.5 | 0.85 s | 6 / 30 | strong up close |
+| Light SMG | 12 | ×1.8 | 0.085 s (hold) | 32 / 160 | automatic |
+| Sniper | 95 | ×2.5 | 1.0 s | 5 / 25 | right click = scope |
+| Impulse grenade | 70 (area) | — | 2 charges, 6 s refill | — | pushes, stuns; also a jump tool |
+
+Damage falls to 40 % at a weapon's range. With both slots full, picking up
+another weapon swaps it for the one in your hands (left on the ground).
+
+**Enemies:** guard (60 HP, keeps distance, slow visible shots), runner
+(35 HP, rushes, melee), heavy (300 HP, armoured front ×0.25, slow to turn,
+**weak spot = glowing core on its back ×3**, stunned by grenades). Every
+attack has a short wind-up (eyes flash white).
+
+**Encounter:** walking in (with a weapon) starts three waves; the gate
+closes until the fight ends; first clear pays 60 coins once; the bell
+starts it again for practice. Going down: fade, back at the arena gate with
+full health, the fight resets (no penalty).
+
+Controls: left click fire · right click aim · R reload · 1 / 2 / wheel
+weapon · G grenade · E pick up. Touch: FIRE / AIM / R / ⇄ / G buttons.
+
+Saved: weapons and ammo (`inventory.weapons`), grenades
+(`inventory.consumables.nade`), what lies on the ground
+(`Profiles.world('hub').pickups`), and whether the arena was cleared.
+
 ## 10. Export / build
 
 There is no build step — the folder **is** the game.
