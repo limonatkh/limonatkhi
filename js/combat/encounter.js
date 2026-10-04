@@ -303,7 +303,7 @@
     // ------------------------------------------------------------ getting hurt
     get playerView() {
       const c = this.mgr.ctrl, self = this;
-      return { pos: c.pos, vel: c.vel, health: this.health, hurt: (dmg, from) => self.hurt(dmg, from) };
+      return { id: VR.Profiles.activeId(), pos: c.pos, vel: c.vel, health: this.health, hurt: (dmg, from) => self.hurt(dmg, from) };
     }
     hurt(dmg, from) {
       if (this.dead || this.mgr.paused || this.mgr.ui.modal) return;
@@ -602,6 +602,7 @@
             const first = !r.has(def.flag);
             r.setFlag(def.flag); r.clearFlag(fightFlag);
             let paid = false;
+            // the reward goes to every player who took part (only the local one today); one txId per player wallet
             if (first && def.reward) paid = VR.Wallet.of().credit(def.reward, `encounter:${r.def.id}:${def.id}`, 'combat');
             c.banner(tr('cb.cleared') + (paid ? '  ' + tr('cb.reward', { coins: def.reward }) : ''), 2600);
             VR.Audio.play('success');

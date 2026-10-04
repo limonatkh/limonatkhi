@@ -352,6 +352,12 @@ All upgrades together cost 1,270 coins. For scale: a full course pays
 ≈ 20–100 coins, missions 50–100 each (once), the arena 60 (once), a won
 race +50, a won duel 150.
 
+### Multiplayer readiness
+
+See `docs/MULTIPLAYER.md`: players in a map with their own wallet and
+progress, a shared world, per-area personal flags, enemies that handle a
+list of players, and what a networked adventure still needs.
+
 ## 10. Export / build
 
 There is no build step — the folder **is** the game.

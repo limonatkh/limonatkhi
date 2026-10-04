@@ -14,7 +14,9 @@
  *
  *   const sys = new VR.EnemySystem(scene, level, fx)
  *   sys.spawn('normal', [x, z], { yaw })    → enemy
- *   sys.update(dt, player)                   (player: { pos, eyeY, health, hurt(dmg, from) })
+ *   sys.update(dt, players)                  players: one or a list of { id, pos, vel, health, hurt(dmg, from) }
+ *                                            (multiplayer-ready: each enemy picks the nearest player
+ *                                            it can see; shots can hit any player)
  *   sys.targets()                            hit boxes for the weapon trace
  *   sys.alive · sys.clear()
  * ===================================================================== */
@@ -166,8 +168,20 @@
       if (!blocked(e.pos.x, e.pos.z + dz)) e.pos.z += dz;
       return Math.hypot(e.pos.x - x0, e.pos.z - z0);
     }
-    update(dt, player) {
-      const pc = this._v.set(player.pos.x, player.pos.y + 1.0, player.pos.z);
+    /** which player this enemy goes for: the nearest one it can see, else the nearest alive one */
+    pickTarget(e, players) {
+      let best = null, bestSeen = null, bd = Infinity, bs = Infinity;
+      const eye = new T.Vector3(e.pos.x, e.pos.y + e.def.height - 0.25, e.pos.z);
+      for (const p of players) {
+        if (p.health.dead) continue;
+        const d = Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z);
+        if (d < bd) { bd = d; best = p; }
+        if (d < bs && d < e.def.aggro && this.los(eye, new T.Vector3(p.pos.x, p.pos.y + 1.0, p.pos.z))) { bs = d; bestSeen = p; }
+      }
+      return bestSeen || best || players[0];
+    }
+    update(dt, players) {
+      players = Array.isArray(players) ? players : [players];
       for (const e of this.enemies) {
         if (!e.alive) {
           if (e.deadT === 0) { this.fx && this.fx.puff(e.pos.clone().setY(e.def.height * 0.5), 0xffe14a, 14); VR.Audio.play('enemyDown'); if (this.onKill) this.onKill(e); }
@@ -177,7 +191,9 @@
           if (e.deadT > 0.3) e.obj.visible = false;
           continue;
         }
-        this.think(e, dt, player, pc);
+        const player = players.length === 1 ? players[0] : this.pickTarget(e, players);
+        e.target = player;
+        this.think(e, dt, player, new T.Vector3(player.pos.x, player.pos.y + 1.0, player.pos.z));
         e.hitT = Math.max(0, e.hitT - dt * 6);
         e.sync();
       }
@@ -188,7 +204,7 @@
         const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, d = Math.hypot(dx, dz), min = a.def.radius + b.def.radius;
         if (d > 0.001 && d < min) { const k = (min - d) / 2 / d; this.move(a, -dx * k, -dz * k); this.move(b, dx * k, dz * k); }
       }
-      this.updateShots(dt, player);
+      this.updateShots(dt, players);
     }
     think(e, dt, player, pc) {
       const d = e.def;
@@ -267,17 +283,20 @@
       this.shots.push({ pos: from, vel, dmg: d.shotDmg, life: 4, mesh, from: e });
       VR.Audio.play('enemyShot');
     }
-    updateShots(dt, player) {
+    updateShots(dt, players) {
       for (let i = this.shots.length - 1; i >= 0; i--) {
         const s = this.shots[i];
         s.life -= dt;
         const steps = 2; let done = false;
         for (let k = 0; k < steps && !done; k++) {
           s.pos.addScaledVector(s.vel, dt / steps);
-          // player capsule (segment y+0.3 .. y+1.5, radius 0.45)
-          const cy = Math.max(player.pos.y + 0.3, Math.min(player.pos.y + 1.5, s.pos.y));
-          const dx = s.pos.x - player.pos.x, dz = s.pos.z - player.pos.z, dyy = s.pos.y - cy;
-          if (!player.health.dead && dx * dx + dz * dz + dyy * dyy < 0.45 * 0.45) { player.hurt(s.dmg, s.from); done = true; break; }
+          // any player's capsule (segment y+0.3 .. y+1.5, radius 0.45)
+          for (const player of players) {
+            const cy = Math.max(player.pos.y + 0.3, Math.min(player.pos.y + 1.5, s.pos.y));
+            const dx = s.pos.x - player.pos.x, dz = s.pos.z - player.pos.z, dyy = s.pos.y - cy;
+            if (!player.health.dead && dx * dx + dz * dz + dyy * dyy < 0.45 * 0.45) { player.hurt(s.dmg, s.from); done = true; break; }
+          }
+          if (done) break;
           if (this.solids.some(b => b.enabled !== false && s.pos.x > b.min[0] && s.pos.x < b.max[0] && s.pos.y > b.min[1] && s.pos.y < b.max[1] && s.pos.z > b.min[2] && s.pos.z < b.max[2])) {
             this.fx && this.fx.puff(s.pos.clone(), 0xffb070, 4); done = true;
           }

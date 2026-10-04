@@ -37,7 +37,7 @@
 
   function blankPlayer(id) {
     return {
-      id, created: Date.now(),
+      id, uid: VR.uid(), created: Date.now(),            // uid: stable identity for a future network game
       wallet: { coins: 0, ledger: [] },
       inventory: { weapons: [], tools: [], consumables: {} },
       upgrades: {},
@@ -98,17 +98,40 @@
     save() { return store.set(KEY, this.load()); },
     /** the active player (or a given one) */
     player(id) { const d = this.load(); return d.players[id || d.active]; },
+    /** id of the player playing on this device */
+    activeId() { return this.load().active; },
+    /** list of players kept in this save */
+    playerIds() { return Object.keys(this.load().players); },
+    /** add a player with their own wallet / inventory / progress (the world stays shared) */
+    addPlayer(id) {
+      const d = this.load();
+      if (!d.players[id]) { d.players[id] = blankPlayer(id); this.save(); }
+      return d.players[id];
+    },
+    /** switch who plays on this device (e.g. a second profile); the game refreshes what it shows */
+    setActive(id) {
+      const d = this.load();
+      if (!d.players[id]) return false;
+      d.active = id; this.save();
+      if (VR.game && VR.game.onProfileReplaced) VR.game.onProfileReplaced();
+      return true;
+    },
     /** the saved state of one area of the world (created on first use) */
     world(areaId) { const d = this.load(); return d.world[areaId] || (d.world[areaId] = {}); },
     /** for tests: forget everything in memory and storage (the next load migrates the old keys again) */
     resetAll() { this.data = null; try { localStorage.removeItem(PREFIX + KEY); } catch (e) { /* unavailable */ } },
     /** NEW GAME: keep a copy of the current save (`profiles.backup`), then start a
-     *  blank player and a blank world. The old separate keys are not copied in again. */
+     *  blank player and a blank world (with other players in the save: only the
+     *  active player starts over). The old separate keys are not copied in again. */
     newGame() {
       const old = this.load();
       store.set(KEY + '.backup', Object.assign({}, old, { backedUp: Date.now() }));
       const id = old.active || 'p1';
-      this.data = { version: VERSION, active: id, players: { [id]: blankPlayer(id) }, world: {}, migrated: 'new-game' };
+      if (Object.keys(old.players).length > 1) {
+        // other players share this save: only the active player starts over (their world stays)
+        old.players[id] = blankPlayer(id);
+        this.data = old;
+      } else this.data = { version: VERSION, active: id, players: { [id]: blankPlayer(id) }, world: {}, migrated: 'new-game' };
       this.save();
       return this.data;
     },

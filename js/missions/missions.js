@@ -91,7 +91,9 @@
     // Flags about the WORLD (a door opened) are saved with the world, so later
     // every player in it shares them; flags about YOU (coins and items you
     // picked up, notes you read) are saved with the player.
-    static personalFlag(f) { return /^(got_|coin_|read_|inspected_|heard_)/.test(f); }
+    // An area can list more of its flags as personal (def.personalFlags): progress that belongs to
+    // each player (where you have been, what you cleared), not to the place.
+    static personalFlag(f, def) { return /^(got_|coin_|read_|inspected_|heard_)/.test(f) || !!(def && def.personalFlags && def.personalFlags.includes(f)); }
     restoreArea(run) {
       const id = run.def.id, P = VR.Profiles;
       const mine = (P.player().progress.areas[id] || {}).flags || [];
@@ -107,8 +109,8 @@
       if (!run || !run.def.persistent) return;
       const id = run.def.id, P = VR.Profiles, p = P.player();
       const flags = [...run.flags].filter(f => !f.startsWith('done_'));
-      p.progress.areas[id] = Object.assign(p.progress.areas[id] || {}, { flags: flags.filter(MissionManager.personalFlag) });
-      P.world(id).flags = flags.filter(f => !MissionManager.personalFlag(f));
+      p.progress.areas[id] = Object.assign(p.progress.areas[id] || {}, { flags: flags.filter(f => MissionManager.personalFlag(f, run.def)) });
+      P.world(id).flags = flags.filter(f => !MissionManager.personalFlag(f, run.def));
       if (this.combat) this.combat.save();
       p.inventory.tools = (p.inventory.tools || []).filter(it => it.area !== id).concat(run.inventory.map(it => Object.assign({}, it, { area: id })));
       if (withLocation && this.ctrl && run.state !== 'entering') {

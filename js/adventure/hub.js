@@ -319,6 +319,8 @@
 
   const HUB = {
     id: 'hub', persistent: true, combat: true, order: 0, environment: 'hub',
+    // flags that are each player's own progress (the rest — doors, gates, the garden — belong to the world)
+    personalFlags: ['crossed_wall', 'in_plaza', 'in_garden', 'arena_clear', 'used_portal', 'visited_shop'],
     name: { en: 'Lemon Square', ar: 'ساحة الليمون' },
     eyebrow: { en: 'Adventure', ar: 'المغامرة' },
     intro: {

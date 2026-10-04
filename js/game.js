@@ -238,6 +238,7 @@
     onProfileReplaced() {
       this.wallet = VR.Wallet.of();
       UI.menuStats(this.best, this.bank);
+      if (this.state === 'menu') this.refreshMenuButtons();
     }
 
     // shared coins / best score of the player (profile), read by the menu and the HUD
