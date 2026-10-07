@@ -698,6 +698,9 @@ Main menu → **القتال / Fight** opens three choices:
 
 The chosen number of bots and difficulty are remembered on the device.
 
+No name is shown over an opponent (the other player in a 1v1, or a bot): name tags show
+through walls and would give away where they hide. In co-op only your teammate has a name tag.
+
 **Buying before the match.** Every match (1v1, vs computer, co-op) starts with a buy screen.
 Each player gets a **match budget of 1000 points** (the same for everyone; real coins are
 never touched). You carry up to **2 weapons**; the pistol is free; the dearer weapon is in

@@ -62,7 +62,7 @@
       for (let i = 0; i < n; i++) {
         const ch = VR.CHARACTERS[(i + 1) % VR.CHARACTERS.length].id;
         const name = VR.L(NAMES[i % NAMES.length]) + ' · ' + VR.t('bot.diff.' + this.diffKey);
-        const body = VR.DuelBody.build(ch, 'grey', col, name);
+        const body = VR.DuelBody.build(ch, 'grey', col, null);         // no name tag: it would show where they hide
         this.mgr.scene.add(body.g);
         const pick = this.diff.picks[(Math.random() * this.diff.picks.length) | 0];
         this.list.push({ i, name, body, pos: body.pos, vel: new T.Vector3(), yaw: Math.PI, pitch: 0, hp: 100, alive: true,

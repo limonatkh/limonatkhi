@@ -477,7 +477,7 @@
     buildAvatar() {
       const m = this.match;
       const col = VR.DuelArena.COLORS[m.type === 'coop' ? 'h' : m.op];
-      const a = VR.DuelBody.build(m.chars[m.op], m.tones[m.op], col, m.names[m.op]);
+      const a = VR.DuelBody.build(m.chars[m.op], m.tones[m.op], col, m.type === 'coop' ? m.names[m.op] : null);   // no name over an opponent: it would give away where they are
       this.scene.add(a.g);
       this.avatar = a;
       const sp = this.spawnOf(m.op);
@@ -1122,7 +1122,7 @@
       const ring = new T.Mesh(new T.RingGeometry(0.45, 0.6, 24), new T.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, depthWrite: false }));
       ring.material.userData.own = true; ring.geometry.userData.own = true;
       ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; g.add(ring);
-      g.add(nameTag(name, col));
+      if (name) g.add(nameTag(name, col));           // only a teammate gets a name tag (it shows through walls)
       return { g, rig, def, col, guns: {}, gun: null, gunId: null, pos: new T.Vector3(), target: null, yaw: 0, pitch: 0, low: false, slide: false, air: false, phase: 0, speed: 0, last: new T.Vector3() };
     },
     setGun(a, id) {
