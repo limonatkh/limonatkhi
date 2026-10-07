@@ -106,6 +106,30 @@
     return best;
   }
 
+  /* ------------------------------------------------------------------
+   * LANES: the places a runner can be on a walkable span [a, b] (the
+   * runner's centre range). The same rule for the player (player.js) and
+   * the coins (patterns.js), so a coin is always exactly where a runner
+   * can stand: never between two places.
+   *   - a branch beside a mountain / gorge (more than one region here): ONE lane
+   *   - otherwise one lane per swipe of room, at most 3, spread evenly
+   * ------------------------------------------------------------------ */
+  const Lanes = {
+    count(a, b, branchy) {
+      if (branchy) return 1;
+      const step = VR.CONFIG.DODGE_STEP;
+      return Math.max(1, Math.min(3, 1 + Math.floor((b - a) / step + 0.02)));
+    },
+    x(a, b, n, i) { return n <= 1 ? (a + b) / 2 : a + (b - a) * Math.max(0, Math.min(n - 1, i)) / (n - 1); },
+    /** the lane nearest to x (a tie goes to `side`) */
+    nearest(a, b, n, x, side = 0) {
+      if (n <= 1) return 0;
+      const f = (x - a) / ((b - a) / (n - 1));
+      let i = Math.round(f + (Math.abs(f - Math.round(f)) > 0.45 ? side * 0.1 : 0));
+      return Math.max(0, Math.min(n - 1, i));
+    },
+  };
+
   VR.ROUTE_PROFILES = PROFILES;
-  VR.Route = { make: makeRoute, pick, smooth };
+  VR.Route = { make: makeRoute, pick, smooth, Lanes };
 })();

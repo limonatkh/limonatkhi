@@ -223,7 +223,7 @@
         const r = K().traceParts(this.ray, this.solids(), o, d, targets, w.range * 1.5);
         if (r.ref) {
           const fall = 1 - 0.6 * Math.min(1, r.dist / w.range);
-          const base = w.dmg * fall * (r.hit === 'head' ? w.head : 1);
+          const base = s.id === 'sniper' && r.hit === 'head' ? 99999 : w.dmg * fall * (r.hit === 'head' ? w.head : 1);   // sniper headshot: always a kill
           const res = r.ref.hurt(base, r.hit, this.enemies);
           const h = hits.get(r.ref) || { dmg: 0, head: false, weak: false, armored: false, killed: false };
           h.dmg += res.dmg; h.head = h.head || r.hit === 'head'; h.weak = h.weak || r.hit === 'weak'; h.armored = h.armored || res.armored; h.killed = h.killed || res.killed;
@@ -248,6 +248,8 @@
       if (!s || this.reloadT > 0 || s.mag >= w.mag) return;
       if (s.reserve <= 0) { this.mgr.ui.caption(tr('cb.noAmmo'), 1.4); return; }
       this.reloadT = w.reload; this.scoped = false; this.reloadOf = s;
+      VR.Input.hold('aim', false);                  // reloading drops the scope: aim again afterwards
+      document.querySelectorAll('.mi-tbtn.on[data-hold="aim"]').forEach(b => b.classList.remove('on'));
       VR.Audio.play('reload');
     }
     finishReload() {

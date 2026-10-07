@@ -73,11 +73,13 @@
     /** start of a round: back to the spawn, full health */
     respawn() {
       const sp = this.mgr.level.extras.spawns.g;
-      const xs = [0, -3.6, 3.6];
+      // a random free spot each round, a different one for every bot
+      const pts = this.mgr.level.extras.spawnPts.g.slice().sort(() => Math.random() - 0.5);
       for (const b of this.list) {
-        b.pos.set(sp.pos[0] + xs[b.i % 3], 0.05, sp.pos[2] - (b.i > 2 ? 2 : 0));
+        const [x, z] = pts[b.i % pts.length];
+        b.pos.set(x, 0.05, z);
         b.yaw = sp.yaw; b.pitch = 0; b.hp = 100; b.alive = true; b.vel.set(0, 0, 0);
-        b.lo.refill(); b.seenT = 0; b.lastSeen = null; b.react = 0; b.strafe = Math.random() < 0.5 ? -1 : 1; b.strafeT = rnd(0.6, 1.4);
+        b.lo.refill(); b.downShown = false; b.seenT = 0; b.lastSeen = null; b.react = 0; b.strafe = Math.random() < 0.5 ? -1 : 1; b.strafeT = rnd(0.6, 1.4);
         b.detourT = 0; b.stuckT = 0; b.nadeT = rnd(3, 6); b.headPick = false; b.aimErr = new T.Vector2(); b.errT = 0; b.net = null;
         b.body.g.visible = true; b.body.deadT = 0; b.body.g.rotation.z = 0;
         b.body.yaw = b.yaw; b.body.pitch = 0;
@@ -135,7 +137,7 @@
         if (sees) { b.seenT += dt; b.lastSeen = tgt.pos.clone(); b.unseenT = 0; } else { b.seenT = 0; b.unseenT = (b.unseenT || 0) + dt; }
         // weapon for the distance
         if (b.lo.slots.length > 1 && b.lo.ready()) {
-          const want = b.lo.slots.findIndex(s => dist > 12 ? s.id === 'sniper' : s.id !== 'sniper');
+          const want = b.lo.slots.findIndex(s => s.id !== 'knife' && (dist > 12 ? s.id === 'sniper' : s.id !== 'sniper'));
           if (want >= 0 && want !== b.lo.cur) b.lo.switchTo(want);
         }
         // turn toward the target (limited turn speed); a new aim error every so often
@@ -205,7 +207,7 @@
         }
       }
       mgr.botShotFx(b, ends, b.lo.id);
-      for (const [p, h] of hits) mgr.botHitPlayer(p.id, h.dmg, h.head);
+      for (const [p, h] of hits) mgr.botHitPlayer(p.id, h.dmg, h.head, b.i);
     }
     throwNade(b, at) {
       const from = new T.Vector3(b.pos.x, b.pos.y + 1.6, b.pos.z);

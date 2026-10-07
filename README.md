@@ -84,16 +84,15 @@ railway and no trains**. Where things live:
 | Obstacles, coins, fairness check | `js/patterns.js` |
 | Obstacle models | `js/prefabs.js` → `VR.OBSTACLE_TYPES` |
 
-**How the three lanes were replaced.** The runner has a continuous sideways
-position `x` (metres). It belongs to the walkable region under it and keeps
-its *relative* place in that region, so when the ridge narrows, bends,
-splits or merges the runner flows with it (at most `FOLLOW_SPEED` m/s; no
-snapping). A swipe moves `DODGE_STEP` (2.6 m) sideways, clamped to the
-region; a swipe toward rock, a gorge or the void is refused (bump). On a
-wide ridge that gives about three places to be, on a medium one two, on a
-knife edge one: the number of ways comes from the terrain, not from a
-lane count. At a fork the side you are on (or last swiped toward) decides
-your branch.
+**Lanes.** The runner's sideways position `x` belongs to the walkable region
+under it and to one of that region's **lanes** (`VR.Route.Lanes` in
+`route.js`): one lane per swipe of room, at most 3, spread evenly over the
+region; a **branch between mountains / beside a gorge has exactly one lane**
+(no choosing between two places inside a branch). A swipe moves one lane
+over (refused with a bump at the edge). When the region narrows, bends,
+splits or merges the runner flows with its lane (at most `FOLLOW_SPEED`
+m/s); when the number of lanes changes it takes the nearest one. At a fork
+the side you are on (or last swiped toward) decides your branch.
 
 **Merging from far away.** Branch positions and widths are interpolated over
 the whole span: three routes converge into one over ~34 m, visible well
@@ -130,14 +129,16 @@ section's regions.
   the end can be reached, moving sideways only as fast as a player can at
   this speed. The layout is accepted only if every branch, at every metre,
   still has a way through. Jump/slide obstacles are spaced by real airtime.
-- Coins: one line per branch, placed where a runner really is: the edges
-  of the walkable ground and whole swipes (`DODGE_STEP`) in from an edge,
-  places every runner can reach. A line keeps its relative place when the
-  route narrows, bends, splits or merges (exactly like the runner), moves
-  only the way a swipe does (no coin mid-swipe), carries on from one
-  section into the next, goes around rocks, arcs over jumps, dips under
-  slides and runs up rock shelves. Never between two places, never rows
-  of three.
+- Coins: one line per branch, always exactly **on a lane** (the same
+  `VR.Route.Lanes` rule the runner uses), so every coin can be reached
+  with swipes. A line keeps its lane when the route narrows, bends,
+  splits or merges (like the runner), changes lane only the way a swipe
+  does (no coin mid-swipe, none right where the number of lanes changes),
+  carries on from one section into the next, goes around rocks, arcs over
+  jumps, dips under slides and runs up rock shelves.
+- A region with one lane (a knife edge, a branch between mountains) only
+  gets jump / slide obstacles; the fairness check also demands that every
+  region has a *lane* with a way through at every metre.
 
 ### Collisions: stumble first
 
@@ -430,8 +431,8 @@ then 2.5 s of star power                        player stands just past the gate
 | mouse (click to capture; drag works too) | drag on the right side | look |
 | Space | Jump | jump (also out of a slide) |
 | Shift (hold) | push the stick all the way | sprint (×1.5 walking speed, not while crouching) |
-| C / Ctrl (hold) | Crouch | crouch; tap while running to slide |
-| Q | Burst | Lemon Burst blast-jump (3.2 s cooldown) |
+| C / Ctrl (press) | Crouch | crouch on / off (press again to stand); while running it starts a slide |
+| Q | Burst | Lemon Burst blast-jump straight up (3.2 s cooldown) |
 | E / F | Use | interact (read, pick up, press, install…) |
 | 1 2 3 / wheel | tap a slot | choose the carried item |
 | J / Tab | journal button | clue journal, objectives, hints |
@@ -712,8 +713,10 @@ The host only starts round 1 when everyone is ready.
 | Lemon pistol | free | 20 / 40 | 12 · 1.1 s | 0.3 s between shots |
 | Scatter shotgun | 350 | 11 / 16 per pellet ×8 | 6 · 1.9 s | strong up close, weak past 18 m |
 | Light SMG | 400 | 10 / 18 | 30 · 1.6 s | automatic (hold fire) |
-| Sniper | 550 | 55 / 100 | 5 · 1.9 s | scope on right click |
+| Sniper | 550 | 55 / 150 | 5 · 1.9 s | scope on right click |
 | Impulse grenades | 250 | no damage | 2 charges | push / rocket jump |
+| Mines ×2 | 200 | up to 85 | 2 per round | key B |
+| Knife | always carried | 50 / 100 | — | reach 2.3 m, key 3 / V |
 
 So *sniper + SMG* fits the budget, *sniper + SMG + grenades* does not. Numbers:
 `js/duel/fightkit.js` (`WEAPONS`, `BUY`).
@@ -729,8 +732,27 @@ Against the computer alone, pause really pauses. In co-op the host's game runs t
 decides every hit (the guest's shots too) and streams the bots ~10 times a second.
 
 **Impulse grenade (everywhere: arena, combat, duel).** It rests on the ground, blinks, and
-explodes **1 second after landing** (bounces off walls first). The push is twice as strong:
-a grenade under your feet now lifts you about twice as high.
+explodes **0.25 s after landing** (bounces off walls first). Under your feet it throws you
+**straight up where you stand** (no long jump forward), about 11 m high (push 34). The
+Lemon Burst (Q in missions) also goes straight up.
+
+**Knife and mines.** Everyone carries a **knife** (key 3 or V, touch: سكّين): 50 body /
+100 head, reach 2.3 m, no ammo. **Mines** can be bought (200, two per round; key B, touch:
+لغم): placed in front of your feet, armed after 0.8 s, they go off when an enemy comes
+within 1.3 m (up to 85 damage within 3.2 m). The host decides who a mine hits.
+
+**Feedback.** A damage number floats over whoever you hit (yellow = headshot). "You took
+out X" / "X took you out" appear in the middle of the screen. When you go down the view
+falls to the floor and the screen turns grey; in co-op, after a moment, you watch your
+teammate from behind until the round ends.
+
+**Sniper and heads.** The head hit box now covers the whole drawn head (the hero's voxel
+head reaches ~2.1 m); a sniper headshot does 150 (always a kill). In the adventure combat a
+sniper headshot kills any enemy. Reloading (by hand or when the magazine is empty) leaves
+the scope; aim again to scope back in.
+
+**Random starts.** Every round you start at a random free spot on your side
+(`arena.js` → `extras.spawnPts`, never the same spot twice in a row); bots too.
 
 **Sprint.** Hold **Shift** (touch: push the stick to the edge) to run 1.5× faster
 (`CONFIG.FP.SPRINT`), in missions, the adventure world and the arena.

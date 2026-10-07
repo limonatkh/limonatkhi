@@ -1,12 +1,13 @@
 /* =====================================================================
  * PLAYER CONTROLLER
  * ---------------------------------------------------------------------
- * Moving across the route (no lanes): the runner has a continuous
- * sideways position x. It lives in the walkable REGION under it (route.js)
- * and keeps its relative place in that region, so it flows with the route
- * when the ridge narrows, bends, splits or merges, never snapping.
- * A swipe moves DODGE_STEP metres sideways, clamped to the region; a
- * swipe toward rock, a gorge or the void is refused (bump).
+ * Moving across the route: the runner's sideways position x lives in the
+ * walkable REGION under it (route.js) on one of its LANES (VR.Route.Lanes:
+ * 1-3 places spread over the region; a branch between mountains has one).
+ * A swipe moves one lane over; at the edge (rock, a gorge or the void)
+ * it is refused (bump). When the region narrows, bends, splits or merges
+ * the runner flows with its lane (FOLLOW_SPEED); when the number of
+ * lanes changes it takes the nearest one. Coins use the same lanes.
  *
  * States: running -> STUMBLING (vulnerable for VULNERABLE_TIME; see
  * game.js resolveCollisions) -> recovered.
@@ -67,7 +68,8 @@
     reset() {
       this.x = 0; this.y = 0; this.z = 0;
       this.rel = 0.5;              // relative place in the current region (0 left edge … 1 right edge)
-      this.dodgeX = null;          // a swipe in progress: target x
+      this.lane = 0; this.laneN = 0; this.swiping = false;   // which lane, of how many; a swipe in progress
+      this.dodgeX = null;          // shoved to an x (a glancing hit), then back onto the nearest lane
       this.side = 1;               // last sideways direction (decides a fork when you're in the middle)
       this.regionW = 0;
       this.vy = 0;
@@ -100,6 +102,19 @@
     /** the x for a relative place in region r */
     static xAt(r, rel) { const [a, b] = Player.span(r); return a + (b - a) * rel; }
     static relAt(r, x) { const [a, b] = Player.span(r); return b - a < 0.01 ? 0.5 : clamp((x - a) / (b - a), 0, 1); }
+    /** the region here and its lanes; keeps my lane (or takes the nearest when they change) */
+    lanesNow() {
+      const r = this.region(), [lo, hi] = Player.span(r);
+      const regs = VR.track ? VR.track.regionsAt(this.z) : [r];
+      const n = VR.Route.Lanes.count(lo, hi, regs.length > 1);
+      const w = r.b - r.a;
+      // a new region (split / merge) or a different number of lanes: the nearest lane
+      if (n !== this.laneN || Math.abs(w - this.regionW) > 0.8 || this.x < r.a - 0.05 || this.x > r.b + 0.05) {
+        this.lane = VR.Route.Lanes.nearest(lo, hi, n, this.x, this.side); this.laneN = n;
+      }
+      this.regionW = w;
+      return { r, lo, hi };
+    }
 
     action(a, game) {
       if (this.dead) return;
@@ -108,13 +123,11 @@
         case 'right': {
           const dir = a === 'left' ? -1 : 1;
           this.side = dir;
-          const r = this.region();
-          const [lo, hi] = Player.span(r);
-          const from = this.dodgeX !== null ? this.dodgeX : this.x;
-          const to = clamp(from + dir * C.DODGE_STEP, lo, hi);
+          this.lanesNow();
+          const to = this.lane + dir;
           // rock, a gorge or the void that way: refused, no passing through the mountain
-          if ((to - from) * dir < 0.3) { game.onWallBump(); return; }
-          this.dodgeX = to;
+          if (to < 0 || to >= this.laneN) { game.onWallBump(); return; }
+          this.lane = to; this.swiping = true; this.dodgeX = null;
           VR.Audio.play('dodge');
           break;
         }
@@ -145,21 +158,22 @@
       // forward
       this.z -= speed * dt;
 
-      // sideways: follow the region (it may narrow, move, split or merge)
-      const r = this.region();
-      const w = r.b - r.a;
-      if (Math.abs(w - this.regionW) > 0.8 || this.x < r.a - 0.05 || this.x > r.b + 0.05) this.rel = Player.relAt(r, this.x);   // a new region (split / merge)
-      this.regionW = w;
-      const [lo, hi] = Player.span(r);
+      // sideways: follow my lane of the region (it may narrow, move, split or merge)
+      const { r, lo, hi } = this.lanesNow();
       let target, vmax;
       if (this.dodgeX !== null) {
         target = clamp(this.dodgeX, lo, hi); this.dodgeX = target;
         vmax = C.DODGE_STEP / C.DODGE_TIME;
-      } else { target = Player.xAt(r, this.rel); vmax = C.FOLLOW_SPEED; }
+      } else {
+        target = VR.Route.Lanes.x(lo, hi, this.laneN, this.lane);
+        vmax = this.swiping ? Math.max(C.DODGE_STEP, (hi - lo) / Math.max(1, this.laneN - 1)) / C.DODGE_TIME : C.FOLLOW_SPEED;
+      }
       const step = vmax * dt, dx = target - this.x;
       this.prevX = this.x;
       this.x += Math.abs(dx) <= step ? dx : Math.sign(dx) * step;
-      if (this.dodgeX !== null && Math.abs(this.dodgeX - this.x) < 0.01) { this.dodgeX = null; this.rel = Player.relAt(r, this.x); }
+      if (this.dodgeX !== null && Math.abs(this.dodgeX - this.x) < 0.01) { this.dodgeX = null; this.lane = VR.Route.Lanes.nearest(lo, hi, this.laneN, this.x, this.side); }
+      if (this.swiping && Math.abs(target - this.x) < 0.01) this.swiping = false;
+      this.rel = Player.relAt(r, this.x);
       // never off the ground (the route can shrink faster than you follow it)
       this.x = clamp(this.x, r.a + 0.2, r.b - 0.2);
       this.lateralVel = (this.x - this.prevX) / Math.max(dt, 1e-4);
@@ -293,10 +307,10 @@
     // bring the player back after a secret-code continue
     /** the run state that must survive a mission / duel (game.js snapshotRun) */
     snapshot() {
-      return { x: this.x, y: this.y, z: this.z, rel: this.rel, side: this.side, regionW: this.regionW, vulnerable: this.vulnerable };
+      return { x: this.x, y: this.y, z: this.z, rel: this.rel, lane: this.lane, laneN: this.laneN, side: this.side, regionW: this.regionW, vulnerable: this.vulnerable };
     }
     restore(s) {
-      Object.assign(this, { x: s.x, y: s.y, z: s.z, rel: s.rel, side: s.side, regionW: s.regionW, vulnerable: s.vulnerable || 0,
+      Object.assign(this, { x: s.x, y: s.y, z: s.z, rel: s.rel, lane: s.lane || 0, laneN: s.laneN || 0, swiping: false, side: s.side, regionW: s.regionW, vulnerable: s.vulnerable || 0,
         dodgeX: null, vy: 0, grounded: true, slideTimer: 0, pendingSlide: false, prevX: s.x, lateralVel: 0, stumbleAnim: 0 });
       this.place();
     }

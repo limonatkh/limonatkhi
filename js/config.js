@@ -89,8 +89,8 @@ VR.CONFIG = {
     CROUCH_SPEED: 0.5,
     SPRINT: 1.5,                 // Shift while moving forward (touch: stick pushed all the way)
     BURST_HEIGHT_X: 3.5,         // spec: 3-4× a normal jump
-    BURST_ANGLE_STILL: 80,       // spec: 70-80° when used under the player
-    BURST_ANGLE_MOVING: 70,      // pushes sideways when moving
+    BURST_ANGLE_STILL: 90,       // straight up where you stand
+    BURST_ANGLE_MOVING: 90,      // also when moving: no long jump forward
     BURST_COOLDOWN: 3.2,         // spec: 2.5-4 s
     LADDER_SPEED: 4.2,
     HEIGHT: 1.75, CROUCH_HEIGHT: 0.95, RADIUS: 0.3,

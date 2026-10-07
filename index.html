@@ -547,7 +547,15 @@
   .du-charges i { width: 14px; height: 14px; border: 2px solid #9b6bff; background: transparent; position: relative; overflow: hidden; }
   .du-charges i.on { background: #9b6bff; }
   .du-charges i.chg::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--k, 0) * 100%); background: rgba(155,107,255,.5); }
-  .du-wnd { opacity: 1; }
+  .du-wnd, .du-wmn { opacity: 1; }
+  .du-mines { font-family: 'Pixelify Sans', monospace; font-size: 18px; margin-inline-start: auto; color: #ff8a5a; }
+  .du-nums { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .du-num { position: absolute; font-family: 'Pixelify Sans', monospace; font-size: 22px; font-weight: 700; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px rgba(0,0,0,.6); pointer-events: none; }
+  .du-num.head { color: #ffd23a; font-size: 28px; }
+  .du-killmsg { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); padding: 6px 14px 8px; background: rgba(14,17,26,.82); border: 3px solid var(--ink); font-family: var(--display); font-size: 20px; white-space: nowrap; pointer-events: none; }
+  .du-killmsg.good { color: var(--lemon); border-color: var(--lemon); } .du-killmsg.bad { color: #ff8a80; border-color: #ff6b5a; }
+  .du-deadfx { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(60,0,0,.15) 30%, rgba(40,0,0,.65) 100%); backdrop-filter: grayscale(.85); -webkit-backdrop-filter: grayscale(.85); display: grid; place-items: start center; padding-top: 19vh; box-sizing: border-box; font-family: var(--display); font-size: 34px; color: #ff8a80; text-shadow: 0 3px 0 #000; pointer-events: none; }
+  .du-spec { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); padding: 4px 12px 6px; font-family: var(--display); font-size: 16px; white-space: nowrap; pointer-events: none; }
   .du-botsleft { position: absolute; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 84px); transform: translateX(-50%); padding: 3px 10px 5px; font-family: var(--display); font-size: 14px; color: #ffd23a; white-space: nowrap; }
   .du-card.fm-buy { max-width: 560px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; }
   .fm-left { font-family: var(--display); font-size: 22px; color: var(--lemon); margin: 4px 0 8px; }

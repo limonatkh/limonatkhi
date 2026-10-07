@@ -56,7 +56,8 @@
       const moving = wish.lengthSq() > 0.01;
       const dir = moving ? wish.normalize() : this.forward();
       const a = T.MathUtils.degToRad(moving ? fp.BURST_ANGLE_MOVING : fp.BURST_ANGLE_STILL);
-      this.vel.set(dir.x * v * Math.cos(a), v * Math.sin(a), dir.z * v * Math.cos(a));
+      const ca = Math.abs(Math.cos(a)) < 1e-6 ? 0 : Math.cos(a);
+      this.vel.set(dir.x * v * ca, v * Math.sin(a), dir.z * v * ca);
       this.grounded = false; this.coyote = 0; this.slideTimer = 0; this.climbing = null;
       this.burstCooldown = fp.BURST_COOLDOWN; this.burstFov = 9; this.inBurst = true;
       this.events.push({ type: 'burst' });

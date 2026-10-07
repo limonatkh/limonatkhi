@@ -30,9 +30,11 @@
     Space: 'jump', KeyC: 'slide', ControlLeft: 'slide', ControlRight: 'slide',
     KeyE: 'interact', KeyF: 'interact', KeyQ: 'burst',
     KeyJ: 'journal', Tab: 'journal', KeyR: 'reload',
-    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade', KeyH: 'medkit',
+    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade', KeyH: 'medkit', KeyB: 'mine', KeyV: 'knife',
   };
-  const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyC', 'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight']);
+  const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
+  const CROUCH_KEYS = new Set(['KeyC', 'ControlLeft', 'ControlRight']);
+  let crouchOn = false;                  // Ctrl / C toggles: press to crouch (or slide when running), press again to stand
   const held = new Set();
   const fpQueue = [];
   const look = { x: 0, y: 0 };
@@ -53,6 +55,12 @@
       if (e.code === 'Escape' || e.code === 'KeyP') { onPause && onPause(); return; }
       if (!fpEnabled) return;
       if (FP_HOLD.has(e.code)) { held.add(e.code); e.preventDefault(); }
+      if (CROUCH_KEYS.has(e.code)) {
+        e.preventDefault();
+        if (!e.repeat) { crouchOn = !crouchOn; if (crouchOn) fpQueue.push('slide'); }
+        return;
+      }
+      if (e.code === 'Space') crouchOn = false;      // a jump stands you up
       const a = FP_ACTIONS[e.code];
       if (a) { e.preventDefault(); if (!e.repeat) fpQueue.push(a); }
       return;
@@ -143,7 +151,7 @@
     setMode(m) {
       mode = m;
       held.clear(); fpQueue.length = 0; queue.length = 0; look.x = look.y = 0;
-      touchMove.x = touchMove.y = 0; touchHold.clear();
+      touchMove.x = touchMove.y = 0; touchHold.clear(); crouchOn = false;
       if (m !== 'fp') this.releaseLock();
     },
     get mode() { return mode; },
@@ -177,7 +185,9 @@
     fireHeld() { return touchHold.has('fire'); },
     /** sprint: Shift held, or the touch stick pushed all the way */
     sprintHeld() { return held.has('ShiftLeft') || held.has('ShiftRight') || Math.hypot(touchMove.x, touchMove.y) > 0.95; },
-    crouchHeld() { return held.has('KeyC') || held.has('ControlLeft') || held.has('ControlRight') || touchHold.has('crouch'); },
+    crouchHeld() { return crouchOn || touchHold.has('crouch'); },
+    /** stand up (e.g. after dying or a new round) */
+    resetCrouch() { crouchOn = false; },
     takeLook() { const r = { x: look.x, y: look.y }; look.x = look.y = 0; return r; },
     nextAction() { return fpQueue.shift(); },
 

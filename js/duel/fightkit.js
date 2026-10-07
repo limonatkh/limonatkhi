@@ -20,17 +20,21 @@
     pistol:  { body: 20, head: 40, rate: 0.30, auto: false, mag: 12, reload: 1.1, spread: 0.008, pellets: 1, range: 50, fall: 0.6, sound: 'pistol', kick: 0.5 },
     shotgun: { body: 11, head: 16, rate: 0.90, auto: false, mag: 6, reload: 1.9, spread: 0.06, pellets: 8, range: 18, fall: 0.3, sound: 'shotgun', kick: 1.2 },
     smg:     { body: 10, head: 18, rate: 0.09, auto: true, mag: 30, reload: 1.6, spread: 0.022, pellets: 1, range: 35, fall: 0.55, sound: 'smg', kick: 0.25 },
-    sniper:  { body: 55, head: 100, rate: 1.00, auto: false, mag: 5, reload: 1.9, spread: 0.012, airSpread: 0.004, scopedSpread: 0, pellets: 1, range: 200, fall: 1, sound: 'sniper', kick: 1, scope: true },
+    sniper:  { body: 55, head: 150, rate: 1.00, auto: false, mag: 5, reload: 1.9, spread: 0.012, airSpread: 0.004, scopedSpread: 0, pellets: 1, range: 200, fall: 1, sound: 'sniper', kick: 1, scope: true },
+    // the knife: always carried (slot 3), melee only (reach `range` metres)
+    knife:   { body: 50, head: 100, rate: 0.55, auto: false, mag: 1, reload: 0, spread: 0, pellets: 1, range: 2.3, fall: 1, sound: 'knife', kick: 0.3, melee: true },
   };
   const NAMES = {
     pistol: { en: 'Lemon pistol', ar: 'مسدس الليمون' }, shotgun: { en: 'Scatter shotgun', ar: 'بندقية الرشّ' },
     smg: { en: 'Light SMG', ar: 'الرشّاش الخفيف' }, sniper: { en: 'Sniper', ar: 'القنّاصة' }, nades: { en: 'Impulse grenades', ar: 'قنابل الدفع' },
+    knife: { en: 'Knife', ar: 'سكّين' }, mines: { en: 'Mines ×2', ar: 'ألغام ×2' },
   };
   const BUY = {
     BUDGET: 1000,
     TIME: 25,                       // seconds to buy before a match (then: ready with what you have)
-    PRICES: { pistol: 0, shotgun: 350, smg: 400, sniper: 550, nades: 250 },   // e.g. sniper + SMG fits, sniper + SMG + grenades does not
-    ORDER: ['pistol', 'shotgun', 'smg', 'sniper', 'nades'],
+    PRICES: { pistol: 0, shotgun: 350, smg: 400, sniper: 550, nades: 250, mines: 200 },   // e.g. sniper + SMG fits, sniper + SMG + grenades does not
+    ORDER: ['pistol', 'shotgun', 'smg', 'sniper', 'nades', 'mines'],
+    MINES: 2,                       // mines per round when bought
   };
 
   /** damage of one hit (or one shotgun pellet) at distance `dist` */
@@ -45,14 +49,15 @@
     let c = 0;
     for (const id of pick.weapons) c += BUY.PRICES[id] || 0;
     if (pick.nades) c += BUY.PRICES.nades;
+    if (pick.mines) c += BUY.PRICES.mines;
     return c;
   }
   /** a legal pick: at most 2 weapons (dearest first), known ids, within budget; else the free pistol */
   function sanitize(pick) {
-    const ws = [...new Set((pick && pick.weapons || []).filter(id => WEAPONS[id]))].slice(0, 2);
+    const ws = [...new Set((pick && pick.weapons || []).filter(id => WEAPONS[id] && !WEAPONS[id].melee))].slice(0, 2);
     ws.sort((a, b) => BUY.PRICES[b] - BUY.PRICES[a]);              // the bought weapon in hand first, the pistol second
-    const p = { weapons: ws.length ? ws : ['pistol'], nades: !!(pick && pick.nades) };
-    return cost(p) <= BUY.BUDGET ? p : { weapons: ['pistol'], nades: false };
+    const p = { weapons: ws.length ? ws : ['pistol'], nades: !!(pick && pick.nades), mines: !!(pick && pick.mines) };
+    return cost(p) <= BUY.BUDGET ? p : { weapons: ['pistol'], nades: false, mines: false };
   }
 
   class Loadout {
@@ -60,6 +65,8 @@
       pick = sanitize(pick);
       this.pick = pick;
       this.slots = pick.weapons.map(id => ({ id, mag: WEAPONS[id].mag }));
+      this.slots.push({ id: 'knife', mag: 1 });                      // everyone carries a knife (last slot)
+      this.mines = { has: !!pick.mines, left: pick.mines ? BUY.MINES : 0 };
       this.cur = 0;
       this.nades = { has: pick.nades, charges: pick.nades ? nadeMax : 0, max: nadeMax, rechargeT: 0 };
       this.coolT = 0; this.reloadT = 0; this.switchT = 0;
@@ -67,6 +74,7 @@
     get slot() { return this.slots[this.cur]; }
     get id() { return this.slot.id; }
     get def() { return WEAPONS[this.slot.id]; }
+    get knifeSlot() { return this.slots.length - 1; }
     has(id) { return this.slots.some(s => s.id === id); }
     ready() { return this.coolT <= 0 && this.switchT <= 0 && this.reloadT <= 0; }
     switchTo(i) {
@@ -76,18 +84,19 @@
     }
     next() { return this.switchTo((this.cur + 1) % this.slots.length); }
     startReload() {
-      if (this.reloadT > 0 || this.slot.mag >= this.def.mag) return false;
+      if (this.def.melee || this.reloadT > 0 || this.slot.mag >= this.def.mag) return false;
       this.reloadT = this.def.reload;
       return true;
     }
     /** spend a round; returns the weapon def, or null (not ready / empty → starts reloading) */
     shoot() {
       if (!this.ready()) return null;
+      if (this.def.melee) { this.coolT = this.def.rate; return this.def; }
       if (this.slot.mag <= 0) { this.startReload(); return null; }
       this.slot.mag--; this.coolT = this.def.rate;
       return this.def;
     }
-    refill() { for (const s of this.slots) s.mag = WEAPONS[s.id].mag; this.reloadT = 0; this.coolT = 0; this.switchT = 0; this.nades.charges = this.nades.has ? this.nades.max : 0; this.nades.rechargeT = 0; }
+    refill() { this.mines.left = this.mines.has ? BUY.MINES : 0; for (const s of this.slots) s.mag = WEAPONS[s.id].mag; this.reloadT = 0; this.coolT = 0; this.switchT = 0; this.nades.charges = this.nades.has ? this.nades.max : 0; this.nades.rechargeT = 0; }
     update(dt, recharge) {
       this.coolT = Math.max(0, this.coolT - dt);
       this.switchT = Math.max(0, this.switchT - dt);
@@ -97,6 +106,7 @@
       const n = this.nades;
       if (n.has && n.charges < n.max) { n.rechargeT -= dt; if (n.rechargeT <= 0) { n.charges++; n.rechargeT = n.charges < n.max ? recharge : 0; } }
     }
+    useMine() { if (this.mines.left < 1) return false; this.mines.left--; return true; }
     useNade(recharge) {
       const n = this.nades;
       if (!n.has || n.charges < 1) return false;

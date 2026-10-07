@@ -31,7 +31,7 @@
     'du.rounds': '{n} rounds', 'du.continue': 'BACK TO THE RUN ({n})', 'du.continueMenu': 'CONTINUE ({n})', 'du.oppLeft': '{name} left the duel: the win is yours.', 'du.reward': '+{coins} coins',
     'du.waitingOpp': 'Waiting for your opponent…', 'du.you': 'You',
     'du.t.fire': 'FIRE', 'du.t.aim': 'SCOPE', 'du.t.nade': 'PUSH', 'du.t.swap': 'SWAP', 'du.t.jump': 'Jump', 'du.t.crouch': 'Slide',
-    'du.keys': 'Left click fire (hold: SMG) · Right click scope (sniper) · Q / G impulse grenade · 1 / 2 / X switch · R reload · Shift sprint · Space jump · C slide',
+    'du.keys': 'Left click fire / stab (hold: SMG) · Right click scope · 1 / 2 weapons · 3 or V knife · Q / G impulse grenade · B mine · R reload · Shift sprint · Space jump · C / Ctrl crouch on/off (slide when running)',
     'fm.title': 'Fight', 'fm.sub': 'Pick how you want to fight', 'fm.pvp': 'Friend vs friend', 'fm.pvpSub': 'You against another player (online or a friend in your room)',
     'fm.bots': 'Me vs the computer', 'fm.botsSub': 'You alone against 1-3 computer players', 'fm.coop': 'Me + a friend vs the computer', 'fm.coopSub': 'You and another player on the same team against the computer',
     'fm.howMany': 'Computer players', 'fm.diff': 'Difficulty', 'fm.start': 'START', 'fm.invite': 'INVITE A PLAYER', 'fm.back': 'BACK',
@@ -42,7 +42,8 @@
     'fm.botDown': '{name} is down', 'fm.mateDown': '{name} is down', 'fm.botsLeft': 'Computer players left: {n}',
     'fm.pauseBots': 'Paused', 'fm.pauseBotsNote': 'The match against the computer waits for you. Leaving now counts as a loss.',
     'fm.slotEmpty': '—',
-    'du.t.swapW': 'SWAP',
+    'du.t.swapW': 'SWAP', 'du.t.knife': 'KNIFE', 'du.t.mine': 'MINE',
+    'fm.youKilled': 'You took out {name}!', 'fm.killedBy': '{name} took you out', 'fm.watching': 'Watching {name}', 'fm.dead': 'YOU ARE DOWN',
     'du.keyHint': 'Y accept · N decline',
     'menu.wait': 'WAIT FOR A PLAYER', 'menu.waitSub': '1v1 Sniper Arena', 'menu.duel': '1v1 WITH AN ONLINE PLAYER',
     'du.lobbyTitle': 'Waiting for another player…', 'du.lobbySub': 'Practise moving and sniping. The duel starts from round 1 as soon as someone joins.',
@@ -69,7 +70,7 @@
     'du.rounds': '{n} جولات', 'du.continue': 'العودة إلى الطريق ({n})', 'du.continueMenu': 'متابعة ({n})', 'du.oppLeft': '{name} غادر المواجهة: الفوز لك.', 'du.reward': '+{coins} عملة',
     'du.waitingOpp': 'بانتظار المنافس…', 'du.you': 'أنت',
     'du.t.fire': 'إطلاق', 'du.t.aim': 'منظار', 'du.t.nade': 'دفع', 'du.t.swap': 'تبديل', 'du.t.jump': 'قفز', 'du.t.crouch': 'انزلاق',
-    'du.keys': 'زر الفأرة الأيسر: إطلاق (مطوّل للرشّاش) · الأيمن: منظار القنّاصة · Q / G: قنبلة الدفع · 1 / 2 / X: تبديل · R: تلقيم · Shift: ركض سريع · Space: قفز · C: انزلاق',
+    'du.keys': 'زر الفأرة الأيسر: إطلاق / طعن (مطوّل للرشّاش) · الأيمن: منظار · 1 / 2: الأسلحة · 3 أو V: السكّين · Q / G: قنبلة الدفع · B: لغم · R: تلقيم · Shift: ركض سريع · Space: قفز · C / Ctrl: انخفاض/وقوف (انزلاق أثناء الركض)',
     'fm.title': 'القتال', 'fm.sub': 'اختر طريقة القتال', 'fm.pvp': 'صديق ضد صديق', 'fm.pvpSub': 'أنت ضد لاعب آخر (أونلاين أو صديق في غرفتك)',
     'fm.bots': 'أنا ضد الكمبيوتر', 'fm.botsSub': 'أنت وحدك ضد 1-3 لاعبين من الكمبيوتر', 'fm.coop': 'أنا وصديق ضد الكمبيوتر', 'fm.coopSub': 'أنت ولاعب آخر في نفس الفريق ضد الكمبيوتر',
     'fm.howMany': 'عدد لاعبي الكمبيوتر', 'fm.diff': 'الصعوبة', 'fm.start': 'ابدأ', 'fm.invite': 'ادعُ لاعبًا', 'fm.back': 'رجوع',
@@ -80,7 +81,8 @@
     'fm.botDown': 'سقط {name}', 'fm.mateDown': 'سقط {name}', 'fm.botsLeft': 'المتبقي من الكمبيوتر: {n}',
     'fm.pauseBots': 'إيقاف مؤقت', 'fm.pauseBotsNote': 'المباراة ضد الكمبيوتر تنتظرك. الخروج الآن يُحسب خسارة.',
     'fm.slotEmpty': '—',
-    'du.t.swapW': 'تبديل',
+    'du.t.swapW': 'تبديل', 'du.t.knife': 'سكّين', 'du.t.mine': 'لغم',
+    'fm.youKilled': 'قتلت {name}!', 'fm.killedBy': '{name} قتلك', 'fm.watching': 'تشاهد {name}', 'fm.dead': 'مُتّ',
     'du.keyHint': 'Y قبول · N رفض',
     'menu.wait': 'انتظار لاعب', 'menu.waitSub': 'ساحة القنص 1v1', 'menu.duel': 'تحدَّ لاعبًا أونلاين 1v1',
     'du.lobbyTitle': 'بانتظار لاعب آخر…', 'du.lobbySub': 'تدرّب على الحركة والقنص. يبدأ التحدي من الجولة الأولى فور وصول لاعب.',
@@ -121,10 +123,16 @@
           <div class="du-weapons">
             <div class="du-w du-ws0 panel"><span class="du-key">1</span><span class="du-wname"></span><b class="num du-ammo"></b><div class="du-rl"><div></div></div></div>
             <div class="du-w du-ws1 panel"><span class="du-key">2</span><span class="du-wname"></span><b class="num du-ammo"></b><div class="du-rl"><div></div></div></div>
+            <div class="du-w du-ws2 panel"><span class="du-key">3</span><span class="du-wname"></span><b class="num du-ammo"></b><div class="du-rl"><div></div></div></div>
             <div class="du-w du-wnd panel"><span class="du-key">Q</span><span class="du-wname"></span><span class="du-charges"></span></div>
+            <div class="du-w du-wmn panel" hidden><span class="du-key">B</span><span class="du-wname"></span><b class="num du-mines"></b></div>
           </div>
         </div>
         <div class="du-botsleft panel" hidden></div>
+        <div class="du-deadfx" hidden></div>
+        <div class="du-spec panel" hidden></div>
+        <div class="du-killmsg" hidden></div>
+        <div class="du-nums"></div>
         <div class="du-keys"></div>
         <div class="du-touch" hidden>
           <div class="mi-stickzone du-stickzone"><div class="mi-stick"><div class="mi-knob"></div></div></div>
@@ -135,6 +143,8 @@
             <button class="mi-tbtn" data-hold="crouch" data-k="du.t.crouch"></button>
             <button class="mi-tbtn" data-act="jump" data-k="du.t.jump"></button>
             <button class="mi-tbtn" data-act="swap" data-k="du.t.swapW"></button>
+            <button class="mi-tbtn" data-act="knife" data-k="du.t.knife"></button>
+            <button class="mi-tbtn du-tmine" data-act="mine" data-k="du.t.mine"></button>
             <button class="mi-tbtn du-tfire" data-hold="fire" data-act="fire" data-k="du.t.fire"></button>
           </div>
         </div>
@@ -143,7 +153,7 @@
       this.el = {
         me: q('.du-me'), opp: q('.du-opp'), timer: q('.du-timer'), roundlbl: q('.du-roundlbl'),
         cross: q('.du-cross'), hit: q('.du-hit'), scope: q('.du-scope'), dmg: q('.du-dmg'), big: q('.du-big'), feed: q('.du-feed'),
-        hp: q('.du-hp'), hpbar: q('.du-hp .du-bar div'), hpnum: q('.du-hp b'), ws: [q('.du-ws0'), q('.du-ws1')], wnd: q('.du-wnd'), botsLeft: q('.du-botsleft'),
+        hp: q('.du-hp'), hpbar: q('.du-hp .du-bar div'), hpnum: q('.du-hp b'), ws: [q('.du-ws0'), q('.du-ws1'), q('.du-ws2')], wnd: q('.du-wnd'), wmn: q('.du-wmn'), deadfx: q('.du-deadfx'), spec: q('.du-spec'), killmsg: q('.du-killmsg'), nums: q('.du-nums'), botsLeft: q('.du-botsleft'),
         charges: q('.du-charges'), keys: q('.du-keys'), touch: q('.du-touch'), overlay: q('.du-overlay'), card: q('.du-card'),
       };
       this.prompt = document.getElementById('duPrompt');
@@ -160,6 +170,7 @@
       this.el.hp.querySelector('.du-lbl').textContent = T('du.hp');
       this.loKey = '';
       this.el.wnd.querySelector('.du-wname').textContent = T('du.nade');
+      this.el.wmn.querySelector('.du-wname').textContent = VR.L(VR.FightKit.NAMES.mines).replace(/\s*×\d+/, '');
       this.el.keys.textContent = T('du.keys');
       this.root.querySelectorAll('[data-k]').forEach(b => { b.textContent = T(b.dataset.k); });
       this.prompt.querySelector('b').textContent = T('du.prompt');
@@ -271,19 +282,24 @@
     setLoadout(lo, recharge) {
       const NAMES = VR.FightKit.NAMES;
       const key = lo.slots.map(x => x.id).join(',') + '|' + VR.I18N.lang;
+      // panels: [weapon 1, weapon 2, knife] — with one weapon the middle panel is hidden
+      const map = lo.slots.length === 3 ? [0, 1, 2] : [0, -1, 1];
       if (this.loKey !== key) {
         this.loKey = key;
-        this.el.ws.forEach((el, i) => { const sl = lo.slots[i]; el.hidden = !sl; if (sl) el.querySelector('.du-wname').textContent = VR.L(NAMES[sl.id]); });
+        this.el.ws.forEach((el, k) => { const sl = lo.slots[map[k]]; el.hidden = !sl; if (sl) el.querySelector('.du-wname').textContent = VR.L(NAMES[sl.id]); });
       }
-      this.el.ws.forEach((el, i) => {
-        const sl = lo.slots[i]; if (!sl) return;
+      this.el.ws.forEach((el, k) => {
+        const i = map[k], sl = lo.slots[i]; if (!sl) return;
         const cur = i === lo.cur;
+        if (VR.FightKit.WEAPONS[sl.id].melee) { el.classList.toggle('on', cur); const am = el.querySelector('.du-ammo'); if (am.textContent !== '∞') am.textContent = '∞'; return; }
         el.classList.toggle('on', cur);
         const rk = cur && lo.reloadT > 0 ? 1 - lo.reloadT / lo.def.reload : 0;
         const a = cur && lo.reloadT > 0 ? T('du.reloading') : `${sl.mag}/${VR.FightKit.WEAPONS[sl.id].mag}`;
         const am = el.querySelector('.du-ammo'); if (am.textContent !== a) am.textContent = a;
         el.querySelector('.du-rl div').style.transform = `scaleX(${rk})`;
       });
+      this.el.wmn.hidden = !lo.mines.has;
+      if (lo.mines.has) { const t = String(lo.mines.left); const b = this.el.wmn.querySelector('.du-mines'); if (b.textContent !== t) b.textContent = t; }
       const n = lo.nades;
       this.el.wnd.hidden = !n.has;
       if (n.has) {
@@ -304,9 +320,9 @@
     showBuy(d, h, type) {
       const NAMES = VR.FightKit.NAMES, W = VR.FightKit.WEAPONS;
       const spent = VR.FightKit.cost(d.pick), left = d.budget - spent;
-      const stat = (id) => id === 'nades' ? '' : `<small class="fm-stat">${W[id].body}/${W[id].head}${W[id].pellets > 1 ? ' ×' + W[id].pellets : ''} · ${W[id].mag}${W[id].auto ? ' · AUTO' : ''}</small>`;
+      const stat = (id) => id === 'nades' || id === 'mines' ? '' : `<small class="fm-stat">${W[id].body}/${W[id].head}${W[id].pellets > 1 ? ' ×' + W[id].pellets : ''} · ${W[id].mag}${W[id].auto ? ' · AUTO' : ''}</small>`;
       const item = (id) => {
-        const on = id === 'nades' ? d.pick.nades : d.pick.weapons.includes(id);
+        const on = id === 'nades' ? d.pick.nades : id === 'mines' ? !!d.pick.mines : d.pick.weapons.includes(id);
         const price = d.prices[id];
         const can = on || price <= left;
         return `<button class="fm-item ${on ? 'on' : ''} ${can ? '' : 'poor'}" data-id="${id}" type="button">
@@ -354,6 +370,28 @@
       clearTimeout(this.hitT); this.hitT = setTimeout(() => { h.hidden = true; }, 380);
     }
     damage(k) { this.el.dmg.style.opacity = Math.min(0.85, k); }
+    /** floating damage number at a screen point */
+    dmgNum(x, y, n, head) {
+      const d = document.createElement('div');
+      d.className = 'du-num' + (head ? ' head' : ''); d.textContent = String(n);
+      const r = this.root.getBoundingClientRect();
+      d.style.left = (x - r.left + (Math.random() - 0.5) * 24) + 'px'; d.style.top = (y - r.top) + 'px';
+      this.el.nums.appendChild(d);
+      d.animate([{ transform: 'translate(-50%,-50%) scale(1.3)', opacity: 1 }, { transform: 'translate(-50%,-180%) scale(1)', opacity: 1, offset: 0.6 }, { transform: 'translate(-50%,-240%) scale(0.9)', opacity: 0 }], { duration: 900, easing: 'ease-out' });
+      setTimeout(() => d.remove(), 900);
+      while (this.el.nums.children.length > 12) this.el.nums.firstChild.remove();
+    }
+    /** "you took out X" / "X took you out" */
+    kill(text, cls) {
+      const k = this.el.killmsg;
+      k.textContent = (cls === 'good' ? '☠ ' : '✖ ') + text; k.className = 'du-killmsg ' + cls; k.hidden = false;
+      k.animate([{ transform: 'translateX(-50%) scale(1.4)', opacity: 0 }, { transform: 'translateX(-50%) scale(1)', opacity: 1 }], { duration: 200 });
+      clearTimeout(this.killT); this.killT = setTimeout(() => { k.hidden = true; }, 2600);
+      this.feed(text, cls);
+    }
+    /** the screen while I am down */
+    setDead(on) { this.el.deadfx.hidden = !on; if (on) this.el.deadfx.textContent = T('fm.dead'); }
+    spectate(text) { const e = this.el.spec; e.hidden = !text; if (text) this.el.deadfx.hidden = true; if (text && e.textContent !== text) e.textContent = '👁 ' + text; }
     scope(on) { this.el.scope.hidden = !on; this.el.cross.hidden = on; }
 
     // ------------------------------------------------------------ overlays
@@ -445,6 +483,8 @@
       });
     }
     resetTouch() { this.root.querySelectorAll('.du-tbtns .mi-tbtn').forEach(b => b.classList.remove('on')); }
+    /** hide the mine button when there are no mines */
+    touchMines(on) { const b = this.root.querySelector('.du-tmine'); if (b && b.hidden === on) b.hidden = !on; }
   }
 
   VR.DuelUI = DuelUI;

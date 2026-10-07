@@ -98,6 +98,9 @@
       h: { pos: [0, 0.05, LEN - 2.4], yaw: 0 },
       g: { pos: [0, 0.05, -LEN + 2.4], yaw: Math.PI },
     };
+    // random round starts: free spots on each side (the yellow side is the purple side turned 180°)
+    const pts = [[0, 20.6], [-6, 20.4], [6, 20.2], [-9, 17.5], [8.6, 16.8], [-2.5, 12], [2, 10], [9, 9.5], [-9, 10.2], [0, 14.5]];
+    L.extras.spawnPts = { h: pts.map(([x, z]) => [x, z]), g: pts.map(([x, z]) => [-x, -z]) };
     L.extras.bounds = { W, LEN, H };
     L.spawn = L.extras.spawns.h;
     return L.finish();

@@ -24,8 +24,9 @@
 
   function boxesAt(p, low) {
     const h = low ? FP().CROUCH_HEIGHT : FP().HEIGHT;
-    const head = new T.Box3(new T.Vector3(p.x - 0.24, p.y + h - 0.46, p.z - 0.24), new T.Vector3(p.x + 0.24, p.y + h + 0.02, p.z + 0.24));
-    const body = new T.Box3(new T.Vector3(p.x - 0.34, p.y, p.z - 0.34), new T.Vector3(p.x + 0.34, p.y + h - 0.46, p.z + 0.34));
+    // the head box covers the whole drawn head (the hero's big voxel head reaches ~2.1 m): a hit on the visible head is a headshot
+    const head = new T.Box3(new T.Vector3(p.x - 0.34, p.y + h - 0.5, p.z - 0.34), new T.Vector3(p.x + 0.34, p.y + h + 0.4, p.z + 0.34));
+    const body = new T.Box3(new T.Vector3(p.x - 0.34, p.y, p.z - 0.34), new T.Vector3(p.x + 0.34, p.y + h - 0.5, p.z + 0.34));
     return { head, body };
   }
   function wallDist(ray, solids, o, d, max = 200) {
@@ -66,7 +67,7 @@
    * longer explodes on contact). Returns the blast point when it explodes.
    * n: { pos, vel, t, landed, landT }
    */
-  const LAND_DELAY = 1.0, AIR_MAX = 6;
+  const LAND_DELAY = 0.25, AIR_MAX = 6;
   function stepNade(n, dt, solids, gravity = 22) {
     if (n.landed) { n.landT = (n.landT || 0) + dt; return n.landT >= LAND_DELAY ? n.pos.clone() : null; }
     const steps = 3, sdt = dt / steps;
@@ -94,7 +95,7 @@
   }
   /** push a first-person controller away from a blast at p. Returns the strength (0 = out of range). */
   /** caps: the launch speed limits ({ vy, h }); the grenade launch is twice as high as it first was (√2 speed) */
-  const CAPS = { vy: 25.5, h: 28.3 };
+  const CAPS = { vy: 36, h: 28.3 };
   function impulse(c, p, R, PUSH, tmp = new T.Vector3(), caps = CAPS) {
     const center = tmp.copy(c.pos); center.y += 0.9;
     const dist = center.distanceTo(p);
@@ -104,7 +105,12 @@
     if (dir.lengthSq() < 1e-4) dir.set(0, 1, 0);
     dir.normalize();
     const flat = Math.hypot(c.pos.x - p.x, c.pos.z - p.z);
-    if (p.y < c.pos.y + 0.7 && flat < 1.8) { dir.y += 1.1; dir.normalize(); }     // blast under the feet
+    const under = p.y < c.pos.y + 0.7 && flat < 1.8;
+    if (under) {
+      // blast under the feet: straight up where you stand (no long jump forward)
+      dir.set(0, 1, 0);
+      c.vel.x *= 0.15; c.vel.z *= 0.15;
+    }
     c.vel.addScaledVector(dir, PUSH * k);
     c.vel.y = Math.min(c.vel.y, caps.vy);
     const h = Math.hypot(c.vel.x, c.vel.z);
@@ -126,7 +132,7 @@
     smg:     { name: { en: 'Light SMG', ar: 'الرشّاش الخفيف' }, dmg: 12, head: 1.8, rate: 0.085, auto: true, mag: 32, reserve: 160, spread: 0.022, pellets: 1, range: 45, reload: 1.5, sound: 'smg', kick: 0.25 },
     sniper:  { name: { en: 'Sniper', ar: 'القنّاصة' }, dmg: 95, head: 2.5, rate: 1.0, auto: false, mag: 5, reserve: 25, spread: 0.012, scopedSpread: 0, pellets: 1, range: 200, reload: 1.9, sound: 'sniper', kick: 1, scope: true },
   };
-  const NADE = { name: { en: 'Impulse grenade', ar: 'قنبلة الدفع' }, max: 2, recharge: 6, speed: 15, fuse: 1.3, R: 3.8, push: 24, dmg: 70 };   // push: ×√2 of the old 17 → twice the launch height
+  const NADE = { name: { en: 'Impulse grenade', ar: 'قنبلة الدفع' }, max: 2, recharge: 6, speed: 15, fuse: 1.3, R: 3.8, push: 34, dmg: 70 };   // push 34 (was 24): twice the launch height again
 
   /* ------------------------------------------------------------------ models */
   const NEON = 0xb26bff, LEMON = 0xffe14a;
@@ -167,12 +173,32 @@
     g.userData.muzzle = new T.Vector3(0, -0.02, -0.4);
     return g;
   }
+  function knife() {
+    const g = new T.Group();
+    const blade = new T.Mesh(new T.BoxGeometry(0.035, 0.07, 0.34), new T.MeshLambertMaterial({ color: 0xdfe6ee })); blade.position.set(0, 0.02, -0.25);
+    const edge = new T.Mesh(new T.BoxGeometry(0.037, 0.02, 0.3), neonMat(LEMON)); edge.position.set(0, -0.02, -0.24);
+    const guard = new T.Mesh(new T.BoxGeometry(0.11, 0.05, 0.04), new T.MeshLambertMaterial({ color: 0x3a3f4a })); guard.position.set(0, 0, -0.06);
+    const grip = new T.Mesh(new T.BoxGeometry(0.06, 0.07, 0.17), new T.MeshLambertMaterial({ color: 0x2a2018 })); grip.position.set(0, 0, 0.05);
+    for (const m of [blade, edge, guard, grip]) { m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); }
+    return g;
+  }
+  /** a mine: flat disk with a blinking light */
+  function mine() {
+    const g = new T.Group();
+    const base = new T.Mesh(new T.CylinderGeometry(0.22, 0.25, 0.08, 10), new T.MeshLambertMaterial({ color: 0x3d4a2e }));
+    const top = new T.Mesh(new T.CylinderGeometry(0.14, 0.16, 0.05, 10), new T.MeshLambertMaterial({ color: 0x55643f })); top.position.y = 0.06;
+    const led = new T.Mesh(new T.BoxGeometry(0.06, 0.04, 0.06), neonMat(0xff3a2a)); led.position.y = 0.1; led.name = 'led';
+    for (const m of [base, top, led]) { m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); }
+    return g;
+  }
   function model(id) {
     if (id === 'pistol') return pistol();
     if (id === 'shotgun') return shotgun();
     if (id === 'smg') return smg();
     if (id === 'sniper') return VR.DuelWeapons.sniper();
     if (id === 'nade') return VR.DuelWeapons.grenade();
+    if (id === 'knife') return knife();
+    if (id === 'mine') return mine();
     return pistol();
   }
 
