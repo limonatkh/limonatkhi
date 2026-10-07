@@ -438,6 +438,10 @@ then 2.5 s of star power                        player stands just past the gate
 | J / Tab | journal button | clue journal, objectives, hints |
 | Esc / P | pause button | pause: resume, settings, restart, leave |
 
+**Mouse sensitivity:** Settings → *Mouse sensitivity* (0.2-3, default 1), also in the
+mission pause menu and the arena pause card. One saved value (`fpSettings.sens`, `VR.Sens`)
+used by missions, the adventure world and the arena (touch look too).
+
 The prompt under the crosshair shows the action and its kind by color and
 icon: **blue ◉ inspect/read**, **yellow ✋ collect**, **green ⚙ interact**.
 

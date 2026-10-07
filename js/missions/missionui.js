@@ -279,7 +279,7 @@
       this.open('pause', `
         <h2 class="heading">${T('mi.p.title')}</h2>
         <button class="btn primary" id="mi-resume" data-focus>${T('mi.p.resume')}</button>
-        <div class="mi-setting"><label for="mi-sens">${T('mi.p.sens')}</label><input type="range" id="mi-sens" min="0.3" max="2.5" step="0.1" value="${settings.sens}"><output id="mi-sens-v">${settings.sens.toFixed(1)}</output></div>
+        <div class="mi-setting"><label for="mi-sens">${T('mi.p.sens')}</label><input type="range" id="mi-sens" min="0.2" max="3" step="0.1" value="${settings.sens}"><output id="mi-sens-v">${settings.sens.toFixed(1)}</output></div>
         <div class="mi-setting"><label for="mi-fov">${T('mi.p.fov')}</label><input type="range" id="mi-fov" min="90" max="105" step="1" value="${settings.fov}"><output id="mi-fov-v">${settings.fov}°</output></div>
         ${handlers.persistent ? `<p class="mi-small">${T('adv.savedNote')}</p>
         <button class="btn" id="mi-quit">${T('adv.toMenu')}</button>` : `<div class="mi-row">

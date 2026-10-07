@@ -109,6 +109,7 @@
       UI.setToggle('optQuality', s.quality === 'high', VR.t('high'), VR.t('low'));
       UI.setToggle('optFps', s.fps);
       UI.setToggle('optOnline', s.online);
+      if (VR.Sens) VR.Sens.sync();
       if (VR.Fullscreen.supported()) UI.setToggle('optFull', VR.Fullscreen.isOn()); else UI.setToggle('optFull', false, '', VR.t('fs.na'));
       if (this.duel) VR.Online.setEnabled(!!s.online);
       const lb = document.getElementById('optLang');
@@ -150,6 +151,10 @@
       });
       UI.bind('optQuality', () => { this.settings.quality = this.settings.quality === 'high' ? 'low' : 'high'; this.applySettings(); });
       UI.bind('optFps', () => { this.settings.fps = !this.settings.fps; this.applySettings(); });
+      // mouse sensitivity (first person: missions, adventure, arena)
+      const sens = document.getElementById('optSens');
+      sens.dataset.sens = '1'; document.getElementById('optSensV').dataset.sens = '1';
+      sens.addEventListener('input', () => VR.Sens.set(+sens.value));
       // fullscreen: menu corner, settings, pause menu (+ buttons in the mission and duel HUDs)
       const fsToggle = () => { VR.Fullscreen.toggle(); this.settings.fullscreen = !VR.Fullscreen.isOn(); UI.store.set('settings', this.settings); };
       UI.bind('fsMenu', fsToggle); UI.bind('optFull', fsToggle); UI.bind('fsPause', fsToggle);
@@ -204,6 +209,7 @@
       this.state = s;
       const map = { adventure: null, missionsList: 'missionsList', menu: 'menu', character: 'character', settings: 'settings', paused: 'pause', gameover: 'gameover', playing: null, loading: 'loading', challenge: 'challenge', chresult: 'chresult' };
       UI.show(map[s]);
+      if (s === 'settings' && VR.Sens) VR.Sens.sync();
       UI.hud(s === 'playing' || s === 'paused' || s === 'dying' || (s === 'gateEnter' && !this.missionFromMenu) || s === 'countdown' || s === 'duelPick' || s === 'duelEnter');
       if (s !== 'playing' && this.duel) this.duel.ui.showPrompt(false);
       VR.Input.setEnabled(s === 'playing');

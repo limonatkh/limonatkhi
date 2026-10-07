@@ -32,6 +32,13 @@
       this.hands = new VR.HandsView();
       this.ui = new VR.MissionUI(this);
       this.settings = Object.assign({ sens: 1, fov: FP().FOV }, VR.UI.store.get('fpSettings', {}));
+      // mouse / touch look sensitivity: one value for missions, the adventure world and the arena
+      VR.Sens = {
+        get: () => this.settings.sens,
+        set: (v) => { this.settings.sens = Math.max(0.2, Math.min(3, Math.round(v * 10) / 10)); VR.UI.store.set('fpSettings', this.settings); VR.Sens.sync(); },
+        /** show the value in every slider on screen */
+        sync: () => document.querySelectorAll('[data-sens]').forEach(el => { if (el.tagName === 'INPUT') el.value = this.settings.sens; else el.textContent = this.settings.sens.toFixed(1); }),
+      };
       this.run = null; this.level = null;
       this.entities = []; this.interactables = []; this.lockables = [];
       this.levelLights = []; this.poweredBulbs = [];

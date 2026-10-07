@@ -415,11 +415,14 @@
       this.el.card.innerHTML = `
         <h2 class="heading">${T(title)}</h2>
         <p class="du-sub">${T(note)}</p>
+        <div class="du-sens"><label for="duSens">${T('settings.sens')}</label><input type="range" id="duSens" data-sens min="0.2" max="3" step="0.1" value="${VR.Sens ? VR.Sens.get() : 1}"><output data-sens>${(VR.Sens ? VR.Sens.get() : 1).toFixed(1)}</output></div>
         <button class="btn primary" id="duResume">${T('du.resume')}</button>
         <button class="btn fs-wide du-fsbtn" id="duFs"><i class="fs-ico"></i> ${VR.Fullscreen.isOn() ? T('fs.exit') : T('fs.enter')}</button>
         <button class="btn" id="duForfeit">${T(solo ? 'du.leave' : 'du.forfeit')}</button>`;
       this.el.card.querySelector('#duFs').addEventListener('click', (e) => { VR.Audio.play('click'); VR.Fullscreen.toggle(); e.currentTarget.lastChild.textContent = ' ' + (VR.Fullscreen.isOn() ? T('fs.enter') : T('fs.exit')); });
       this.el.card.querySelector('#duResume').addEventListener('click', () => { VR.Audio.play('click'); onResume(); });
+      const sl = this.el.card.querySelector('#duSens');
+      sl.addEventListener('input', () => VR.Sens && VR.Sens.set(+sl.value));
       this.el.card.querySelector('#duForfeit').addEventListener('click', () => { VR.Audio.play('click'); onForfeit(); });
       this.el.overlay.hidden = false;
     }
