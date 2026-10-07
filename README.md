@@ -394,7 +394,7 @@ The third-person runner is an optional **course with a start and a finish**
   the secret codes were removed.
 - No mission gates and no 1v1 gates on the course. Missions are reached
   through the doors in the adventure world; 1v1 duels from the main menu
-  (**1v1 with an online player**, or **Wait for a player**).
+  (**Fight → friend vs friend**: *1v1 with an online player* or *Wait for a player*).
 - HUD: a progress bar with the course time (and the other runner's place in
   a race).
 
@@ -429,6 +429,7 @@ then 2.5 s of star power                        player stands just past the gate
 | W A S D / arrows | left stick | move |
 | mouse (click to capture; drag works too) | drag on the right side | look |
 | Space | Jump | jump (also out of a slide) |
+| Shift (hold) | push the stick all the way | sprint (×1.5 walking speed, not while crouching) |
 | C / Ctrl (hold) | Crouch | crouch; tap while running to slide |
 | Q | Burst | Lemon Burst blast-jump (3.2 s cooldown) |
 | E / F | Use | interact (read, pick up, press, install…) |
@@ -652,7 +653,7 @@ Rounds: 3-2-1, fight, 45 s, **first to 5**. Kill or higher health at time-out wi
 |---|---|
 | Sniper | head 100 (kill), body 55 · 1 s bolt · 5 rounds, 1.9 s reload · right-click scope (FOV 32) · small hip-fire spread |
 | Impulse grenade | **no damage**: pushes everyone in 3.8 m; under your feet = rocket jump · 2 charges, 3.2 s recharge each |
-| Controls | mouse aim · left click fire · right click scope · Q grenade · 1/2 switch · R reload · Space jump · C slide |
+| Controls | mouse aim · left click fire (hold for the SMG) · right click scope · Q / G grenade · 1 / 2 / X switch · R reload · Shift sprint · Space jump · C slide |
 | Arena | 46 × 23 m (26 × 13 PH), 11 m walls + invisible caps, 2 m floor grid, cover in 180° rotational symmetry |
 
 **Referee (host-authoritative).** There is no game server, so the *inviter's* game decides:
@@ -684,6 +685,52 @@ disconnects (no message for 7 s), the other wins and returns; the arena is torn 
 | Road gate model | `js/duel/gate.js` (spawned by `world.maybeSpawnDuelGate`) |
 
 Tuning numbers are in `VR.DUEL` at the top of `duel.js`.
+
+## Fight menu: 1v1, vs the computer, co-op (القتال)
+
+Main menu → **القتال / Fight** opens three choices:
+
+| Mode | What happens |
+|---|---|
+| **صديق ضد صديق** (friend vs friend) | the 1v1 above: *1v1 with an online player* or *Wait for a player* |
+| **أنا ضد الكمبيوتر** (me vs the computer) | choose **1, 2 or 3** computer players and the difficulty **عادي / متوسط / صعب / مستحيل**, then START. Runs only on your device. |
+| **أنا وصديق ضد الكمبيوتر** (me + a friend vs the computer) | same settings, then INVITE A PLAYER: the picker opens and the invite says it is co-op. Both players are one team against the bots. |
+
+The chosen number of bots and difficulty are remembered on the device.
+
+**Buying before the match.** Every match (1v1, vs computer, co-op) starts with a buy screen.
+Each player gets a **match budget of 1000 points** (the same for everyone; real coins are
+never touched). You carry up to **2 weapons**; the pistol is free; the dearer weapon is in
+your hand first. 25 s to choose (then you start with what you picked); READY when done.
+The host only starts round 1 when everyone is ready.
+
+| Item | Price | Damage body / head | Magazine · reload | Notes |
+|---|---|---|---|---|
+| Lemon pistol | free | 20 / 40 | 12 · 1.1 s | 0.3 s between shots |
+| Scatter shotgun | 350 | 11 / 16 per pellet ×8 | 6 · 1.9 s | strong up close, weak past 18 m |
+| Light SMG | 400 | 10 / 18 | 30 · 1.6 s | automatic (hold fire) |
+| Sniper | 550 | 55 / 100 | 5 · 1.9 s | scope on right click |
+| Impulse grenades | 250 | no damage | 2 charges | push / rocket jump |
+
+So *sniper + SMG* fits the budget, *sniper + SMG + grenades* does not. Numbers:
+`js/duel/fightkit.js` (`WEAPONS`, `BUY`).
+
+**Computer players** (`js/duel/bots.js`) are player-shaped, have 100 health and use the
+same weapons. Difficulty changes reaction time, aim error, turn speed, fire rate, how often
+they aim for the head, speed, strafing, retreating when hurt and grenades (hard and
+impossible). Their aim error grows when you move fast, so moving and cover always help.
+Rounds: 75 s, first to 3 (at most 5). All bots down = round won; you (or both of you in co-op)
+down = round lost; time out = draw. Coins for a won match: normal 40, medium 70, hard 110,
+impossible 180 (loss 10, draw a third). Stats per difficulty: `stats.bots`.
+Against the computer alone, pause really pauses. In co-op the host's game runs the bots,
+decides every hit (the guest's shots too) and streams the bots ~10 times a second.
+
+**Impulse grenade (everywhere: arena, combat, duel).** It rests on the ground, blinks, and
+explodes **1 second after landing** (bounces off walls first). The push is twice as strong:
+a grenade under your feet now lifts you about twice as high.
+
+**Sprint.** Hold **Shift** (touch: push the stick to the edge) to run 1.5× faster
+(`CONFIG.FP.SPRINT`), in missions, the adventure world and the arena.
 
 
 ## Characters, colours, fullscreen

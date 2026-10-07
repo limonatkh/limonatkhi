@@ -60,18 +60,42 @@
     return { hit: best ? best.part : null, ref: best ? best.ref : null, dist: best ? best.dist : wall, end, wall };
   }
   /** move a grenade one frame; returns the blast point (or null) */
+  /**
+   * Grenade flight. It bounces off walls and ceilings; when it LANDS on top of
+   * something it stops there, and goes off LAND_DELAY seconds later (it no
+   * longer explodes on contact). Returns the blast point when it explodes.
+   * n: { pos, vel, t, landed, landT }
+   */
+  const LAND_DELAY = 1.0, AIR_MAX = 6;
   function stepNade(n, dt, solids, gravity = 22) {
+    if (n.landed) { n.landT = (n.landT || 0) + dt; return n.landT >= LAND_DELAY ? n.pos.clone() : null; }
     const steps = 3, sdt = dt / steps;
     for (let s = 0; s < steps; s++) {
       n.vel.y -= gravity * sdt;
       const prev = n.pos.clone();
       n.pos.addScaledVector(n.vel, sdt);
-      if (solids.some(b => !off(b) && (b.box || b).containsPoint(n.pos))) return prev;
+      const hit = solids.find(b => !off(b) && (b.box || b).containsPoint(n.pos));
+      if (!hit) continue;
+      const box = hit.box || hit;
+      if (prev.y >= box.max.y - 0.05 && n.vel.y <= 0) {                // on top of it: landed
+        n.pos.set(n.pos.x, box.max.y + 0.08, n.pos.z);
+        n.vel.set(0, 0, 0); n.landed = true; n.landT = 0;
+        return null;
+      }
+      n.pos.copy(prev);
+      if (prev.y <= box.min.y + 0.05 && n.vel.y > 0) n.vel.y *= -0.3;    // ceiling
+      else {                                                            // a wall: bounce back, losing speed
+        const outX = prev.x <= box.min.x || prev.x >= box.max.x;
+        if (outX) n.vel.x *= -0.45; else n.vel.z *= -0.45;
+        n.vel.x *= 0.85; n.vel.z *= 0.85;
+      }
     }
-    return null;
+    return (n.t || 0) >= AIR_MAX ? n.pos.clone() : null;               // never lost in the air
   }
   /** push a first-person controller away from a blast at p. Returns the strength (0 = out of range). */
-  function impulse(c, p, R, PUSH, tmp = new T.Vector3()) {
+  /** caps: the launch speed limits ({ vy, h }); the grenade launch is twice as high as it first was (√2 speed) */
+  const CAPS = { vy: 25.5, h: 28.3 };
+  function impulse(c, p, R, PUSH, tmp = new T.Vector3(), caps = CAPS) {
     const center = tmp.copy(c.pos); center.y += 0.9;
     const dist = center.distanceTo(p);
     if (dist > R) return 0;
@@ -82,9 +106,9 @@
     const flat = Math.hypot(c.pos.x - p.x, c.pos.z - p.z);
     if (p.y < c.pos.y + 0.7 && flat < 1.8) { dir.y += 1.1; dir.normalize(); }     // blast under the feet
     c.vel.addScaledVector(dir, PUSH * k);
-    c.vel.y = Math.min(c.vel.y, 18);
+    c.vel.y = Math.min(c.vel.y, caps.vy);
     const h = Math.hypot(c.vel.x, c.vel.z);
-    if (h > 20) { c.vel.x *= 20 / h; c.vel.z *= 20 / h; }
+    if (h > caps.h) { c.vel.x *= caps.h / h; c.vel.z *= caps.h / h; }
     c.grounded = false; c.coyote = 0; c.inBurst = true; c.slideTimer = 0;
     c.burstFov = 7;
     return k;
@@ -102,7 +126,7 @@
     smg:     { name: { en: 'Light SMG', ar: 'الرشّاش الخفيف' }, dmg: 12, head: 1.8, rate: 0.085, auto: true, mag: 32, reserve: 160, spread: 0.022, pellets: 1, range: 45, reload: 1.5, sound: 'smg', kick: 0.25 },
     sniper:  { name: { en: 'Sniper', ar: 'القنّاصة' }, dmg: 95, head: 2.5, rate: 1.0, auto: false, mag: 5, reserve: 25, spread: 0.012, scopedSpread: 0, pellets: 1, range: 200, reload: 1.9, sound: 'sniper', kick: 1, scope: true },
   };
-  const NADE = { name: { en: 'Impulse grenade', ar: 'قنبلة الدفع' }, max: 2, recharge: 6, speed: 15, fuse: 1.3, R: 3.8, push: 17, dmg: 70 };
+  const NADE = { name: { en: 'Impulse grenade', ar: 'قنبلة الدفع' }, max: 2, recharge: 6, speed: 15, fuse: 1.3, R: 3.8, push: 24, dmg: 70 };   // push: ×√2 of the old 17 → twice the launch height
 
   /* ------------------------------------------------------------------ models */
   const NEON = 0xb26bff, LEMON = 0xffe14a;
@@ -158,5 +182,5 @@
   VR.Audio.define('smg', ({ tone, noise }) => { noise(0.05, 0.22, 5200); tone(420, 0.04, 'square', 0.06, 200); });
   VR.Audio.define('empty', ({ tone }) => { tone(1300, 0.03, 'square', 0.05); });
 
-  VR.WeaponKit = { boxesAt, wallDist, traceParts, stepNade, impulse, WEAPONS, NADE, model };
+  VR.WeaponKit = { boxesAt, wallDist, traceParts, stepNade, impulse, LAND_DELAY, WEAPONS, NADE, model };
 })();

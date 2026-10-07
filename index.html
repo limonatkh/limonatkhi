@@ -547,6 +547,24 @@
   .du-charges i { width: 14px; height: 14px; border: 2px solid #9b6bff; background: transparent; position: relative; overflow: hidden; }
   .du-charges i.on { background: #9b6bff; }
   .du-charges i.chg::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--k, 0) * 100%); background: rgba(155,107,255,.5); }
+  .du-wnd { opacity: 1; }
+  .du-botsleft { position: absolute; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 84px); transform: translateX(-50%); padding: 3px 10px 5px; font-family: var(--display); font-size: 14px; color: #ffd23a; white-space: nowrap; }
+  .du-card.fm-buy { max-width: 560px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .fm-left { font-family: var(--display); font-size: 22px; color: var(--lemon); margin: 4px 0 8px; }
+  .fm-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .fm-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; background: rgba(14,17,26,.7); color: #fff; border: 3px solid var(--ink); font-family: var(--display); font-size: 15px; cursor: pointer; text-align: start; position: relative; }
+  .fm-item.on { border-color: var(--lemon); background: rgba(255,210,58,.18); }
+  .fm-item.poor { opacity: .45; }
+  .fm-item .fm-stat { font-size: 11px; color: var(--muted); font-family: 'Pixelify Sans', monospace; }
+  .fm-item .fm-price { position: absolute; top: 6px; inset-inline-end: 8px; font-family: var(--display); font-size: 14px; color: var(--lemon); }
+  .fm-time { font-size: 13px; }
+  .fm-menu .fm-modes { display: grid; gap: 8px; margin: 8px 0; }
+  .fm-menu .fm-mode { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: start; }
+  .fm-menu .fm-mode small { font-size: 12px; opacity: .8; font-family: inherit; }
+  .fm-menu .fm-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .fm-menu .fm-row .btn { flex: 1 1 0; width: auto; min-width: 0; margin: 0; padding-inline: 6px; }
+  .fm-menu .fm-row .btn.on { background: var(--lemon); color: var(--ink); }
+  .fm-menu h3 { margin: 6px 0 2px; font-size: 14px; }
   .du-keys { position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); font-size: 11px; color: #fff; text-shadow: 0 1px 0 #000; opacity: .8; white-space: nowrap; }
   .du-touch { position: absolute; inset: 0; }
   .du-touch .du-stickzone, .du-touch .du-lookzone { pointer-events: auto; }
@@ -565,6 +583,7 @@
     .du-tbtns { bottom: max(12px, calc(env(safe-area-inset-bottom) + 6px)); grid-template-columns: repeat(2, 60px); gap: 6px; }
     .du-tbtns .mi-tbtn { height: 44px; font-size: 13px; } .du-tbtns .du-tfire { height: 56px; font-size: 16px; }
     .du-invite { top: calc(max(10px, env(safe-area-inset-top)) + min(118px, 22vh)); }
+    .du-botsleft { left: auto; right: 12px; transform: none; top: calc(max(10px, env(safe-area-inset-top)) + 58px); font-size: 12px; }
   }
   @media (max-width: 560px) { .du-name { font-size: 14px; max-width: 24vw; } .du-timer { font-size: 26px; } .du-pips i { width: 8px; height: 8px; } .du-side { gap: 5px; padding: 4px 6px 5px; } }
 
@@ -659,14 +678,40 @@
       <div class="menu-row"><button class="btn" id="newGameNo" data-i18n="adv.confirmNo">CANCEL</button><button class="btn primary" id="newGameYes" data-i18n="adv.confirmYes">START NEW GAME</button></div>
     </div>
     <button class="btn lemon" id="challengeBtn"><span class="vs-ico" aria-hidden="true">⚔</span> <span data-i18n="menu.challenge">CHALLENGE A FRIEND</span></button>
-    <button class="btn lemon" id="duelBtn"><span class="vs-ico" aria-hidden="true">🎯</span> <span data-i18n="menu.duel">1v1 WITH AN ONLINE PLAYER</span></button>
-    <button class="btn wait-btn" id="waitBtn"><span class="vs-ico" aria-hidden="true">⌛</span><span class="wait-txt"><b data-i18n="menu.wait">WAIT FOR A PLAYER</b><small data-i18n="menu.waitSub">1v1 Sniper Arena</small></span></button>
+    <button class="btn lemon wait-btn" id="fightBtn"><span class="vs-ico" aria-hidden="true">🎯</span><span class="wait-txt"><b data-i18n="fm.title">FIGHT</b><small data-i18n="fm.menuSub">Friend vs friend · Me vs the computer</small></span></button>
     <div class="menu-row">
       <button class="btn" id="charBtn" data-i18n="menu.character">CHARACTER</button>
       <button class="btn" id="missionsBtn" data-i18n="menu.missions">MISSIONS</button>
       <button class="btn" id="settingsBtn" data-i18n="menu.settings">SETTINGS</button>
     </div>
     <p class="hint" data-i18n-html="menu.hint"></p>
+  </div>
+</section>
+
+<!-- FIGHT MENU (over the main menu): friend vs friend, me vs the computer, me + a friend vs the computer -->
+<section id="fightMenu" class="screen dim" hidden>
+  <div class="card panel fm-menu">
+    <h2 class="heading" data-i18n="fm.title">FIGHT</h2>
+    <p class="du-sub" data-i18n="fm.sub">Pick how you want to fight</p>
+    <div class="fm-modes" id="fmModes">
+      <button class="btn lemon fm-mode" id="fmPvp"><b>🎯 <span data-i18n="fm.pvp">Friend vs friend</span></b><small data-i18n="fm.pvpSub"></small></button>
+      <button class="btn lemon fm-mode" id="fmBots"><b>🤖 <span data-i18n="fm.bots">Me vs the computer</span></b><small data-i18n="fm.botsSub"></small></button>
+      <button class="btn lemon fm-mode" id="fmCoop"><b>🤝 <span data-i18n="fm.coop">Me + a friend vs the computer</span></b><small data-i18n="fm.coopSub"></small></button>
+    </div>
+    <div class="fm-pane" id="fmPvpPane" hidden>
+      <div class="fm-modes">
+        <button class="btn lemon" id="duelBtn"><span class="vs-ico" aria-hidden="true">🎯</span> <span data-i18n="menu.duel">1v1 WITH AN ONLINE PLAYER</span></button>
+        <button class="btn wait-btn" id="waitBtn"><span class="vs-ico" aria-hidden="true">⌛</span><span class="wait-txt"><b data-i18n="menu.wait">WAIT FOR A PLAYER</b><small data-i18n="menu.waitSub">1v1 Sniper Arena</small></span></button>
+      </div>
+    </div>
+    <div class="fm-pane" id="fmBotPane" hidden>
+      <h3 data-i18n="fm.howMany">Computer players</h3>
+      <div class="fm-row" id="fmCount"><button class="btn small" data-n="1">1</button><button class="btn small" data-n="2">2</button><button class="btn small" data-n="3">3</button></div>
+      <h3 data-i18n="fm.diff">Difficulty</h3>
+      <div class="fm-row" id="fmDiff"><button class="btn small" data-d="normal" data-i18n="bot.diff.normal">Normal</button><button class="btn small" data-d="medium" data-i18n="bot.diff.medium">Medium</button><button class="btn small" data-d="hard" data-i18n="bot.diff.hard">Hard</button><button class="btn small" data-d="impossible" data-i18n="bot.diff.impossible">Impossible</button></div>
+      <button class="btn primary" id="fmGo" data-i18n="fm.start">START</button>
+    </div>
+    <button class="btn" id="fmBack" data-i18n="fm.back">BACK</button>
   </div>
 </section>
 
@@ -857,8 +902,11 @@
 <script src="js/combat/weaponkit.js"></script>
 <script src="js/duel/arena.js"></script>
 <script src="js/duel/gate.js"></script>
+<script src="js/duel/fightkit.js"></script>
+<script src="js/duel/bots.js"></script>
 <script src="js/duel/duelui.js"></script>
 <script src="js/duel/duel.js"></script>
+<script src="js/duel/fightmenu.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

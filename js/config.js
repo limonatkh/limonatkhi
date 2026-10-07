@@ -87,6 +87,7 @@ VR.CONFIG = {
     SLIDE_BOOST: 1.15,           // slide starts slightly faster than the run…
     SLIDE_END_KEEP: 0.6,         // …and keeps 60% of it at the end (no sudden stop)
     CROUCH_SPEED: 0.5,
+    SPRINT: 1.5,                 // Shift while moving forward (touch: stick pushed all the way)
     BURST_HEIGHT_X: 3.5,         // spec: 3-4× a normal jump
     BURST_ANGLE_STILL: 80,       // spec: 70-80° when used under the player
     BURST_ANGLE_MOVING: 70,      // pushes sideways when moving

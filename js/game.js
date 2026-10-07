@@ -42,6 +42,7 @@
       this.fadeEl = document.getElementById('fade');
       this.countdownEl = document.getElementById('countdown');
       this.bindUI();
+      this.fightMenu = new VR.FightMenu(this);       // main menu → Fight (1v1, vs the computer, co-op)
       this.applySettings();
 
       this.clock = new THREE.Clock();

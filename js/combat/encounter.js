@@ -286,9 +286,8 @@
         const n = this.flying[i];
         n.t += dt;
         let boom = K().stepNade(n, dt, this.solids());
-        n.obj.position.copy(n.pos); n.obj.rotation.x += dt * 9; n.obj.rotation.z += dt * 5;
-        if (!boom) for (const e of this.enemies.enemies) if (e.alive && n.pos.distanceTo(new T.Vector3(e.pos.x, e.pos.y + e.def.height * 0.5, e.pos.z)) < e.def.radius + 0.5) { boom = n.pos.clone(); break; }
-        if (!boom && n.t >= N.fuse) boom = n.pos.clone();
+        n.obj.position.copy(n.pos);
+        VR.nadeSpin(n, dt);                                // lands, then goes off 1 s later
         if (boom) {
           this.mgr.scene.remove(n.obj); this.flying.splice(i, 1);
           this.fx.wave(boom); VR.Audio.play('burst');

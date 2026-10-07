@@ -332,6 +332,7 @@
         }
         look = VR.Input.takeLook();
         ctrl.look(look.x, look.y, FP().MOUSE_SENS * this.settings.sens * (cb && cb.scoped ? 0.35 : 1));
+        ctrl.sprint = VR.Input.sprintHeld();
         const evs = ctrl.update(dt, L, move, VR.Input.crouchHeld());
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');

@@ -31,7 +31,18 @@
     'du.rounds': '{n} rounds', 'du.continue': 'BACK TO THE RUN ({n})', 'du.continueMenu': 'CONTINUE ({n})', 'du.oppLeft': '{name} left the duel: the win is yours.', 'du.reward': '+{coins} coins',
     'du.waitingOpp': 'Waiting for your opponent…', 'du.you': 'You',
     'du.t.fire': 'FIRE', 'du.t.aim': 'SCOPE', 'du.t.nade': 'PUSH', 'du.t.swap': 'SWAP', 'du.t.jump': 'Jump', 'du.t.crouch': 'Slide',
-    'du.keys': 'Left click fire · Right click scope · Q impulse grenade · 1 / 2 switch · R reload · Space jump · C slide',
+    'du.keys': 'Left click fire (hold: SMG) · Right click scope (sniper) · Q / G impulse grenade · 1 / 2 / X switch · R reload · Shift sprint · Space jump · C slide',
+    'fm.title': 'Fight', 'fm.sub': 'Pick how you want to fight', 'fm.pvp': 'Friend vs friend', 'fm.pvpSub': 'You against another player (online or a friend in your room)',
+    'fm.bots': 'Me vs the computer', 'fm.botsSub': 'You alone against 1-3 computer players', 'fm.coop': 'Me + a friend vs the computer', 'fm.coopSub': 'You and another player on the same team against the computer',
+    'fm.howMany': 'Computer players', 'fm.diff': 'Difficulty', 'fm.start': 'START', 'fm.invite': 'INVITE A PLAYER', 'fm.back': 'BACK',
+    'fm.botsMode': 'Against the computer', 'fm.coopMode': 'Co-op against the computer', 'fm.coopInviteSub': 'Team up against {n} computer players ({diff})',
+    'fm.buyTitle': 'Buy your weapons', 'fm.buySub': 'Match budget: {b} points (the same for everyone; your coins are not touched). Up to 2 weapons.',
+    'fm.left': 'Left: {n}', 'fm.free': 'Free', 'fm.ready': 'READY', 'fm.buyTime': 'Starts with what you picked in {n}s', 'fm.noBudget': 'Not enough points for that',
+    'fm.leave': 'LEAVE', 'fm.down': 'YOU ARE DOWN', 'fm.botsDown': 'All computer players are down', 'fm.teamDown': 'Your team is down',
+    'fm.botDown': '{name} is down', 'fm.mateDown': '{name} is down', 'fm.botsLeft': 'Computer players left: {n}',
+    'fm.pauseBots': 'Paused', 'fm.pauseBotsNote': 'The match against the computer waits for you. Leaving now counts as a loss.',
+    'fm.slotEmpty': '—',
+    'du.t.swapW': 'SWAP',
     'du.keyHint': 'Y accept · N decline',
     'menu.wait': 'WAIT FOR A PLAYER', 'menu.waitSub': '1v1 Sniper Arena', 'menu.duel': '1v1 WITH AN ONLINE PLAYER',
     'du.lobbyTitle': 'Waiting for another player…', 'du.lobbySub': 'Practise moving and sniping. The duel starts from round 1 as soon as someone joins.',
@@ -58,7 +69,18 @@
     'du.rounds': '{n} جولات', 'du.continue': 'العودة إلى الطريق ({n})', 'du.continueMenu': 'متابعة ({n})', 'du.oppLeft': '{name} غادر المواجهة: الفوز لك.', 'du.reward': '+{coins} عملة',
     'du.waitingOpp': 'بانتظار المنافس…', 'du.you': 'أنت',
     'du.t.fire': 'إطلاق', 'du.t.aim': 'منظار', 'du.t.nade': 'دفع', 'du.t.swap': 'تبديل', 'du.t.jump': 'قفز', 'du.t.crouch': 'انزلاق',
-    'du.keys': 'زر الفأرة الأيسر: إطلاق · الأيمن: منظار · Q: قنبلة الدفع · 1 / 2: تبديل · R: تلقيم · Space: قفز · C: انزلاق',
+    'du.keys': 'زر الفأرة الأيسر: إطلاق (مطوّل للرشّاش) · الأيمن: منظار القنّاصة · Q / G: قنبلة الدفع · 1 / 2 / X: تبديل · R: تلقيم · Shift: ركض سريع · Space: قفز · C: انزلاق',
+    'fm.title': 'القتال', 'fm.sub': 'اختر طريقة القتال', 'fm.pvp': 'صديق ضد صديق', 'fm.pvpSub': 'أنت ضد لاعب آخر (أونلاين أو صديق في غرفتك)',
+    'fm.bots': 'أنا ضد الكمبيوتر', 'fm.botsSub': 'أنت وحدك ضد 1-3 لاعبين من الكمبيوتر', 'fm.coop': 'أنا وصديق ضد الكمبيوتر', 'fm.coopSub': 'أنت ولاعب آخر في نفس الفريق ضد الكمبيوتر',
+    'fm.howMany': 'عدد لاعبي الكمبيوتر', 'fm.diff': 'الصعوبة', 'fm.start': 'ابدأ', 'fm.invite': 'ادعُ لاعبًا', 'fm.back': 'رجوع',
+    'fm.botsMode': 'ضد الكمبيوتر', 'fm.coopMode': 'فريق ضد الكمبيوتر', 'fm.coopInviteSub': 'فريق واحد ضد {n} من لاعبي الكمبيوتر ({diff})',
+    'fm.buyTitle': 'اشترِ أسلحتك', 'fm.buySub': 'رصيد المباراة: {b} نقطة (نفسه للجميع، ولا يُخصم من عملاتك). سلاحان كحدٍّ أقصى.',
+    'fm.left': 'المتبقي: {n}', 'fm.free': 'مجاني', 'fm.ready': 'جاهز', 'fm.buyTime': 'تبدأ بما اخترته بعد {n} ث', 'fm.noBudget': 'الرصيد لا يكفي لهذا',
+    'fm.leave': 'خروج', 'fm.down': 'سقطت!', 'fm.botsDown': 'سقط كل لاعبي الكمبيوتر', 'fm.teamDown': 'سقط فريقك',
+    'fm.botDown': 'سقط {name}', 'fm.mateDown': 'سقط {name}', 'fm.botsLeft': 'المتبقي من الكمبيوتر: {n}',
+    'fm.pauseBots': 'إيقاف مؤقت', 'fm.pauseBotsNote': 'المباراة ضد الكمبيوتر تنتظرك. الخروج الآن يُحسب خسارة.',
+    'fm.slotEmpty': '—',
+    'du.t.swapW': 'تبديل',
     'du.keyHint': 'Y قبول · N رفض',
     'menu.wait': 'انتظار لاعب', 'menu.waitSub': 'ساحة القنص 1v1', 'menu.duel': 'تحدَّ لاعبًا أونلاين 1v1',
     'du.lobbyTitle': 'بانتظار لاعب آخر…', 'du.lobbySub': 'تدرّب على الحركة والقنص. يبدأ التحدي من الجولة الأولى فور وصول لاعب.',
@@ -97,10 +119,12 @@
         <div class="du-bottom">
           <div class="du-hp panel"><span class="du-lbl"></span><div class="du-bar"><div></div></div><b class="num">100</b></div>
           <div class="du-weapons">
-            <div class="du-w du-wsn panel"><span class="du-key">1</span><span class="du-wname"></span><b class="num du-ammo">5/5</b><div class="du-rl"><div></div></div></div>
+            <div class="du-w du-ws0 panel"><span class="du-key">1</span><span class="du-wname"></span><b class="num du-ammo"></b><div class="du-rl"><div></div></div></div>
+            <div class="du-w du-ws1 panel"><span class="du-key">2</span><span class="du-wname"></span><b class="num du-ammo"></b><div class="du-rl"><div></div></div></div>
             <div class="du-w du-wnd panel"><span class="du-key">Q</span><span class="du-wname"></span><span class="du-charges"></span></div>
           </div>
         </div>
+        <div class="du-botsleft panel" hidden></div>
         <div class="du-keys"></div>
         <div class="du-touch" hidden>
           <div class="mi-stickzone du-stickzone"><div class="mi-stick"><div class="mi-knob"></div></div></div>
@@ -110,7 +134,8 @@
             <button class="mi-tbtn" data-hold="aim" data-k="du.t.aim"></button>
             <button class="mi-tbtn" data-hold="crouch" data-k="du.t.crouch"></button>
             <button class="mi-tbtn" data-act="jump" data-k="du.t.jump"></button>
-            <button class="mi-tbtn du-tfire" data-act="fire" data-k="du.t.fire"></button>
+            <button class="mi-tbtn" data-act="swap" data-k="du.t.swapW"></button>
+            <button class="mi-tbtn du-tfire" data-hold="fire" data-act="fire" data-k="du.t.fire"></button>
           </div>
         </div>
         <div class="du-overlay" hidden><div class="card panel du-card"></div></div>`;
@@ -118,8 +143,8 @@
       this.el = {
         me: q('.du-me'), opp: q('.du-opp'), timer: q('.du-timer'), roundlbl: q('.du-roundlbl'),
         cross: q('.du-cross'), hit: q('.du-hit'), scope: q('.du-scope'), dmg: q('.du-dmg'), big: q('.du-big'), feed: q('.du-feed'),
-        hp: q('.du-hp'), hpbar: q('.du-hp .du-bar div'), hpnum: q('.du-hp b'), wsn: q('.du-wsn'), wnd: q('.du-wnd'), ammo: q('.du-ammo'),
-        rl: q('.du-rl div'), charges: q('.du-charges'), keys: q('.du-keys'), touch: q('.du-touch'), overlay: q('.du-overlay'), card: q('.du-card'),
+        hp: q('.du-hp'), hpbar: q('.du-hp .du-bar div'), hpnum: q('.du-hp b'), ws: [q('.du-ws0'), q('.du-ws1')], wnd: q('.du-wnd'), botsLeft: q('.du-botsleft'),
+        charges: q('.du-charges'), keys: q('.du-keys'), touch: q('.du-touch'), overlay: q('.du-overlay'), card: q('.du-card'),
       };
       this.prompt = document.getElementById('duPrompt');
       this.prompt.addEventListener('click', () => { VR.Audio.play('click'); this.mgr.openPicker(); });
@@ -133,7 +158,7 @@
 
     relabel() {
       this.el.hp.querySelector('.du-lbl').textContent = T('du.hp');
-      this.el.wsn.querySelector('.du-wname').textContent = T('du.sniper');
+      this.loKey = '';
       this.el.wnd.querySelector('.du-wname').textContent = T('du.nade');
       this.el.keys.textContent = T('du.keys');
       this.root.querySelectorAll('[data-k]').forEach(b => { b.textContent = T(b.dataset.k); });
@@ -167,7 +192,7 @@
       } else if (!data.friend) body += `<p class="du-note">${T('du.offline')}</p>`;
       card.innerHTML = `
         <h2 class="heading">${T('du.pickTitle')}</h2>
-        <p class="du-sub">${T('du.mode')} · ${T('du.firstTo', { n: data.firstTo })}</p>
+        <p class="du-sub">${esc(data.mode || T('du.mode'))} · ${T('du.firstTo', { n: data.firstTo })}</p>
         ${body}
         <p class="ch-status ${data.noticeKind || ''}" id="duNotice">${esc(data.notice || '')}</p>
         <button class="btn" id="duPickClose">${T('du.close')}</button>`;
@@ -196,13 +221,13 @@
     hidePicker() { document.getElementById('duPick').hidden = true; document.getElementById('duPickCard').innerHTML = ''; }
 
     // ------------------------------------------------------------ invite pop-up
-    showInvite(name, left, total, onAccept, onDecline) {
+    showInvite(name, left, total, onAccept, onDecline, sub) {
       const el = document.getElementById('duInvite');
       if (el.hidden || el.dataset.name !== name) {
         el.dataset.name = name;
         el.innerHTML = `
           <div class="du-ititle"><span class="du-ico">⚔</span><b>${esc(T('du.inviteFrom', { name }))}</b></div>
-          <div class="du-isub">${T('du.mode')}</div>
+          <div class="du-isub">${esc(sub || T('du.mode'))}</div>
           <div class="du-wbar"><div></div></div>
           <div class="du-ibtns"><button class="btn small lemon du-acc">${T('du.accept')}</button><button class="btn small du-dec">${T('du.decline')}</button></div>
           <div class="du-ikeys">${isTouch() ? '' : T('du.keyHint')}</div>`;
@@ -242,15 +267,72 @@
       this.el.hpnum.textContent = Math.max(0, Math.round(hp));
       this.el.hp.classList.toggle('low', hp <= 45);
     }
-    setWeapon(w, ammo, mag, reloadK, charges, maxCharges, rechargeK) {
-      this.el.wsn.classList.toggle('on', w === 'sniper');
-      this.el.wnd.classList.toggle('on', w === 'nade');
-      const a = reloadK > 0 ? T('du.reloading') : `${ammo}/${mag}`;
-      if (this.el.ammo.textContent !== a) this.el.ammo.textContent = a;
-      this.el.rl.style.transform = `scaleX(${reloadK > 0 ? 1 - reloadK : 0})`;
-      let h = '';
-      for (let i = 0; i < maxCharges; i++) h += `<i class="${i < charges ? 'on' : i === charges ? 'chg' : ''}" style="${i === charges ? `--k:${rechargeK}` : ''}"></i>`;
-      if (this.el.charges.dataset.h !== h) { this.el.charges.innerHTML = h; this.el.charges.dataset.h = h; }
+    /** the weapons panel: up to two weapon slots (name, magazine, reload bar) and the grenades */
+    setLoadout(lo, recharge) {
+      const NAMES = VR.FightKit.NAMES;
+      const key = lo.slots.map(x => x.id).join(',') + '|' + VR.I18N.lang;
+      if (this.loKey !== key) {
+        this.loKey = key;
+        this.el.ws.forEach((el, i) => { const sl = lo.slots[i]; el.hidden = !sl; if (sl) el.querySelector('.du-wname').textContent = VR.L(NAMES[sl.id]); });
+      }
+      this.el.ws.forEach((el, i) => {
+        const sl = lo.slots[i]; if (!sl) return;
+        const cur = i === lo.cur;
+        el.classList.toggle('on', cur);
+        const rk = cur && lo.reloadT > 0 ? 1 - lo.reloadT / lo.def.reload : 0;
+        const a = cur && lo.reloadT > 0 ? T('du.reloading') : `${sl.mag}/${VR.FightKit.WEAPONS[sl.id].mag}`;
+        const am = el.querySelector('.du-ammo'); if (am.textContent !== a) am.textContent = a;
+        el.querySelector('.du-rl div').style.transform = `scaleX(${rk})`;
+      });
+      const n = lo.nades;
+      this.el.wnd.hidden = !n.has;
+      if (n.has) {
+        let h = '';
+        const k = n.charges < n.max ? Math.round((1 - n.rechargeT / recharge) * 20) / 20 : 0;
+        for (let i = 0; i < n.max; i++) h += `<i class="${i < n.charges ? 'on' : i === n.charges ? 'chg' : ''}" style="${i === n.charges ? `--k:${k}` : ''}"></i>`;
+        if (this.el.charges.dataset.h !== h) { this.el.charges.innerHTML = h; this.el.charges.dataset.h = h; }
+      }
+    }
+    /** "computer players left: n" (null hides it) */
+    setBotsLeft(n) {
+      const el = this.el.botsLeft;
+      el.hidden = n == null;
+      if (n != null) { const t = T('fm.botsLeft', { n }); if (el.textContent !== t) el.textContent = t; }
+    }
+
+    // ------------------------------------------------------------ buy screen (before round 1)
+    showBuy(d, h, type) {
+      const NAMES = VR.FightKit.NAMES, W = VR.FightKit.WEAPONS;
+      const spent = VR.FightKit.cost(d.pick), left = d.budget - spent;
+      const stat = (id) => id === 'nades' ? '' : `<small class="fm-stat">${W[id].body}/${W[id].head}${W[id].pellets > 1 ? ' ×' + W[id].pellets : ''} · ${W[id].mag}${W[id].auto ? ' · AUTO' : ''}</small>`;
+      const item = (id) => {
+        const on = id === 'nades' ? d.pick.nades : d.pick.weapons.includes(id);
+        const price = d.prices[id];
+        const can = on || price <= left;
+        return `<button class="fm-item ${on ? 'on' : ''} ${can ? '' : 'poor'}" data-id="${id}" type="button">
+          <b>${esc(VR.L(NAMES[id]))}</b>${stat(id)}<span class="fm-price">${price ? price : T('fm.free')}</span></button>`;
+      };
+      this.el.card.innerHTML = `
+        <h2 class="heading">${T('fm.buyTitle')}</h2>
+        <p class="du-sub">${esc(T('fm.buySub', { b: d.budget }))}</p>
+        <div class="fm-left num">${esc(T('fm.left', { n: left }))}</div>
+        <div class="fm-items">${d.order.map(item).join('')}</div>
+        <p class="ch-status" id="fmNote"></p>
+        <p class="du-sub fm-time" id="fmTime"></p>
+        <button class="btn primary" id="fmReady">${T('fm.ready')}</button>
+        <button class="btn small" id="fmLeave">${T(type === 'bots' ? 'fm.leave' : 'du.forfeit')}</button>`;
+      this.el.card.classList.add('fm-buy');
+      this.el.card.querySelectorAll('.fm-item').forEach(b => b.addEventListener('click', () => h.toggle(b.dataset.id)));
+      this.el.card.querySelector('#fmReady').addEventListener('click', () => { VR.Audio.play('click'); h.ready(); });
+      this.el.card.querySelector('#fmLeave').addEventListener('click', () => { VR.Audio.play('click'); h.leave(); });
+      this.el.overlay.hidden = false;
+      this.buyTime(d.left);
+    }
+    buyNote(t) { const n = this.el.card.querySelector('#fmNote'); if (n) { n.textContent = t; n.className = 'ch-status bad'; } }
+    buyTime(sec) {
+      const n = this.el.card.querySelector('#fmTime'); if (!n) return;
+      const t = T('fm.buyTime', { n: Math.max(0, Math.ceil(sec)) });
+      if (n.textContent !== t) n.textContent = t;
     }
     big(text, cls = '', ms = 1200) {
       const b = this.el.big;
@@ -276,7 +358,7 @@
 
     // ------------------------------------------------------------ overlays
     get modal() { return !this.el.overlay.hidden; }
-    closeOverlay() { this.el.overlay.hidden = true; this.el.card.innerHTML = ''; }
+    closeOverlay() { this.el.overlay.hidden = true; this.el.card.innerHTML = ''; this.el.card.classList.remove('fm-buy'); }
     setSolo(on) {
       this.root.classList.toggle('solo', on);
       this.root.querySelector('.du-waitbar').hidden = !on;
@@ -287,10 +369,14 @@
       const w = this.root.querySelector('.du-waitbar');
       w.querySelector('.du-wt').textContent = title; w.querySelector('.du-wo').textContent = online; w.querySelector('.du-ws').textContent = sub;
     }
-    showPause(onResume, onForfeit, solo) {
+    showPause(onResume, onForfeit, kind) {
+      if (kind === true) kind = 'solo'; else if (!kind) kind = 'live';
+      const solo = kind === 'solo';
+      const title = solo ? 'du.pauseSolo' : kind === 'bots' ? 'fm.pauseBots' : 'du.pauseTitle';
+      const note = solo ? 'du.pauseSoloNote' : kind === 'bots' ? 'fm.pauseBotsNote' : 'du.pauseNote';
       this.el.card.innerHTML = `
-        <h2 class="heading">${T(solo ? 'du.pauseSolo' : 'du.pauseTitle')}</h2>
-        <p class="du-sub">${T(solo ? 'du.pauseSoloNote' : 'du.pauseNote')}</p>
+        <h2 class="heading">${T(title)}</h2>
+        <p class="du-sub">${T(note)}</p>
         <button class="btn primary" id="duResume">${T('du.resume')}</button>
         <button class="btn fs-wide du-fsbtn" id="duFs"><i class="fs-ico"></i> ${VR.Fullscreen.isOn() ? T('fs.exit') : T('fs.enter')}</button>
         <button class="btn" id="duForfeit">${T(solo ? 'du.leave' : 'du.forfeit')}</button>`;
@@ -308,7 +394,7 @@
           <div class="val">${score}</div></div>`;
       this.el.card.innerHTML = `
         <h2 class="heading ${cls}" id="duResTitle">${title}</h2>
-        <p class="du-sub">${T('du.mode')} · ${T('du.rounds', { n: r.rounds })}</p>
+        <p class="du-sub">${esc(r.mode || T('du.mode'))} · ${T('du.rounds', { n: r.rounds })}</p>
         <div class="cr-grid">
           ${p(r.me + ' · ' + T('du.you'), r.sc[0], r.win === true ? 'win' : r.win === false ? 'lose' : '', r.colMe)}
           ${p(r.opp, r.sc[1], r.win === false ? 'win' : r.win === true ? 'lose' : '', r.colOpp)}

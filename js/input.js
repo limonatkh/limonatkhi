@@ -32,7 +32,7 @@
     KeyJ: 'journal', Tab: 'journal', KeyR: 'reload',
     Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade', KeyH: 'medkit',
   };
-  const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyC', 'ControlLeft', 'ControlRight', 'ShiftLeft']);
+  const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyC', 'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight']);
   const held = new Set();
   const fpQueue = [];
   const look = { x: 0, y: 0 };
@@ -175,6 +175,8 @@
     aimHeld() { return touchHold.has('aim'); },
     /** fire button held (automatic weapons): left mouse button while captured, or the touch FIRE button */
     fireHeld() { return touchHold.has('fire'); },
+    /** sprint: Shift held, or the touch stick pushed all the way */
+    sprintHeld() { return held.has('ShiftLeft') || held.has('ShiftRight') || Math.hypot(touchMove.x, touchMove.y) > 0.95; },
     crouchHeld() { return held.has('KeyC') || held.has('ControlLeft') || held.has('ControlRight') || touchHold.has('crouch'); },
     takeLook() { const r = { x: look.x, y: look.y }; look.x = look.y = 0; return r; },
     nextAction() { return fpQueue.shift(); },
