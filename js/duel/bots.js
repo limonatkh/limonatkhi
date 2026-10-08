@@ -26,9 +26,9 @@
     medium:     { react: 0.8,  err: 0.07,  turn: 4,   fireMul: 1.7,  head: 0.12, speed: 0.9,  strafe: 0.55, nades: 0,  retreat: false,
                   picks: [['smg', 'pistol'], ['shotgun', 'pistol']], reward: 70 },
     hard:       { react: 0.45, err: 0.038, turn: 7,   fireMul: 1.2,  head: 0.25, speed: 1.0,  strafe: 0.75, nades: 11, retreat: true,
-                  picks: [['smg', 'sniper'], ['shotgun', 'smg'], ['sniper', 'pistol'], ['rifle', 'pistol']], reward: 110 },
+                  picks: [['smg', 'revolver'], ['shotgun', 'smg'], ['rifle', 'pistol'], ['rifle', 'shotgun']], reward: 110 },
     impossible: { react: 0.18, err: 0.014, turn: 16,  fireMul: 0.95, head: 0.55, speed: 1.15, strafe: 1.0,  nades: 7,  retreat: true,
-                  picks: [['sniper', 'smg'], ['smg', 'shotgun'], ['dmr', 'rifle'], ['lmg', 'revolver']], reward: 180 },
+                  picks: [['rifle', 'shotgun'], ['smg', 'shotgun'], ['dmr', 'rifle'], ['lmg', 'revolver']], reward: 180 },
   };
   const ORDER = ['normal', 'medium', 'hard', 'impossible'];
   const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14] };
@@ -64,7 +64,8 @@
         const name = VR.L(NAMES[i % NAMES.length]) + ' · ' + VR.t('bot.diff.' + this.diffKey);
         const body = VR.DuelBody.build(ch, 'grey', col, null);         // no name tag: it would show where they hide
         this.mgr.scene.add(body.g);
-        const pick = this.diff.picks[(Math.random() * this.diff.picks.length) | 0];
+        // bots never carry the sniper (any other weapon is fine)
+        const pick = this.diff.picks[(Math.random() * this.diff.picks.length) | 0].filter(id => id !== 'sniper');
         this.list.push({ i, name, body, pos: body.pos, vel: new T.Vector3(), yaw: Math.PI, pitch: 0, hp: 100, alive: true,
           lo: new (FK().Loadout)({ weapons: pick, nades: false }), net: null });
       }

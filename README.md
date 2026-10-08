@@ -731,7 +731,7 @@ The host only starts round 1 when everyone is ready.
 in the weapon shop (Fight → 🛒 Weapon shop, or the Lemon Shop in the adventure square, group
 "Fight weapons"; saved in `profile.unlocks.arena`, transaction `shop:arena:<id>` so it is
 never charged twice). Until then they show locked on the buy screen; after that you pick
-them there like the others, paying match points. Hard / impossible bots use some of them too.
+them there like the others, paying match points. Hard / impossible bots use some of them too. Bots never use the sniper.
 
 So *sniper + SMG* fits the budget, *sniper + SMG + grenades* does not. Numbers:
 `js/duel/fightkit.js` (`WEAPONS`, `BUY`).
