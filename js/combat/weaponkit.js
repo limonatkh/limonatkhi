@@ -138,39 +138,131 @@
   const NEON = 0xb26bff, LEMON = 0xffe14a;
   function neonMat(color) { const m = new T.MeshBasicMaterial({ color }); m.toneMapped = false; m.userData.own = true; return m; }
   function strip(g, w, h, d, x, y, z, c) { const m = new T.Mesh(new T.BoxGeometry(w, h, d), neonMat(c)); m.position.set(x, y, z); g.add(m); return m; }
+  /* ---- weapon models: each has its own shape and colours, and iron sights on
+   *      top (rear notch + front post) at userData.sightY: aiming down the sights
+   *      (js/duel/duel.js) lines them up with the middle of the screen. */
+  const S_W = (vb, z, y, c) => { vb.addColorBox(-0.017, y, z, 0.012, 0.022, 0.012, c); vb.addColorBox(0.017, y, z, 0.012, 0.022, 0.012, c); };   // rear notch
+  const S_F = (vb, z, y, c) => vb.addColorBox(0, y, z, 0.01, 0.022, 0.01, c);                                                              // front post
+  function cyl(g, r, len, color, x, y, z) {
+    const m = new T.Mesh(new T.CylinderGeometry(r, r, len, 10), new T.MeshLambertMaterial({ color }));
+    m.material.userData.own = true; m.geometry.userData.own = true;
+    m.rotation.x = Math.PI / 2; m.position.set(x, y, z); g.add(m); return m;
+  }
+  /** lemon pistol: short, black frame, yellow slide */
   function pistol() {
     const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.03, -0.08, 0.06, 0.07, 0.3, 0x3a3f4d);           // slide
-    vb.addColorBox(0, -0.15, 0.03, 0.055, 0.15, 0.07, 0x23262f);          // grip
-    vb.addColorBox(0, -0.02, -0.25, 0.04, 0.04, 0.05, 0x6b7286);          // muzzle
+    vb.addColorBox(0, -0.035, -0.06, 0.055, 0.075, 0.26, 0xe8c22a);        // slide (lemon)
+    vb.addColorBox(0, -0.06, -0.05, 0.05, 0.03, 0.2, 0x23262f);            // frame
+    vb.addColorBox(0, -0.17, 0.04, 0.05, 0.13, 0.065, 0x23262f);           // grip
+    vb.addColorBox(0, -0.1, -0.01, 0.02, 0.04, 0.05, 0x23262f);            // trigger guard
+    vb.addColorBox(0, -0.02, -0.2, 0.03, 0.03, 0.03, 0x1a1a1a);            // muzzle
+    S_W(vb, 0.055, 0.04, 0x1a1a1a); S_F(vb, -0.175, 0.04, 0x1a1a1a);
     g.add(vb.build());
-    strip(g, 0.062, 0.01, 0.2, 0, 0.045, -0.08, LEMON);
-    g.userData.muzzle = new T.Vector3(0, -0.01, -0.3);
+    strip(g, 0.006, 0.006, 0.006, 0, 0.056, -0.175, 0xff5a3a);             // red front dot
+    g.userData.muzzle = new T.Vector3(0, -0.005, -0.23); g.userData.sightY = 0.058;
     return g;
   }
+  /** scatter shotgun: two long barrels, wooden pump and stock, orange bead */
   function shotgun() {
     const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.05, 0.0, 0.08, 0.09, 0.36, 0x5a3a22);            // body (wood)
-    vb.addColorBox(0.02, -0.02, -0.38, 0.04, 0.04, 0.5, 0x2a2d35);        // barrel 1
-    vb.addColorBox(-0.02, -0.02, -0.38, 0.04, 0.04, 0.5, 0x2a2d35);       // barrel 2
-    vb.addColorBox(0, -0.08, -0.25, 0.07, 0.05, 0.22, 0x6b4a2e);          // pump
-    vb.addColorBox(0, -0.07, 0.28, 0.07, 0.11, 0.2, 0x5a3a22);            // stock
+    vb.addColorBox(0, -0.06, 0.0, 0.08, 0.1, 0.2, 0x2a2d35);               // receiver
+    vb.addColorBox(0.021, -0.025, -0.36, 0.04, 0.042, 0.52, 0x3a3d45);     // barrel 1
+    vb.addColorBox(-0.021, -0.025, -0.36, 0.04, 0.042, 0.52, 0x3a3d45);    // barrel 2
+    vb.addColorBox(0, 0.017, -0.36, 0.012, 0.008, 0.52, 0x1a1a1a);         // rib
+    vb.addColorBox(0, -0.085, -0.27, 0.075, 0.055, 0.2, 0x8a5a2e);         // pump (wood)
+    vb.addColorBox(0, -0.11, 0.18, 0.06, 0.12, 0.12, 0x7a4a26);            // grip
+    vb.addColorBox(0, -0.09, 0.3, 0.075, 0.13, 0.2, 0x8a5a2e);             // stock
+    S_W(vb, 0.08, 0.02, 0x1a1a1a);
     g.add(vb.build());
-    strip(g, 0.09, 0.012, 0.012, 0, -0.005, -0.12, 0xff7a3a);
-    g.userData.muzzle = new T.Vector3(0, -0.02, -0.64);
+    strip(g, 0.014, 0.016, 0.014, 0, 0.033, -0.61, 0xff9a2a);              // bead front sight
+    g.userData.muzzle = new T.Vector3(0, -0.005, -0.64); g.userData.sightY = 0.039;
     return g;
   }
+  /** light SMG: sand-coloured, fat suppressor, front grip, wire stock */
   function smg() {
     const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.04, -0.02, 0.07, 0.09, 0.32, 0x2c3a30);
-    vb.addColorBox(0, -0.025, -0.27, 0.035, 0.035, 0.2, 0x1c1f24);
-    vb.addColorBox(0, -0.16, -0.05, 0.045, 0.16, 0.05, 0x1c1f24);         // magazine
-    vb.addColorBox(0, -0.14, 0.08, 0.05, 0.11, 0.05, 0x2c3a30);           // grip
-    vb.addColorBox(0, -0.03, 0.2, 0.05, 0.05, 0.14, 0x1c1f24);            // stock
+    vb.addColorBox(0, -0.045, -0.02, 0.065, 0.09, 0.28, 0xb59a6a);        // body (sand)
+    vb.addColorBox(0, -0.18, -0.06, 0.04, 0.15, 0.045, 0x1c1f24);          // straight magazine
+    vb.addColorBox(0, -0.15, 0.07, 0.045, 0.11, 0.05, 0x1c1f24);           // grip
+    vb.addColorBox(0, -0.14, -0.15, 0.035, 0.1, 0.035, 0x1c1f24);          // front grip
+    vb.addColorBox(0, -0.025, 0.2, 0.012, 0.012, 0.2, 0x1c1f24);           // wire stock (top)
+    vb.addColorBox(0, -0.085, 0.2, 0.012, 0.012, 0.2, 0x1c1f24);           // wire stock (bottom)
+    vb.addColorBox(0, -0.09, 0.3, 0.012, 0.075, 0.02, 0x1c1f24);           // butt
+    S_W(vb, 0.08, 0.045, 0x1c1f24); S_F(vb, -0.13, 0.045, 0x1c1f24);
+    vb.addColorBox(0, 0.045, -0.13, 0.04, 0.008, 0.012, 0x1c1f24);         // front sight hood
     g.add(vb.build());
-    strip(g, 0.006, 0.014, 0.26, 0.037, -0.01, -0.02, 0x5fdc5f);
-    strip(g, 0.006, 0.014, 0.26, -0.037, -0.01, -0.02, 0x5fdc5f);
-    g.userData.muzzle = new T.Vector3(0, -0.02, -0.4);
+    cyl(g, 0.03, 0.22, 0x22252b, 0, 0.0, -0.27);                           // suppressor
+    strip(g, 0.004, 0.012, 0.2, 0.034, 0.0, -0.02, 0x5fdc5f);
+    g.userData.muzzle = new T.Vector3(0, 0.0, -0.39); g.userData.sightY = 0.064;
+    return g;
+  }
+  /** revolver: silver, long barrel, round cylinder, wooden grip */
+  function revolver() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.03, -0.17, 0.035, 0.04, 0.24, 0xb8bec8);         // barrel
+    vb.addColorBox(0, -0.045, -0.17, 0.02, 0.015, 0.24, 0x9aa0aa);         // under-lug
+    vb.addColorBox(0, -0.05, 0.03, 0.05, 0.1, 0.12, 0xb8bec8);             // frame
+    vb.addColorBox(0, 0.03, 0.08, 0.015, 0.03, 0.03, 0x50565f);            // hammer
+    vb.addColorBox(0, -0.18, 0.1, 0.05, 0.14, 0.07, 0x6b4526);             // wooden grip
+    vb.addColorBox(0, -0.1, 0.02, 0.018, 0.045, 0.05, 0x50565f);           // trigger guard
+    S_W(vb, 0.06, 0.05, 0x50565f); S_F(vb, -0.27, 0.01, 0x50565f);
+    vb.addColorBox(0, 0.01, -0.27, 0.01, 0.06, 0.02, 0x50565f);            // tall front blade
+    g.add(vb.build());
+    cyl(g, 0.045, 0.08, 0x8a9099, 0, 0.0, -0.01);                          // the cylinder
+    g.userData.muzzle = new T.Vector3(0, -0.01, -0.3); g.userData.sightY = 0.068;
+    return g;
+  }
+  /** assault rifle (M16 style): black, carry handle with a rear aperture, tall front sight tower */
+  function rifle() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.06, 0.0, 0.07, 0.1, 0.26, 0x1e2024);              // receiver
+    vb.addColorBox(0, 0.04, 0.02, 0.03, 0.05, 0.16, 0x1e2024);             // carry handle
+    vb.addColorBox(-0.018, 0.04, 0.02, 0.008, 0.05, 0.02, 0x1e2024); vb.addColorBox(0.018, 0.04, 0.02, 0.008, 0.05, 0.02, 0x1e2024);
+    vb.addColorBox(0, -0.05, -0.27, 0.06, 0.07, 0.28, 0x3a3e46);           // round-ish grey handguard
+    vb.addColorBox(0, -0.025, -0.48, 0.022, 0.022, 0.18, 0x1e2024);        // barrel
+    vb.addColorBox(0, -0.025, -0.42, 0.02, 0.115, 0.03, 0x1e2024);         // front sight tower
+    vb.addColorBox(0, -0.2, -0.06, 0.045, 0.15, 0.065, 0x2a2d33);          // curved magazine
+    vb.addColorBox(0, -0.27, -0.09, 0.045, 0.06, 0.05, 0x2a2d33);
+    vb.addColorBox(0, -0.17, 0.1, 0.045, 0.11, 0.05, 0x1e2024);            // grip
+    vb.addColorBox(0, -0.09, 0.27, 0.065, 0.12, 0.2, 0x1e2024);            // stock
+    S_W(vb, 0.08, 0.09, 0x1e2024); S_F(vb, -0.42, 0.09, 0x1e2024);
+    g.add(vb.build());
+    strip(g, 0.004, 0.004, 0.004, 0, 0.114, -0.42, 0xffe14a);                // a tiny lemon dot on the post
+    g.userData.muzzle = new T.Vector3(0, -0.015, -0.58); g.userData.sightY = 0.108;
+    return g;
+  }
+  /** marksman rifle: long wooden body and a scope (it uses the scope, not iron sights) */
+  function dmr() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.05, -0.1, 0.065, 0.085, 0.5, 0x7a5a32);           // long wooden body
+    vb.addColorBox(0, -0.02, -0.45, 0.028, 0.028, 0.26, 0x1c1f24);         // barrel
+    vb.addColorBox(0, 0.035, -0.06, 0.012, 0.03, 0.012, 0x1c1f24); vb.addColorBox(0, 0.035, -0.18, 0.012, 0.03, 0.012, 0x1c1f24);   // scope rings
+    vb.addColorBox(0, -0.15, -0.04, 0.04, 0.1, 0.06, 0x1c1f24);            // magazine
+    vb.addColorBox(0, -0.07, 0.26, 0.06, 0.12, 0.17, 0x7a5a32);            // stock
+    vb.addColorBox(0, 0.0, 0.26, 0.05, 0.03, 0.12, 0x5a3e22);              // cheek rest
+    g.add(vb.build());
+    cyl(g, 0.026, 0.26, 0x1c1f24, 0, 0.08, -0.12);                         // scope tube
+    cyl(g, 0.034, 0.03, 0x1c1f24, 0, 0.08, -0.26);                         // objective
+    strip(g, 0.005, 0.012, 0.22, 0.03, 0.08, -0.12, 0x5fd0ff);
+    g.userData.muzzle = new T.Vector3(0, -0.01, -0.6); g.userData.sightY = 0.08;
+    return g;
+  }
+  /** heavy machine gun: olive drab, perforated barrel shroud, ammo box, bipod */
+  function lmg() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.07, -0.02, 0.09, 0.12, 0.3, 0x4b5320);            // receiver (olive)
+    vb.addColorBox(0, 0.05, -0.02, 0.07, 0.02, 0.24, 0x3d4419);            // top cover
+    for (let i = 0; i < 6; i++) vb.addColorBox(0, -0.05, -0.22 - i * 0.05, 0.065, 0.065, 0.032, i % 2 ? 0x2a2d22 : 0x4b5320);   // shroud
+    vb.addColorBox(0, -0.025, -0.5, 0.03, 0.03, 0.12, 0x1c1f24);           // barrel
+    vb.addColorBox(0, -0.035, -0.53, 0.012, 0.127, 0.014, 0x1c1f24);       // front post on the barrel
+    vb.addColorBox(0, -0.2, -0.02, 0.12, 0.11, 0.13, 0x5a6a2a);            // ammo box
+    vb.addColorBox(0, -0.18, 0.12, 0.05, 0.11, 0.05, 0x2a2d22);            // grip
+    vb.addColorBox(0, -0.09, 0.28, 0.08, 0.13, 0.18, 0x4b5320);            // stock
+    vb.addColorBox(0.045, -0.2, -0.46, 0.012, 0.14, 0.012, 0x1c1f24); vb.addColorBox(-0.045, -0.2, -0.46, 0.012, 0.14, 0.012, 0x1c1f24);   // bipod
+    S_W(vb, 0.07, 0.07, 0x1c1f24);
+    g.add(vb.build());
+    strip(g, 0.004, 0.012, 0.28, 0.047, 0.0, -0.02, 0xff4a4a);
+    g.userData.muzzle = new T.Vector3(0, -0.01, -0.57); g.userData.sightY = 0.088;
     return g;
   }
   function knife() {
@@ -192,55 +284,6 @@
     return g;
   }
   // ---- the fight weapons from the shop
-  function revolver() {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.02, -0.12, 0.04, 0.04, 0.2, 0x3a3f4a);            // barrel
-    vb.addColorBox(0, -0.04, 0.0, 0.08, 0.08, 0.09, 0x50565f);             // cylinder
-    vb.addColorBox(0, -0.03, 0.06, 0.05, 0.06, 0.06, 0x3a3f4a);
-    vb.addColorBox(0, -0.13, 0.1, 0.05, 0.13, 0.06, 0x6b4526);             // wooden grip
-    g.add(vb.build());
-    strip(g, 0.006, 0.012, 0.18, 0.022, 0.0, -0.12, LEMON);
-    g.userData.muzzle = new T.Vector3(0, -0.02, -0.24);
-    return g;
-  }
-  function rifle() {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.03, -0.06, 0.07, 0.09, 0.4, 0x4a5a3a);            // body
-    vb.addColorBox(0, -0.02, -0.36, 0.035, 0.035, 0.22, 0x1c1f24);         // barrel
-    vb.addColorBox(0, 0.04, -0.05, 0.03, 0.03, 0.18, 0x1c1f24);            // rail
-    vb.addColorBox(0, -0.15, -0.08, 0.045, 0.15, 0.07, 0x1c1f24);          // curved magazine
-    vb.addColorBox(0, -0.14, 0.07, 0.05, 0.11, 0.05, 0x4a5a3a);            // grip
-    vb.addColorBox(0, -0.04, 0.23, 0.06, 0.09, 0.16, 0x4a5a3a);            // stock
-    g.add(vb.build());
-    strip(g, 0.006, 0.014, 0.34, 0.037, -0.01, -0.08, 0xff9a3a);
-    g.userData.muzzle = new T.Vector3(0, -0.02, -0.48);
-    return g;
-  }
-  function dmr() {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.03, -0.08, 0.065, 0.085, 0.46, 0x6b5a3a);         // long wooden body
-    vb.addColorBox(0, -0.02, -0.42, 0.03, 0.03, 0.26, 0x1c1f24);           // barrel
-    vb.addColorBox(0, 0.06, -0.06, 0.05, 0.05, 0.2, 0x1c1f24);             // scope
-    vb.addColorBox(0, -0.14, -0.04, 0.04, 0.11, 0.06, 0x1c1f24);           // magazine
-    vb.addColorBox(0, -0.05, 0.25, 0.06, 0.11, 0.16, 0x6b5a3a);            // stock
-    g.add(vb.build());
-    strip(g, 0.005, 0.012, 0.18, 0.027, 0.06, -0.06, 0x5fd0ff);
-    g.userData.muzzle = new T.Vector3(0, -0.02, -0.56);
-    return g;
-  }
-  function lmg() {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, -0.03, -0.06, 0.09, 0.11, 0.44, 0x2e3238);           // heavy body
-    vb.addColorBox(0, -0.01, -0.38, 0.045, 0.045, 0.26, 0x1c1f24);         // thick barrel
-    vb.addColorBox(0, -0.12, -0.02, 0.11, 0.1, 0.12, 0x5a5a28);            // ammo box
-    vb.addColorBox(0, -0.15, 0.1, 0.05, 0.11, 0.05, 0x2e3238);             // grip
-    vb.addColorBox(0, -0.04, 0.24, 0.07, 0.1, 0.14, 0x2e3238);             // stock
-    vb.addColorBox(0, -0.1, -0.42, 0.012, 0.12, 0.012, 0x1c1f24);          // bipod
-    g.add(vb.build());
-    strip(g, 0.006, 0.014, 0.36, 0.047, 0.0, -0.06, 0xff4a4a);
-    g.userData.muzzle = new T.Vector3(0, -0.01, -0.52);
-    return g;
-  }
   function model(id) {
     if (id === 'revolver') return revolver();
     if (id === 'rifle') return rifle();

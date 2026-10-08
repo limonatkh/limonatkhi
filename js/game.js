@@ -42,6 +42,7 @@
       this.fadeEl = document.getElementById('fade');
       this.countdownEl = document.getElementById('countdown');
       this.bindUI();
+      VR.SettingsX.init();                            // Settings → Controls / Crosshair
       this.fightMenu = new VR.FightMenu(this);       // main menu → Fight (1v1, vs the computer, co-op)
       this.applySettings();
 
@@ -137,7 +138,7 @@
       UI.bind('charDone', () => { UI.store.set('character', VR.CHARACTERS[this.charIndex].id); this.setState('menu'); });
       UI.bind('settingsBtn', () => { this.settingsReturn = 'menu'; this.setState('settings'); });
       UI.bind('pauseSettings', () => { this.settingsReturn = 'paused'; this.setState('settings'); });
-      UI.bind('settingsDone', () => this.setState(this.settingsReturn || 'menu'));
+      UI.bind('settingsDone', () => { VR.SettingsX.close(); this.setState(this.settingsReturn || 'menu'); });
       UI.bind('pauseBtn', () => this.pause());
       UI.bind('resumeBtn', () => this.resume());
       UI.bind('pauseMenu', () => this.toMenu());

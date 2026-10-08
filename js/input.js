@@ -25,17 +25,36 @@
     KeyE: 'interact',                    // 1v1 gate beside the track
   };
 
-  // ---- first-person bindings -----------------------------------------
-  const FP_ACTIONS = {
-    Space: 'jump', KeyC: 'slide', ControlLeft: 'slide', ControlRight: 'slide',
-    KeyE: 'interact', KeyF: 'interact', KeyQ: 'burst',
-    KeyJ: 'journal', Tab: 'journal', KeyR: 'reload',
-    Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyG: 'grenade', KeyH: 'medkit', KeyB: 'mine', KeyV: 'knife',
+  // ---- first-person bindings (remappable: Settings → Controls) ----------
+  // [action, kind, default inputs]  kind: hold (while down) · press (queued once) · toggle (crouch)
+  // inputs: KeyboardEvent.code, 'Mouse0'…'Mouse4', 'WheelUp' / 'WheelDown'
+  const ACTIONS = [
+    ['forward', 'hold', ['KeyW', 'ArrowUp']], ['back', 'hold', ['KeyS', 'ArrowDown']],
+    ['left', 'hold', ['KeyA', 'ArrowLeft']], ['right', 'hold', ['KeyD', 'ArrowRight']],
+    ['jump', 'press', ['Space', null]], ['crouch', 'toggle', ['ControlLeft', 'KeyC']], ['sprint', 'hold', ['ShiftLeft', 'ShiftRight']],
+    ['fire', 'hold', ['Mouse0', null]], ['aim', 'hold', ['Mouse2', null]], ['reload', 'press', ['KeyR', null]],
+    ['slot1', 'press', ['Digit1', null]], ['slot2', 'press', ['Digit2', null]], ['slot3', 'press', ['Digit3', null]], ['knife', 'press', ['KeyV', null]],
+    ['slotNext', 'press', ['WheelDown', null]], ['slotPrev', 'press', ['WheelUp', null]],
+    ['burst', 'press', ['KeyQ', null]], ['grenade', 'press', ['KeyG', null]], ['mine', 'press', ['KeyB', null]], ['medkit', 'press', ['KeyH', null]],
+    ['interact', 'press', ['KeyE', 'KeyF']], ['journal', 'press', ['KeyJ', 'Tab']],
+  ];
+  const KIND = Object.fromEntries(ACTIONS.map(a => [a[0], a[1]]));
+  const DEFAULTS = () => Object.fromEntries(ACTIONS.map(a => [a[0], a[2].slice()]));
+  const loadBinds = () => {
+    const out = DEFAULTS();
+    try { const v = JSON.parse(localStorage.getItem('cubeexpress.keybinds') || 'null'); if (v) for (const k in out) if (Array.isArray(v[k])) out[k] = [v[k][0] || null, v[k][1] || null]; } catch (e) { /* defaults */ }
+    return out;
   };
-  const FP_HOLD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
-  const CROUCH_KEYS = new Set(['KeyC', 'ControlLeft', 'ControlRight']);
-  let crouchOn = false;                  // Ctrl / C toggles: press to crouch (or slide when running), press again to stand
-  const held = new Set();
+  let binds = loadBinds();
+  let byInput = new Map();                // input → [actions]
+  const reindex = () => { byInput = new Map(); for (const k in binds) for (const c of binds[k]) if (c) { if (!byInput.has(c)) byInput.set(c, []); byInput.get(c).push(k); } };
+  reindex();
+  const active = new Set();               // inputs held down right now
+  let aimBlock = false;                   // aim was dropped (reload / switch): ignore the held button until it is let go
+  let capture = null;                     // Settings: waiting for the next key / button
+  const isHeld = (a) => binds[a].some(c => c && active.has(c));
+  let crouchOn = false;                  // crouch toggles: press to crouch (or slide when running), press again to stand
+  const held = active;
   const fpQueue = [];
   const look = { x: 0, y: 0 };
   const touchMove = { x: 0, y: 0 };      // virtual stick, -1..1
@@ -49,20 +68,29 @@
   const touchFirst = () => !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   const typing = (e) => { const t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); };
 
+  /** an input went down (key, mouse button or wheel notch) in first person */
+  function fpDown(code, repeat) {
+    const acts = byInput.get(code); if (!acts) return false;
+    if (!repeat) active.add(code);
+    for (const a of acts) {
+      const k = KIND[a];
+      if (k === 'toggle') { if (!repeat) { crouchOn = !crouchOn; if (crouchOn) fpQueue.push('slide'); } }
+      else if (k === 'press') { if (!repeat) { if (a === 'jump') crouchOn = false; fpQueue.push(a); } }
+      else if (a === 'fire' && !repeat) fpQueue.push('fire');
+    }
+    return true;
+  }
+  function fpUp(code) { active.delete(code); }
+  /** Settings → Controls: the next input goes to `capture` instead of the game */
+  function captured(code) { if (!capture) return false; const cb = capture; capture = null; cb(code); return true; }
+
   window.addEventListener('keydown', (e) => {
+    if (capture) { e.preventDefault(); captured(e.code === 'Escape' ? null : e.code === 'Backspace' || e.code === 'Delete' ? '' : e.code); return; }
     if (typing(e)) return;                       // let text fields receive every key
     if (mode === 'fp') {
       if (e.code === 'Escape' || e.code === 'KeyP') { onPause && onPause(); return; }
       if (!fpEnabled) return;
-      if (FP_HOLD.has(e.code)) { held.add(e.code); e.preventDefault(); }
-      if (CROUCH_KEYS.has(e.code)) {
-        e.preventDefault();
-        if (!e.repeat) { crouchOn = !crouchOn; if (crouchOn) fpQueue.push('slide'); }
-        return;
-      }
-      if (e.code === 'Space') crouchOn = false;      // a jump stands you up
-      const a = FP_ACTIONS[e.code];
-      if (a) { e.preventDefault(); if (!e.repeat) fpQueue.push(a); }
+      if (fpDown(e.code, e.repeat)) e.preventDefault();
       return;
     }
     if (e.code === 'Escape' || e.code === 'KeyP') { onPause && onPause(); return; }
@@ -71,8 +99,8 @@
     e.preventDefault();
     if (enabled && !e.repeat) queue.push(a);
   });
-  window.addEventListener('keyup', (e) => { held.delete(e.code); });
-  window.addEventListener('blur', () => { held.clear(); touchHold.clear(); });
+  window.addEventListener('keyup', (e) => { fpUp(e.code); });
+  window.addEventListener('blur', () => { active.clear(); touchHold.clear(); });
 
   // ---- mouse look --------------------------------------------------------
   const locked = () => document.pointerLockElement === surface();
@@ -81,16 +109,21 @@
     if (locked()) { look.x += e.movementX; look.y += e.movementY; }
     else if (dragLook) { look.x += e.clientX - lastMX; look.y += e.clientY - lastMY; lastMX = e.clientX; lastMY = e.clientY; }
   });
-  // mouse buttons (1v1 arena): left = fire while the mouse is captured, right = aim/scope
+  // mouse buttons and the wheel go through the same bindings (left button: only while the mouse is captured)
   window.addEventListener('mousedown', (e) => {
+    if (capture) { e.preventDefault(); e.stopPropagation(); captured('Mouse' + e.button); return; }
     if (mode !== 'fp' || !fpEnabled) return;
-    if (e.button === 0 && locked()) { fpQueue.push('fire'); touchHold.add('fire'); }
-    if (e.button === 2) touchHold.add('aim');
-  });
-  window.addEventListener('mouseup', (e) => { if (e.button === 2) touchHold.delete('aim'); if (e.button === 0) touchHold.delete('fire'); });
-  window.addEventListener('contextmenu', (e) => { if (mode === 'fp') e.preventDefault(); });
+    if (e.button === 0 && !locked()) return;          // that click captures the mouse (or drags to look)
+    if (fpDown('Mouse' + e.button, false) && e.button > 2) e.preventDefault();
+  }, true);
+  window.addEventListener('mouseup', (e) => { fpUp('Mouse' + e.button); if (mode === 'fp' && e.button > 2) e.preventDefault(); });
+  window.addEventListener('contextmenu', (e) => { if (mode === 'fp' || capture) e.preventDefault(); });
   window.addEventListener('wheel', (e) => {
-    if (mode === 'fp' && fpEnabled) fpQueue.push(e.deltaY > 0 ? 'slotNext' : 'slotPrev');
+    const code = e.deltaY > 0 ? 'WheelDown' : 'WheelUp';
+    if (capture) { captured(code); return; }
+    if (mode !== 'fp' || !fpEnabled) return;
+    // a wheel notch is a quick press (a held action, e.g. jump or fire, lasts a moment)
+    if (fpDown(code, false)) setTimeout(() => fpUp(code), 120);
   }, { passive: true });
   document.addEventListener('pointerlockchange', () => {
     // a lock granted after we stopped wanting it (e.g. a menu opened meanwhile): give it back
@@ -172,19 +205,19 @@
     /** movement intent in local space: x = strafe right, y = forward. */
     moveVector() {
       let x = 0, y = 0;
-      if (held.has('KeyW') || held.has('ArrowUp')) y += 1;
-      if (held.has('KeyS') || held.has('ArrowDown')) y -= 1;
-      if (held.has('KeyD') || held.has('ArrowRight')) x += 1;
-      if (held.has('KeyA') || held.has('ArrowLeft')) x -= 1;
+      if (isHeld('forward')) y += 1;
+      if (isHeld('back')) y -= 1;
+      if (isHeld('right')) x += 1;
+      if (isHeld('left')) x -= 1;
       x += touchMove.x; y += touchMove.y;
       const l = Math.hypot(x, y);
       return l > 1 ? { x: x / l, y: y / l } : { x, y };
     },
-    aimHeld() { return touchHold.has('aim'); },
-    /** fire button held (automatic weapons): left mouse button while captured, or the touch FIRE button */
-    fireHeld() { return touchHold.has('fire'); },
-    /** sprint: Shift held, or the touch stick pushed all the way */
-    sprintHeld() { return held.has('ShiftLeft') || held.has('ShiftRight') || Math.hypot(touchMove.x, touchMove.y) > 0.95; },
+    aimHeld() { const k = isHeld('aim'); if (!k) aimBlock = false; return touchHold.has('aim') || (k && !aimBlock); },
+    /** fire held (automatic weapons): its binding (left button while captured), or the touch FIRE button */
+    fireHeld() { return touchHold.has('fire') || isHeld('fire'); },
+    /** sprint: its binding (Shift) held, or the touch stick pushed all the way */
+    sprintHeld() { return isHeld('sprint') || Math.hypot(touchMove.x, touchMove.y) > 0.95; },
     crouchHeld() { return crouchOn || touchHold.has('crouch'); },
     /** stand up (e.g. after dying or a new round) */
     resetCrouch() { crouchOn = false; },
@@ -193,7 +226,41 @@
 
     // ---- hooks for touch controls (mission UI)
     press(action) { if (mode === 'fp' && fpEnabled) fpQueue.push(action); },
-    hold(name, on) { if (on) touchHold.add(name); else touchHold.delete(name); },
+    hold(name, on) {
+      if (on) touchHold.add(name);
+      else { touchHold.delete(name); if (name === 'aim' && isHeld('aim')) aimBlock = true; }   // a held aim button must be pressed again
+    },
+
+    // ---- bindings (Settings → Controls)
+    ACTIONS: ACTIONS.map(a => a[0]),
+    binds() { return JSON.parse(JSON.stringify(binds)); },
+    /** put `code` on action slot (0/1); '' / null clears it. The same input is taken off any other action. */
+    setBind(action, slot, code) {
+      if (!binds[action]) return;
+      if (code) for (const k in binds) binds[k] = binds[k].map(c => (c === code ? null : c));
+      binds[action][slot] = code || null;
+      reindex(); active.clear();
+      try { localStorage.setItem('cubeexpress.keybinds', JSON.stringify(binds)); } catch (e) { /* storage unavailable */ }
+    },
+    resetBinds() { binds = DEFAULTS(); reindex(); active.clear(); try { localStorage.removeItem('cubeexpress.keybinds'); } catch (e) { /* ignore */ } },
+    /** wait for the next key / mouse button / wheel: cb(code) (null = cancelled with Esc, '' = cleared with Backspace) */
+    captureNext(cb) { capture = cb; },
+    cancelCapture() { capture = null; },
+    /** a short readable name for an input */
+    label(code) {
+      if (!code) return '—';
+      const M = { Mouse0: 'mouse.l', Mouse1: 'mouse.m', Mouse2: 'mouse.r', Mouse3: 'mouse.4', Mouse4: 'mouse.5', WheelUp: 'mouse.wu', WheelDown: 'mouse.wd' };
+      if (M[code]) return VR.t(M[code]);
+      if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+      if (/^Digit\d$/.test(code)) return code.slice(5);
+      if (/^Numpad/.test(code)) return 'Num ' + code.slice(6);
+      const N = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R-Shift', ControlLeft: 'Ctrl', ControlRight: 'R-Ctrl', AltLeft: 'Alt', AltRight: 'R-Alt',
+        ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Tab: 'Tab', CapsLock: 'Caps', Enter: 'Enter', Backquote: '`', Minus: '-', Equal: '=',
+        BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\' };
+      return N[code] || code;
+    },
+    /** the first input bound to an action, as a label (for hint texts) */
+    keyFor(action) { const b = binds[action]; return this.label((b && (b[0] || b[1])) || ''); },
     setTouchMove(x, y) { touchMove.x = x; touchMove.y = y; },
     addLook(dx, dy) { if (fpEnabled) { look.x += dx; look.y += dy; } },
   };

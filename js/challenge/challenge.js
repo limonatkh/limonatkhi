@@ -296,6 +296,15 @@
       if (wasLost && this.phase === 'race') VR.UI.toast(VR.t('ch.t.back', { name: this.oppName() }), 1200);
 
       switch (m.t) {
+        case 'ping': if (this.link) this.link.send({ t: 'pong', ts: m.ts, to: m.from }); return;
+        case 'pong': {
+          if (m.to !== this.link.id || typeof m.ts !== 'number') return;
+          const rtt = Math.max(0, now - m.ts);
+          this.ping = this.ping == null ? rtt : this.ping * 0.6 + rtt * 0.4;
+          const el = $('vsPing'), v = Math.round(this.ping);
+          el.hidden = false; el.textContent = '📶 ' + v + ' ms'; el.className = 'vs-ping num ' + (v < 80 ? 'good' : v < 160 ? 'ok' : 'bad');
+          return;
+        }
         case 'hi': {
           const first = !o.here;
           o.name = String(m.name || '').slice(0, 16); o.ch = m.ch; o.here = true;
@@ -557,7 +566,11 @@
         else if (this.phase === 'race') VR.UI.toast(VR.t('ch.t.lost', { name: this.oppName() }), 1600);
         this.renderResult();
       }
-      if (!this.inRace) return;
+      if (!this.inRace) { this.ping = null; $('vsPing').hidden = true; return; }
+
+      // ping to the opponent, every second (shown next to their score)
+      this.pingT = (this.pingT || 0) - dt;
+      if (this.pingT <= 0 && this.link && o && o.here) { this.pingT = 1; this.link.send({ t: 'ping', ts: now }); }
 
       const g = this.game;
       // stream my runner

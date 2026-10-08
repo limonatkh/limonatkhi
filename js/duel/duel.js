@@ -322,6 +322,8 @@
         case 're': if (m.role === 'g') this.onRoundEnd(d.w, d.why, d.sc); break;
         case 'end': if (m.role === 'g') this.onMatchEnd(d.sc, null); break;
         case 'bye': this.onOppLeft(); break;
+        case 'ping': this.send({ k: 'pong', ts: d.ts }); break;
+        case 'pong': if (typeof d.ts === 'number') { const rtt = Math.max(0, performance.now() - d.ts); m.ping = m.ping == null ? rtt : m.ping * 0.6 + rtt * 0.4; this.ui.setPing(m.ping); } break;
       }
     }
     send(d) { const m = this.match; if (!m) return; d.did = m.did; m.chan.send(d); }
@@ -420,6 +422,8 @@
       this.buildWorld();
       VR.Input.setMode('fp'); VR.Input.setFPEnabled(true); VR.Input.requestLock();
       this.ui.show(true);
+      if (VR.Crosshair) VR.Crosshair.apply();
+      this.ui.setPing(null);
       this.ui.setSolo(!!m.solo);
       if (m.solo) {
         this.ui.hideBig(); this.ui.setHP(D.HP);
@@ -537,7 +541,7 @@
       for (const mi of this.mines) this.scene.remove(mi.obj);
       this.mines = [];
       if (m.solo) this.lo = new (FK().Loadout)({ weapons: ['sniper', 'pistol'], nades: true }, D.NADES);   // the waiting room: a free practice kit
-      this.lo.refill(); this.scoped = false; this.reloadSnd = false;
+      this.lo.refill(); this.scoped = false; this.ads = false; this.adsK = 0; this.reloadSnd = false;
       this.kick = 0; this.shake = 0; this.dmgFlash = 0; this.stepAcc = 0;
       this.hands.hold(null); this.gunHolder.visible = true;
       m.dead = { h: false, g: false }; this.downShown = false;
@@ -733,7 +737,7 @@
       if (!w) return;
       const c = this.ctrl;
       const o = this.eyePos(new T.Vector3());
-      const spread = w.scope && this.scoped ? (c.grounded ? (w.scopedSpread || 0) : (w.airSpread || 0)) : w.spread;
+      const spread = w.scope && this.scoped ? (c.grounded ? (w.scopedSpread || 0) : (w.airSpread || 0)) : w.spread * (this.ads ? 0.35 : 1);
       const dirs = [];
       for (let i = 0; i < w.pellets; i++) {
         const d = this.aimDir(new T.Vector3());
@@ -763,7 +767,7 @@
     muzzleWorld() {
       // a point slightly right/below the eye, along the aim: matches where the gun is drawn
       const o = this.eyePos(new T.Vector3()), d = this.aimDir(new T.Vector3());
-      if (this.scoped) return o.addScaledVector(d, 0.6).add(new T.Vector3(0, -0.08, 0));
+      if (this.scoped || this.ads) return o.addScaledVector(d, 0.6).add(new T.Vector3(0, -0.06, 0));
       const r = this.ctrl.right();
       return o.addScaledVector(d, 0.75).addScaledVector(r, 0.16).add(new T.Vector3(0, -0.14, 0));
     }
@@ -1088,8 +1092,12 @@
       // aim / scope
       const wantScope = canMove && !!this.lo.def.scope && VR.Input.aimHeld() && this.lo.reloadT <= 0 && this.lo.switchT <= 0;
       if (wantScope !== this.scoped) { this.scoped = wantScope; this.ui.scope(wantScope); if (wantScope) VR.Audio.play('scope'); }
+      // iron sights (rifles, SMGs, pistols…): aim down the sights, no scope picture
+      const wantAds = canMove && !!this.lo.def.ads && VR.Input.aimHeld() && this.lo.reloadT <= 0 && this.lo.switchT <= 0;
+      if (wantAds && !this.ads) VR.Audio.play('scope');
+      this.ads = wantAds;
       const look = VR.Input.takeLook();
-      if (canLook) c.look(look.x, look.y, this.sens() * (this.scoped ? D.SCOPE_SENS : 1));
+      if (canLook) c.look(look.x, look.y, this.sens() * (this.scoped ? D.SCOPE_SENS : this.ads ? 0.7 : 1));
       const move = canMove ? VR.Input.moveVector() : { x: 0, y: 0 };
       if (m.phase !== 'end' && m.phase !== 'over' && m.phase !== 'wait') {
         c.sprint = canMove && VR.Input.sprintHeld();
@@ -1146,6 +1154,11 @@
         if (m.autoT <= 0) this.leave();
       }
 
+      // ping: a round trip to the other player every second, shown on screen (not against the computer alone)
+      if (m.type !== 'bots' && !m.solo && m.phase !== 'over') {
+        m.pingT = (m.pingT || 0) - dt;
+        if (m.pingT <= 0) { m.pingT = 1; this.send({ k: 'ping', ts: performance.now() }); }
+      }
       // stream my state
       m.sendT -= dt;
       if (m.sendT <= 0 && m.phase !== 'over') {
@@ -1189,7 +1202,9 @@
         const s = this.shake * 0.12;
         cam.position.x += (Math.random() - 0.5) * s; cam.position.y += (Math.random() - 0.5) * s;
       }
-      const fov = (this.scoped ? D.SCOPE_FOV : this.baseFov()) + c.burstFov;
+      this.adsK = (this.adsK || 0) + ((this.ads ? 1 : 0) - (this.adsK || 0)) * Math.min(1, dt * 14);
+      const adsF = 1 - (1 - (this.lo.def.ads || 1)) * this.adsK;
+      const fov = (this.scoped ? D.SCOPE_FOV : this.baseFov() * adsF) + c.burstFov;
       cam.fov += (fov - cam.fov) * Math.min(1, dt * 18);
       cam.updateProjectionMatrix();
       // hands + weapon
@@ -1212,6 +1227,18 @@
       const bob = Math.sin(c.bobPhase) * 0.012 * c.bobAmt;
       this.gunHolder.position.set(0.17 * wide + this.hands.sway.x, -0.2 + this.hands.sway.y - sw * 0.25 - rl * 0.1 + bob + c.landDip * 0.2, -0.46 + this.kick * 0.07);
       this.gunHolder.rotation.set(this.kick * 0.18 + rl * 0.5, 0.04, -rl * 0.5);
+      // aiming down the sights: the gun comes to the middle, its sights on the centre of the screen
+      const k = this.adsK, gm = this.gunModels[id];
+      if (k > 0.001 && gm) {
+        const sy = (gm.userData.sightY || 0.05) * gm.scale.y;
+        const ax = 0, ay = -sy + this.hands.sway.y * 0.3, az = -0.64 + this.kick * 0.04;
+        this.gunHolder.position.x += (ax - this.gunHolder.position.x) * k;
+        this.gunHolder.position.y += (ay - this.gunHolder.position.y) * k;
+        this.gunHolder.position.z += (az - this.gunHolder.position.z) * k;
+        this.gunHolder.rotation.x *= 1 - k * 0.85; this.gunHolder.rotation.y *= 1 - k; this.gunHolder.rotation.z *= 1 - k;
+      }
+      for (const h of this.hands.hands) h.visible = k < 0.5;
+      this.ui.adsCross(k > 0.5);
       this.hands.root.visible = !this.scoped;
       if (mm && mm.dead && mm.dead[mm.me] && this.deathT > 0) this.deathView(dt);
     }

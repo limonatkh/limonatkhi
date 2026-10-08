@@ -439,6 +439,30 @@ then 2.5 s of star power                        player stands just past the gate
 | J / Tab | journal button | clue journal, objectives, hints |
 | Esc / P | pause button | pause: resume, settings, restart, leave |
 
+**Controls (Settings → 🎮 Controls):** every first-person action (move, jump, crouch,
+sprint, fire, aim, reload, weapons, knife, grenades, mine, medkit, use, journal) has two
+slots. Click a slot and press any key, any mouse button (left / middle / right / side
+buttons 4-5) or turn the wheel (up / down) — e.g. jump on *wheel down*. An input can only
+belong to one action (it moves). Esc cancels, Backspace clears, *Reset* brings the defaults
+back. Saved on this device (`cubeexpress.keybinds`; `VR.Input.binds / setBind`). Esc / P
+always pause.
+
+**Crosshair (Settings → ⌖ Crosshair):** style (cross, cross + dot, dot, circle, T), colour,
+length, gap, thickness and a black outline, with a live preview. Used in the arena and the
+adventure / missions (`VR.Crosshair`, `cubeexpress.crosshair`).
+
+**Ping:** in a live duel / co-op match the round trip to the other player (every second)
+shows under the round timer, and in a race next to the opponent's score (green < 80 ms,
+yellow < 160 ms, red above).
+
+**Iron sights:** in fights, right click (aim) with the pistol, shotgun, SMG, revolver,
+assault rifle or heavy machine gun brings the gun up to the middle and looks down its
+iron sights (M16-style rear notch + front post): the view zooms (×0.66-0.85 by weapon),
+shots spread 35 % as much, the mouse slows a little. The sniper and the marksman rifle
+keep their scopes. Every weapon has its own model and colours (lemon pistol, wooden
+double-barrel shotgun, sand SMG with a suppressor, silver revolver, black M16-style rifle
+with a carry handle, wooden marksman rifle with a scope, olive machine gun with a bipod).
+
 **Mouse sensitivity:** Settings → *Mouse sensitivity* (0.2-3, default 1), also in the
 mission pause menu and the arena pause card. One saved value (`fpSettings.sens`, `VR.Sens`)
 used by missions, the adventure world and the arena (touch look too).

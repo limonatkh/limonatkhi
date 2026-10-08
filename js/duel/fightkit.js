@@ -3,6 +3,8 @@
  * loadout (what you carry in one match).
  * ---------------------------------------------------------------------
  *   WEAPONS   arena numbers (health is 100): body / head damage per hit
+ *             ads: aiming down the iron sights zooms the view to this × FOV
+ *             (and shots spread 35 % as much); scope: a real scope instead
  *             (shotgun: per pellet), fire rate, magazine, reload, spread,
  *             range (damage falls to `fall` × at the end of it)
  *   BUY       budget per match (the same for everyone; real coins are not
@@ -17,15 +19,15 @@
  * ===================================================================== */
 (function () {
   const WEAPONS = {
-    pistol:  { body: 20, head: 40, rate: 0.30, auto: false, mag: 12, reload: 1.1, spread: 0.008, pellets: 1, range: 50, fall: 0.6, sound: 'pistol', kick: 0.5 },
-    shotgun: { body: 11, head: 16, rate: 0.90, auto: false, mag: 6, reload: 1.9, spread: 0.06, pellets: 8, range: 18, fall: 0.3, sound: 'shotgun', kick: 1.2 },
-    smg:     { body: 10, head: 18, rate: 0.09, auto: true, mag: 30, reload: 1.6, spread: 0.022, pellets: 1, range: 35, fall: 0.55, sound: 'smg', kick: 0.25 },
+    pistol:  { ads: 0.82, body: 20, head: 40, rate: 0.30, auto: false, mag: 12, reload: 1.1, spread: 0.008, pellets: 1, range: 50, fall: 0.6, sound: 'pistol', kick: 0.5 },
+    shotgun: { ads: 0.85, body: 11, head: 16, rate: 0.90, auto: false, mag: 6, reload: 1.9, spread: 0.06, pellets: 8, range: 18, fall: 0.3, sound: 'shotgun', kick: 1.2 },
+    smg:     { ads: 0.72, body: 10, head: 18, rate: 0.09, auto: true, mag: 30, reload: 1.6, spread: 0.022, pellets: 1, range: 35, fall: 0.55, sound: 'smg', kick: 0.25 },
     sniper:  { body: 55, head: 150, rate: 1.00, auto: false, mag: 5, reload: 1.9, spread: 0.012, airSpread: 0.004, scopedSpread: 0, pellets: 1, range: 200, fall: 1, sound: 'sniper', kick: 1, scope: true },
     // ---- unlocked in the Lemon Shop (real coins), then they can be picked on the buy screen
-    revolver: { body: 42, head: 90, rate: 0.6, auto: false, mag: 6, reload: 1.7, spread: 0.006, pellets: 1, range: 60, fall: 0.7, sound: 'revolver', kick: 0.9 },
-    rifle:   { body: 17, head: 34, rate: 0.12, auto: true, mag: 25, reload: 1.8, spread: 0.014, pellets: 1, range: 70, fall: 0.6, sound: 'rifle', kick: 0.35 },
+    revolver: { ads: 0.78, body: 42, head: 90, rate: 0.6, auto: false, mag: 6, reload: 1.7, spread: 0.006, pellets: 1, range: 60, fall: 0.7, sound: 'revolver', kick: 0.9 },
+    rifle:   { ads: 0.66, body: 17, head: 34, rate: 0.12, auto: true, mag: 25, reload: 1.8, spread: 0.014, pellets: 1, range: 70, fall: 0.6, sound: 'rifle', kick: 0.35 },
     dmr:     { body: 38, head: 85, rate: 0.38, auto: false, mag: 10, reload: 2.0, spread: 0.01, airSpread: 0.02, scopedSpread: 0.002, pellets: 1, range: 120, fall: 0.85, sound: 'dmr', kick: 0.7, scope: true },
-    lmg:     { body: 13, head: 22, rate: 0.075, auto: true, mag: 60, reload: 3.2, spread: 0.035, pellets: 1, range: 50, fall: 0.55, sound: 'lmg', kick: 0.3 },
+    lmg:     { ads: 0.72, body: 13, head: 22, rate: 0.075, auto: true, mag: 60, reload: 3.2, spread: 0.035, pellets: 1, range: 50, fall: 0.55, sound: 'lmg', kick: 0.3 },
     // the knife: always carried (slot 3), melee only (reach `range` metres)
     knife:   { body: 50, head: 100, rate: 0.55, auto: false, mag: 1, reload: 0, spread: 0, pellets: 1, range: 2.3, fall: 1, sound: 'knife', kick: 0.3, melee: true },
   };

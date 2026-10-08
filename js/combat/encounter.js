@@ -460,6 +460,7 @@
       h.dmg.style.opacity = Math.min(0.85, this.dmgFlash);
       h.scope.hidden = !this.scoped;
       document.getElementById('mi-cross').style.visibility = this.scoped ? 'hidden' : '';
+      document.getElementById('mi-xh').style.visibility = this.scoped ? 'hidden' : '';
       if (this.reloadT > 0) h.mag.textContent = '…';
     }
   }

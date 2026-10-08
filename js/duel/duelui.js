@@ -109,12 +109,12 @@
       this.root.innerHTML = `
         <div class="du-top">
           <div class="du-side du-me"><span class="du-sw"></span><b class="du-name"></b><span class="du-pips"></span></div>
-          <div class="du-mid"><div class="du-timer num">45</div><div class="du-roundlbl"></div></div>
+          <div class="du-mid"><div class="du-timer num">45</div><div class="du-roundlbl"></div><div class="du-ping num" hidden></div></div>
           <div class="du-side du-opp"><span class="du-sw"></span><b class="du-name"></b><span class="du-pips"></span></div>
         </div>
         <div class="du-waitbar panel" hidden><b class="du-wt"></b><span class="du-wo"></span><small class="du-ws"></small>
           <button class="btn small du-wexit" type="button"></button></div>
-        <div class="du-cross"><i></i><i></i><i></i><i></i></div>
+        <div class="du-cross xh-target"></div>
         <div class="du-hit" hidden><i></i><i></i><i></i><i></i></div>
         <div class="du-scope" hidden></div>
         <div class="du-dmg"></div>
@@ -373,6 +373,14 @@
       clearTimeout(this.hitT); this.hitT = setTimeout(() => { h.hidden = true; }, 380);
     }
     damage(k) { this.el.dmg.style.opacity = Math.min(0.85, k); }
+    /** the round trip to the other player (ms); null hides it */
+    setPing(ms) {
+      const el = this.root.querySelector('.du-ping');
+      el.hidden = ms == null; if (ms == null) return;
+      const v = Math.round(ms), t = '📶 ' + v + ' ms';
+      if (el.textContent !== t) el.textContent = t;
+      el.className = 'du-ping num ' + (v < 80 ? 'good' : v < 160 ? 'ok' : 'bad');
+    }
     /** floating damage number at a screen point */
     dmgNum(x, y, n, head) {
       const d = document.createElement('div');
@@ -396,6 +404,8 @@
     setDead(on) { this.el.deadfx.hidden = !on; if (on) this.el.deadfx.textContent = T('fm.dead'); }
     spectate(text) { const e = this.el.spec; e.hidden = !text; if (text) this.el.deadfx.hidden = true; if (text && e.textContent !== text) e.textContent = '👁 ' + text; }
     scope(on) { this.el.scope.hidden = !on; this.el.cross.hidden = on; }
+    /** aiming down the iron sights: the sights are the crosshair */
+    adsCross(on) { const v = on ? 'hidden' : ''; if (this.el.cross.style.visibility !== v) this.el.cross.style.visibility = v; }
 
     // ------------------------------------------------------------ overlays
     get modal() { return !this.el.overlay.hidden; }
