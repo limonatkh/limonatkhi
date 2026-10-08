@@ -109,8 +109,13 @@
     sniper: [[0, 5, 15, 1], [15, 4, 13, 4], [14, 0, 14, 3], [20, 8, 3, 4], [28, 4, 12, 6]],
     lmg: [[0, 4, 10, 3], [10, 2, 18, 6], [14, 8, 8, 6], [3, 7, 1, 6], [6, 7, 1, 6], [28, 3, 12, 5]],
     knife: [[2, 5, 20, 3], [0, 6, 2, 1], [22, 3, 2, 7], [24, 4, 12, 5]],
+    strike: [[0, 6, 22, 2], [22, 4, 2, 6], [24, 5, 10, 4], [30, 1, 2, 3], [34, 9, 3, 3]],
   };
+  const ORB = (c) => `<svg viewBox="0 0 40 14" width="40" height="14"><circle cx="9" cy="7" r="5" fill="${c}"/><rect x="15" y="6" width="22" height="2" fill="${c}" opacity=".6"/></svg>`;
   function weaponIcon(id) {
+    if (id === 'energy') return ORB('#ff9a3a');
+    if (id === 'freeze') return ORB('#8fe6ff');
+    if (id === 'bomb') return `<svg viewBox="0 0 40 14" width="40" height="14"><circle cx="20" cy="8" r="5" fill="currentColor"/><rect x="21" y="1" width="2" height="3" fill="#ff5a3a"/></svg>`;
     if (id === 'mine') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="12" y="8" width="16" height="4" fill="currentColor"/><rect x="15" y="5" width="10" height="3" fill="currentColor"/><rect x="19" y="3" width="2" height="2" fill="#ff5a3a"/></svg>`;
     const r = ICONS[id] || ICONS.pistol;
     return `<svg viewBox="0 0 40 14" width="40" height="14">${r.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="currentColor"/>`).join('')}</svg>`;
@@ -337,10 +342,17 @@
       }
     }
     /** "computer players left: n" (null hides it) */
-    setBotsLeft(n) {
+    setBotsLeft(n, text) {
       const el = this.el.botsLeft;
-      el.hidden = n == null;
-      if (n != null) { const t = T('fm.botsLeft', { n }); if (el.textContent !== t) el.textContent = t; }
+      el.hidden = n == null && !text;
+      const t = text || (n != null ? T('fm.botsLeft', { n }) : '');
+      if (t && el.textContent !== t) el.textContent = t;
+    }
+    /** slowed by a fighter's freeze: blue edges + a label */
+    slowed(on) {
+      let el = this.root.querySelector('.du-slow');
+      if (!el) { el = document.createElement('div'); el.className = 'du-slow'; this.root.appendChild(el); }
+      el.hidden = !on; if (on) el.textContent = T('ft.slowed');
     }
 
     // ------------------------------------------------------------ buy screen (before round 1)

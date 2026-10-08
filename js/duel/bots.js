@@ -61,7 +61,11 @@
     /** make the bots (both host and guest: the guest only draws them) */
     setup(n, diffKey) {
       this.clear();
-      this.diffKey = DIFF[diffKey] ? diffKey : 'normal';
+      // an AI fighter ("f_<id>", js/duel/fighters.js): one opponent with its own ability and brain
+      const fid = typeof diffKey === 'string' && diffKey.startsWith('f_') ? diffKey.slice(2) : null;
+      this.fsys = fid && VR.Fighters && VR.Fighters.FIGHTERS[fid] ? new VR.Fighters(this) : null;
+      if (this.fsys) n = 1;
+      this.diffKey = DIFF[diffKey] ? diffKey : this.fsys ? 'hard' : 'normal';
       const col = VR.DuelArena.COLORS.g;
       for (let i = 0; i < n; i++) {
         const ch = VR.CHARACTERS[(i + 1) % VR.CHARACTERS.length].id;
@@ -72,6 +76,7 @@
         const pick = this.diff.sniperOnly ? ['sniper'] : this.diff.picks[(Math.random() * this.diff.picks.length) | 0].filter(id => id !== 'sniper');
         this.list.push({ i, name, body, pos: body.pos, vel: new T.Vector3(), yaw: Math.PI, pitch: 0, hp: 100, alive: true,
           lo: new (FK().Loadout)({ weapons: pick, nades: false }), net: null });
+        if (this.fsys) this.fsys.equip(this.list[i], fid);
       }
       this.respawn();
     }
@@ -90,13 +95,19 @@
         b.body.yaw = b.yaw; b.body.pitch = 0;
         VR.DuelBody.animate(b.body, 0);
       }
+      if (this.fsys) this.fsys.resetRound();
     }
     /** hit boxes for shots (alive bots only) */
-    targets() { return this.list.filter(b => b.alive).map(b => { const bx = WK().boxesAt(b.pos, false); return { parts: { head: bx.head, body: bx.body }, ref: b }; }); }
+    targets() {
+      const out = this.list.filter(b => b.alive).map(b => { const bx = WK().boxesAt(b.pos, false); return { parts: { head: bx.head, body: bx.body }, ref: b }; });
+      return this.fsys ? out.concat(this.fsys.decoyTargets()) : out;
+    }
 
     /** host: damage a bot. Returns true if it died. */
     hurt(b, dmg) {
+      if (b.owner) { this.fsys && this.fsys.popDecoy(b); return false; }         // a fighter's decoy: it pops
       if (!b.alive) return false;
+      if (b.f) dmg = this.fsys.hurt(b, dmg);
       b.hp = Math.max(0, b.hp - dmg);
       b.react = Math.min(b.react, this.diff.react * 0.5);            // it notices you
       if (b.hp <= 0) { b.alive = false; return true; }
@@ -117,6 +128,28 @@
       if (!blocked(b.pos.x, b.pos.z + dz)) b.pos.z += dz;
       return Math.hypot(b.pos.x - x0, b.pos.z - z0);
     }
+    /**
+     * Where an unseen player might be: where it was last seen or heard; once there (and
+     * still nobody), a search point. Bots never know where you are through walls.
+     */
+    goalFor(b) {
+      if (b.lastSeen && Math.hypot(b.lastSeen.x - b.pos.x, b.lastSeen.z - b.pos.z) > 1.5) return b.lastSeen;
+      b.lastSeen = null;
+      b.searchT = (b.searchT || 0) - 1 / 30;
+      if (!b.search || b.searchT <= 0 || Math.hypot(b.search.x - b.pos.x, b.search.z - b.pos.z) < 1.5) {
+        const S = this.mgr.level.extras.spawnPts, all = S.h.concat(S.g, [[0, 6], [0, -6], [-7, 0], [7, 0]]);
+        const [x, z] = all[(Math.random() * all.length) | 0];
+        b.search = new T.Vector3(x, 0, z); b.searchT = 6 * 30;
+      }
+      return b.search;
+    }
+    /** a gunshot: bots within earshot know roughly where it came from (like a person would) */
+    hear(pos, radius = 34) {
+      for (const b of this.list) {
+        if (!b.alive || b.pos.distanceTo(pos) > radius) continue;
+        b.lastSeen = new T.Vector3(pos.x + rnd(-1.5, 1.5), 0, pos.z + rnd(-1.5, 1.5));
+      }
+    }
     pickTarget(b, players) {
       let best = null, bd = Infinity, seen = null, sd = Infinity;
       const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55, b.pos.z);
@@ -129,6 +162,7 @@
       return seen || best;
     }
     update(dt, players) {
+      if (this.fsys) return this.fsys.update(dt, players);
       const D = this.diff, mgr = this.mgr;
       for (const b of this.list) {
         b.lo.update(dt, VR.DUEL.NADE_RECHARGE);
@@ -150,8 +184,10 @@
         b.errT -= dt;
         if (b.errT <= 0) { b.errT = rnd(0.25, 0.5); b.headPick = Math.random() < D.head; b.aimErr.set(gauss(), gauss()); }
         const aimPt = b.headPick ? new T.Vector3(tgt.pos.x, tgt.pos.y + (tgt.low ? 0.75 : 1.5), tgt.pos.z) : chest;
-        const to = aimPt.clone().sub(eye);
-        const wantYaw = Math.atan2(-to.x, -to.z), wantPitch = Math.atan2(to.y, Math.hypot(to.x, to.z));
+        // no seeing through walls: unseen, the bot looks where it walks (to where it last saw / heard you, or searching)
+        const goal = sees ? null : this.goalFor(b);
+        const to = sees ? aimPt.clone().sub(eye) : new T.Vector3(goal.x - b.pos.x, 0, goal.z - b.pos.z);
+        const wantYaw = Math.atan2(-to.x, -to.z), wantPitch = sees ? Math.atan2(to.y, Math.hypot(to.x, to.z)) : 0;
         const tr = D.turn * dt;
         const dy = wrap(wantYaw - b.yaw);
         b.yaw += Math.max(-tr, Math.min(tr, dy));
@@ -170,8 +206,7 @@
         }
         // movement: keep a good distance for the weapon, strafe, go around cover
         const range = RANGE[b.lo.id] || [6, 12];
-        const dir = new T.Vector3(tgt.pos.x - b.pos.x, 0, tgt.pos.z - b.pos.z); dir.y = 0;
-        if (!sees && b.lastSeen) dir.set(b.lastSeen.x - b.pos.x, 0, b.lastSeen.z - b.pos.z);
+        const dir = sees ? new T.Vector3(tgt.pos.x - b.pos.x, 0, tgt.pos.z - b.pos.z) : new T.Vector3(goal.x - b.pos.x, 0, goal.z - b.pos.z);
         if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
         dir.normalize();
         let fwd = 0;
@@ -194,7 +229,7 @@
     }
     /** a bot fires: the shot is traced against every player (only the host does this) */
     fire(b, eye, aimPt, tgt, w, players) {
-      const D = this.diff, mgr = this.mgr;
+      const D = b.f ? b.f.aim : this.diff, mgr = this.mgr;
       const base = aimPt.clone().sub(eye).normalize();
       // aiming error grows with the target's speed (moving makes you harder to hit)
       const tspd = tgt.vel ? Math.hypot(tgt.vel.x, tgt.vel.z) : 0;
@@ -208,7 +243,7 @@
         if (k < 3) ends.push(r.end);
         if (r.ref) {
           const h = hits.get(r.ref) || { dmg: 0, head: false };
-          h.dmg += FK().damage(b.lo.id, r.hit, r.dist); h.head = h.head || r.hit === 'head';
+          h.dmg += FK().damage(b.lo.id, r.hit, r.dist) * (b.dmgMul || 1); h.head = h.head || r.hit === 'head';
           hits.set(r.ref, h);
         }
       }

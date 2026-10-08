@@ -826,6 +826,39 @@ the scope; aim again to scope back in.
 (`CONFIG.FP.SPRINT`), in missions, the adventure world and the arena.
 
 
+## AI fighters (مقاتلو الذكاء): human player vs AI fighter
+
+Fight → **مقاتلو الذكاء**: choose one of 10 opponents (picture, ability, difficulty
+stars, short description, strength, weakness), then the usual buy screen and rounds
+(first to 3). Built on the existing arena combat — same hit boxes, weapons, damage,
+kill feed, scoreboard — in `js/duel/fighters.js` (`VR.Fighters`), switched on by
+`VR.DuelBots` when the match is `diff: 'f_<id>'`.
+
+| Fighter | Ability (cooldown) | Kit / health | Plays like |
+|---|---|---|---|
+| DASHER ★★ | Dash (3.2 s): 6 m burst | SMG · 90 | dashes in from afar, dodges when you aim at it, hits and runs, retreats when low |
+| FLASH ★★★ | Flash (5.5 s): blink ≤ 8 m | shotgun + pistol · 95 | gets near, blinks beside / behind you (only to a free spot it can see you from), no long fights |
+| TANK ★★ | Heavy Shield (9 s): −65 % damage for 3 s | heavy MG · 180, slow | always walks at you, raises the shield when hit or aimed at |
+| BLASTER ★★★ | Energy Shot: 4 charges, 1.6 s each | pistol · 85 | keeps 13-24 m, backs off when you close in, real flying orbs (dodgeable, walls stop them) |
+| BOMBER ★★★ | Bomb (3.4 s): red circle, blows after 1.1 s | revolver · 100 | throws where you are going; walls block the blast |
+| HEALER ★★ | Self Heal (14 s): +45 over 1.4 s | SMG · 100 | hits then steps back; when hurt hides and heals standing still — a hit stops the heal |
+| FREEZER ★★★ | Freeze Blast (5.5 s): you move at 50 % for 2 s | shotgun · 95 | freezes you, then rushes in |
+| BERSERKER ★★★ | Rage (once): ×1.45 speed, ×1.4 damage, faster fire for 7 s, no extra defence | shotgun · 115 | normal until low, then reckless |
+| TRICKSTER ★★★★ | Decoy (9 s): a copy for 5 s that never shoots; any hit pops it | SMG + pistol · 90 | sends the copy one way, flanks the other |
+| NINJA ★★★★★ | Shadow Strike (6 s): rush + 62 knife hit, then pulls back | rifle · 100 | patient, sidesteps your aim, strikes when you reload or come close |
+
+**Abilities are modules** (`ABILITIES`: name, cooldown, duration, range, damage,
+movement effect, status effect, vfx, sfx, `use()`); **behaviour priorities** per
+fighter are small functions (`BRAINS`). A new fighter = one `FIGHTERS` entry (+ an
+ability if new).
+
+**Fair play:** a fighter only knows where you are when it sees you (line of sight and
+in its ~155° field of view) or hears your gunshots; otherwise it goes to where it last
+saw / heard you and then searches. Reaction time ≥ 0.3 s, aim error that grows when you
+move, limited turning, real cooldowns. It reads only what a person can see: where you
+look and whether you reload. The ordinary computer players now follow the same "no
+seeing through walls" rule. Reward for beating a fighter: 40 coins × its stars.
+
 ## Characters, colours, fullscreen
 
 - **Characters:** Hero (default) and **Mr. Fridge** (`character.js`). A character can define

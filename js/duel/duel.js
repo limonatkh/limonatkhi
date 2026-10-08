@@ -358,7 +358,9 @@
      */
     startBots(opts) {
       if (this.match || this.game.state !== 'menu') return false;
-      opts = { type: 'bots', bots: Math.max(1, Math.min(3, opts.bots | 0 || 1)), diff: VR.DuelBots.DIFF[opts.diff] ? opts.diff : 'normal' };
+      const fid = opts.fighter && VR.Fighters && VR.Fighters.FIGHTERS[opts.fighter] ? opts.fighter : null;
+      opts = fid ? { type: 'bots', bots: 1, diff: 'f_' + fid, fighter: fid }
+        : { type: 'bots', bots: Math.max(1, Math.min(3, opts.bots | 0 || 1)), diff: VR.DuelBots.DIFF[opts.diff] ? opts.diff : 'normal' };
       this.match = {
         type: 'bots', opts, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: this.botTeamName(opts),
         role: 'h', chan: { kind: 'none', key: '', name: '', send() {} }, did: 'bots-' + VR.uid(), me: 'h', op: 'g',
@@ -370,7 +372,10 @@
       this.game.beginDuel();
       return true;
     }
-    botTeamName(opts) { return VR.t('bot.team') + ' ×' + opts.bots + ' · ' + VR.t('bot.diff.' + opts.diff); }
+    botTeamName(opts) {
+      if (opts.fighter) { const F = VR.Fighters.FIGHTERS[opts.fighter]; return VR.L(F.name) + ' · ' + VR.L(F.title); }
+      return VR.t('bot.team') + ' ×' + opts.bots + ' · ' + VR.t('bot.diff.' + opts.diff);
+    }
     /** which side's score is mine (in matches against bots both players are side 'h') */
     side() { const m = this.match; return m.type === 'pvp' ? m.me : 'h'; }
     oside() { return this.side() === 'h' ? 'g' : 'h'; }
@@ -545,6 +550,7 @@
       this.kick = 0; this.shake = 0; this.dmgFlash = 0; this.stepAcc = 0;
       this.hands.hold(null); this.gunHolder.visible = true;
       m.dead = { h: false, g: false }; this.downShown = false;
+      this.slowT = 0; this.ctrl.speedMul = 1; this.ui.slowed(false);
       if (m.type !== 'pvp' && this.bots.list.length) this.bots.respawn();
       for (const n of this.nades || []) this.scene.remove(n.obj);
       this.nades = [];
@@ -638,7 +644,7 @@
       let reward;
       if (forfeited) reward = 0;
       else if (m.type === 'pvp') reward = win === true ? D.REWARD_WIN : D.REWARD_LOSE;
-      else { const R = VR.DuelBots.DIFF[m.opts.diff].reward; reward = win === true ? R : win === false ? D.REWARD_BOT_LOSE : Math.round(R / 3); }
+      else { const R = m.opts.fighter ? VR.Fighters.reward(m.opts.fighter) : VR.DuelBots.DIFF[m.opts.diff].reward; reward = win === true ? R : win === false ? D.REWARD_BOT_LOSE : Math.round(R / 3); }
       m.result = { win, reward };
       // stats + coins (banked straight away, so nothing depends on the run)
       const stats = VR.Profiles.player().stats;
@@ -755,6 +761,7 @@
       VR.Audio.play(w.sound);
       const msg = { k: 'fire', w: wid, o: o.toArray().map(r2), ds: dirs.map(d => d.toArray().map(r4)) };
       if (w.melee && res.hits.size === 0) { this.send(msg); return; }
+      if (m.type !== 'pvp' && m.role === 'h' && !w.melee) this.bots.hear(this.ctrl.pos);     // the bots hear the shot
       if (m.type === 'pvp') {
         this.send(msg);
         if (m.role === 'h' && !m.solo) { const h = res.hits.get('op'); if (h) this.applyHit(m.op, h.dmg, h.head, m.me, null, wid); }
@@ -820,7 +827,8 @@
         if (ok) for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.op, wid);
       }
       if (!def.melee) {
-        res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, 0xffe14a); if (res.missed[i] && i < 3) this.fx.puff(e); });
+        if (m.type === 'coop' && m.role === 'h' && this.avatar && !def.melee) this.bots.hear(this.avatar.pos);
+      res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, 0xffe14a); if (res.missed[i] && i < 3) this.fx.puff(e); });
         this.fx.flash(muzzle);
       }
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : def.sound);
@@ -891,6 +899,7 @@
     teamDead() { const m = this.match; return m.type === 'coop' ? (m.dead.h && m.dead.g) : m.dead[m.me]; }
     hostBotHit(b, dmg, head, by, w) {
       const m = this.match;
+      if (b && b.owner) { this.bots.hurt(b, dmg); this.ui.hitmarker(false); return; }       // a fighter's decoy
       if (!b || !b.alive || m.phase !== 'fight' || !dmg) return;
       const dead = this.bots.hurt(b, dmg);
       const msg = { k: 'bh', i: b.i, hp: Math.round(b.hp), dmg: Math.round(dmg), head: head ? 1 : 0, by, w: w || '', dead: dead ? 1 : 0 };
@@ -914,7 +923,9 @@
         VR.Audio.play('enemyDown');
       }
     }
-    botHitPlayer(pid, dmg, head, bi) { const b = this.bots.list[bi]; this.applyHit(pid, dmg, head, 'b', bi, b ? b.lo.id : ''); }
+    botHitPlayer(pid, dmg, head, bi, w) { const b = this.bots.list[bi]; this.applyHit(pid, dmg, head, 'b', bi, w || (b ? b.lo.id : '')); }
+    /** an AI fighter's freeze: I move slower for a moment */
+    statusSlow(k, dur) { this.slowK = k; this.slowT = Math.max(this.slowT || 0, dur); this.ui.slowed(true); VR.Audio.play('scope'); }
 
     // ---- mines (bought): placed at your feet, go off when an enemy steps close. The host decides.
     placeMine() {
@@ -1204,6 +1215,8 @@
       this.ui.setTimer(m.phase === 'count' || m.phase === 'wait' ? this.roundTime() : m.timeLeft, Math.max(1, m.round));
       this.ui.setHP(m.hp[m.me]);
       this.ui.setLoadout(this.lo, D.NADE_RECHARGE);
+      // slowed (a fighter's freeze)
+      if (this.slowT > 0) { this.slowT -= dt; c.speedMul = this.slowK || 0.5; if (this.slowT <= 0) { c.speedMul = 1; this.ui.slowed(false); } } else c.speedMul = 1;
       this.mapT = (this.mapT || 0) - dt;
       if (this.mapT <= 0) { this.mapT = 1 / 15; this.drawMap(); }
       // the scoreboard while Tab (its binding) is held
@@ -1211,7 +1224,10 @@
       if (board) { this.boardT = (this.boardT || 0) - dt; if (this.boardT <= 0 || !this.ui.boardOn) { this.boardT = 0.2; this.ui.showBoard(this.boardData()); } }
       else if (this.ui.boardOn) this.ui.hideBoard();
       this.ui.touchMines(this.lo.mines.has);
-      if (m.type !== 'pvp') this.ui.setBotsLeft(m.phase === 'fight' ? this.bots.aliveCount : null);
+      if (m.type !== 'pvp') {
+        if (this.bots.fsys) this.ui.setBotsLeft(null, this.bots.fsys.status());
+        else this.ui.setBotsLeft(m.phase === 'fight' ? this.bots.aliveCount : null);
+      }
       this.dmgFlash = Math.max(0, this.dmgFlash - dt * 2.2);
       this.ui.damage(this.dmgFlash * 0.7 + (m.hp[m.me] <= 45 && m.phase === 'fight' ? 0.18 : 0));
     }

@@ -169,7 +169,7 @@
         // sprint: Shift (or a full stick) while moving forward
         const sprinting = this.sprint && !this.crouching && move.y > 0.3;
         this.sprinting = sprinting;
-        const top = this.walkSpeed * (this.crouching ? fp.CROUCH_SPEED : sprinting ? (fp.SPRINT || 1.5) : 1);
+        const top = this.walkSpeed * (this.crouching ? fp.CROUCH_SPEED : sprinting ? (fp.SPRINT || 1.5) : 1) * (this.speedMul || 1);
         const target = wish.clone().multiplyScalar(top);
         let tau;
         if (this.grounded) tau = (wishLen > 0.05 ? fp.ACCEL_TIME : fp.STOP_TIME) / LN10;
