@@ -67,7 +67,7 @@
    * longer explodes on contact). Returns the blast point when it explodes.
    * n: { pos, vel, t, landed, landT }
    */
-  const LAND_DELAY = 1 / 6, AIR_MAX = 6;
+  const LAND_DELAY = 1 / 5, AIR_MAX = 6;
   function stepNade(n, dt, solids, gravity = 22) {
     if (n.landed) { n.landT = (n.landT || 0) + dt; return n.landT >= LAND_DELAY ? n.pos.clone() : null; }
     const steps = 3, sdt = dt / steps;

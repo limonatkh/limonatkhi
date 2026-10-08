@@ -747,7 +747,7 @@ Against the computer alone, pause really pauses. In co-op the host's game runs t
 decides every hit (the guest's shots too) and streams the bots ~10 times a second.
 
 **Impulse grenade (everywhere: arena, combat, duel).** It rests on the ground, blinks, and
-explodes **1/6 s after landing** (bounces off walls first). Under your feet it throws you
+explodes **1/5 s after landing** (bounces off walls first). Under your feet it throws you
 **straight up where you stand** (no long jump forward), about 11 m high (push 34). The
 Lemon Burst (Q in missions) also goes straight up.
 
