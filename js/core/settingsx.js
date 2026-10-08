@@ -24,7 +24,7 @@
     'kb.grenade': 'Grenade', 'kb.mine': 'Mine', 'kb.medkit': 'Medkit', 'kb.interact': 'Use', 'kb.journal': 'Journal / scoreboard (hold)',
     'mouse.l': 'Left click', 'mouse.m': 'Middle click', 'mouse.r': 'Right click', 'mouse.4': 'Mouse 4', 'mouse.5': 'Mouse 5', 'mouse.wu': 'Wheel up', 'mouse.wd': 'Wheel down',
     'xh.title': 'Crosshair', 'xh.style': 'Style', 'xh.color': 'Colour', 'xh.size': 'Length', 'xh.gap': 'Gap', 'xh.thick': 'Thickness', 'xh.outline': 'Outline',
-    'xh.s.cross': 'Cross', 'xh.s.crossdot': 'Cross + dot', 'xh.s.dot': 'Dot', 'xh.s.circle': 'Circle', 'xh.s.tee': 'T',
+    'xh.real': 'Real size (as in the game)', 'xh.s.cross': 'Cross', 'xh.s.crossdot': 'Cross + dot', 'xh.s.dot': 'Dot', 'xh.s.circle': 'Circle', 'xh.s.tee': 'T',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'kb.title': 'التحكم بالأزرار', 'kb.sub': 'اضغط على خانة، ثم اضغط أي زر في لوحة المفاتيح أو الماوس أو حرّك العجلة. Esc للإلغاء، Backspace للمسح.',
@@ -35,7 +35,7 @@
     'kb.grenade': 'قنبلة', 'kb.mine': 'لغم', 'kb.medkit': 'إسعاف', 'kb.interact': 'استخدام', 'kb.journal': 'الدفتر / لوحة النتائج (مطوّل)',
     'mouse.l': 'زر الماوس الأيسر', 'mouse.m': 'زر العجلة', 'mouse.r': 'زر الماوس الأيمن', 'mouse.4': 'زر الماوس 4', 'mouse.5': 'زر الماوس 5', 'mouse.wu': 'العجلة لأعلى', 'mouse.wd': 'العجلة لأسفل',
     'xh.title': 'الكروسهير', 'xh.style': 'الشكل', 'xh.color': 'اللون', 'xh.size': 'الطول', 'xh.gap': 'الفراغ', 'xh.thick': 'السماكة', 'xh.outline': 'إطار أسود',
-    'xh.s.cross': 'صليب', 'xh.s.crossdot': 'صليب + نقطة', 'xh.s.dot': 'نقطة', 'xh.s.circle': 'دائرة', 'xh.s.tee': 'T',
+    'xh.real': 'بالحجم الحقيقي (كما في اللعبة)', 'xh.s.cross': 'صليب', 'xh.s.crossdot': 'صليب + نقطة', 'xh.s.dot': 'نقطة', 'xh.s.circle': 'دائرة', 'xh.s.tee': 'T',
   });
 
   /* ------------------------------------------------------------------ crosshair */
@@ -47,32 +47,51 @@
     get() { return Object.assign({}, xh); },
     set(patch) { xh = Object.assign({}, xh, patch); VR.UI.store.set('crosshair', xh); this.apply(); },
     reset() { xh = Object.assign({}, XH_DEF); VR.UI.store.set('crosshair', xh); this.apply(); },
-    /** the crosshair as an inline SVG */
+    /** the crosshair as an inline SVG, drawn on whole pixels (sharp at its real size) */
     svg(c = xh) {
-      const t = +c.thick, g = +c.gap, L = +c.size, pad = 3;
-      const R = c.style === 'dot' ? t * 1.6 : c.style === 'circle' ? g + L / 2 + t : g + L;
-      const S = Math.ceil(2 * (R + pad)), m = S / 2;
-      const line = c.outline ? `stroke="rgba(0,0,0,.7)" stroke-width="1" paint-order="stroke"` : '';
-      const rect = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c.color}" ${line}/>`;
-      const dot = (r) => `<circle cx="${m}" cy="${m}" r="${r}" fill="${c.color}" ${line}/>`;
-      let body = '';
-      if (c.style === 'cross' || c.style === 'crossdot' || c.style === 'tee') {
-        if (c.style !== 'tee') body += rect(m - t / 2, m - g - L, t, L);       // top
-        body += rect(m - t / 2, m + g, t, L);                                  // bottom
-        body += rect(m - g - L, m - t / 2, L, t);                              // left
-        body += rect(m + g, m - t / 2, L, t);                                  // right
-        if (c.style === 'crossdot') body += dot(Math.max(1, t * 0.7));
-      } else if (c.style === 'dot') body += dot(t * 1.6);
-      else {
-        const r = g + L / 2;
-        if (c.outline) body += `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="rgba(0,0,0,.7)" stroke-width="${t + 2}"/>`;
-        body += `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${c.color}" stroke-width="${t}"/>` + dot(Math.max(1, t * 0.6));
+      const t = Math.max(1, Math.round(+c.thick)), g = Math.max(0, Math.round(+c.gap)), L = Math.max(1, Math.round(+c.size)), pad = 2;
+      const col = c.color, out = c.outline;
+      let S, body = '';
+      const R = (x, y, w, h, f) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"/>`;
+      // a filled box with (optionally) a 1 px black border drawn under it
+      const box = (x, y, w, h) => (out ? R(x - 1, y - 1, w + 2, h + 2, 'rgba(0,0,0,.75)') : '') + R(x, y, w, h, col);
+      if (c.style === 'dot') {
+        const d = Math.max(2, t + 1); S = d + 2 * pad; body = box(pad, pad, d, d);
+      } else if (c.style === 'circle') {
+        const r = g + L / 2 + t / 2; S = Math.ceil(2 * (r + t / 2 + pad)) + (t % 2); const m = S / 2;
+        if (out) body += `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="rgba(0,0,0,.75)" stroke-width="${t + 2}"/>`;
+        body += `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${col}" stroke-width="${t}"/>`;
+        const c0 = (S - t) / 2; body += box(c0, c0, t, t);
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">${body}</svg>`;
+      } else {
+        S = 2 * (g + L + pad) + t;            // (S - t) is even: the middle band starts on a whole pixel
+        const c0 = (S - t) / 2;
+        if (c.style !== 'tee') body += box(c0, c0 - g - L, t, L);   // top
+        body += box(c0, c0 + t + g, t, L);                          // bottom
+        body += box(c0 - g - L, c0, L, t);                          // left
+        body += box(c0 + t + g, c0, L, t);                          // right
+        if (c.style === 'crossdot') body += box(c0, c0, t, t);
       }
       return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" shape-rendering="crispEdges">${body}</svg>`;
     },
-    /** draw it into every crosshair on the page */
-    apply() { const s = this.svg(); document.querySelectorAll('.xh-target').forEach(el => { el.innerHTML = s; }); },
+    /** draw it into every crosshair on the page, centred on whole pixels */
+    apply() {
+      const s = this.svg();
+      document.querySelectorAll('.xh-target').forEach(el => { el.innerHTML = s; });
+      this.place();
+    },
+    /** the game crosshairs sit exactly in the middle of the screen (no half pixels = no blur) */
+    place() {
+      document.querySelectorAll('.xh-target.xh-game').forEach(el => {
+        const svg = el.firstElementChild; if (!svg) return;
+        const S = +svg.getAttribute('width'), host = el.offsetParent || document.body;
+        const W = host.clientWidth || innerWidth, H = host.clientHeight || innerHeight;
+        el.style.left = '0'; el.style.top = '0';
+        el.style.transform = `translate(${Math.round((W - S) / 2)}px, ${Math.round((H - S) / 2)}px)`;
+      });
+    },
   };
+  window.addEventListener('resize', () => Crosshair.place());
   VR.Crosshair = Crosshair;
 
   /* ------------------------------------------------------------------ the two cards */
@@ -134,7 +153,10 @@
       const c = Crosshair.get();
       const slider = (k, min, max, step) => `<div class="xh-set"><label>${T('xh.' + k)}</label><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${c[k]}"><output>${c[k]}</output></div>`;
       $('xhBody').innerHTML = `
-        <div class="xh-preview"><div class="xh-target"></div></div>
+        <div class="xh-previews">
+          <div class="xh-preview xh-real"><div class="xh-target"></div><small>${T('xh.real')}</small></div>
+          <div class="xh-preview xh-zoom"><div class="xh-target"></div><small>×4</small></div>
+        </div>
         <div class="xh-set"><label>${T('xh.style')}</label><div class="xh-opts">${STYLES.map(s => `<button class="btn small xh-style ${c.style === s ? 'on' : ''}" data-s="${s}" type="button">${T('xh.s.' + s)}</button>`).join('')}</div></div>
         <div class="xh-set"><label>${T('xh.color')}</label><div class="xh-opts">${COLORS.map(col => `<button class="xh-col ${c.color === col ? 'on' : ''}" data-c="${col}" type="button" style="background:${col}" aria-label="${col}"></button>`).join('')}</div></div>
         ${slider('size', 2, 20, 1)}${slider('gap', 0, 14, 1)}${slider('thick', 1, 6, 1)}

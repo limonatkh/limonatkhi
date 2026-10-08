@@ -448,7 +448,7 @@ back. Saved on this device (`cubeexpress.keybinds`; `VR.Input.binds / setBind`).
 always pause.
 
 **Crosshair (Settings → ⌖ Crosshair):** style (cross, cross + dot, dot, circle, T), colour,
-length, gap, thickness and a black outline, with a live preview. Used in the arena and the
+length, gap, thickness and a black outline. The preview shows it at its real size (exactly as in the game) and ×4 zoomed; the crosshair is drawn on whole pixels and centred on a whole pixel, so it stays sharp. Used in the arena and the
 adventure / missions (`VR.Crosshair`, `cubeexpress.crosshair`).
 
 **Ping:** in a live duel / co-op match the round trip to the other player (every second)

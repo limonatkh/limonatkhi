@@ -45,7 +45,7 @@
             <button class="btn small mi-iconbtn" id="mi-pause-btn" data-i18n-aria="mi.k.pause" aria-label="${T('mi.k.pause')}"><i class="mi-pausei"></i></button>
           </div>
           <div class="mi-cross" id="mi-cross"></div>
-          <div class="mi-xh xh-target" id="mi-xh"></div>
+          <div class="mi-xh xh-target xh-game" id="mi-xh"></div>
           <div class="mi-prompt" id="mi-prompt" hidden></div>
           <div class="mi-caption" id="mi-caption" hidden></div>
           <div class="mi-hotbar" id="mi-hotbar"></div>
@@ -80,7 +80,7 @@
       this.buildTouch();
     }
 
-    show(on) { this.root.hidden = !on; if (on) this.el.touch.hidden = !isTouch(); }
+    show(on) { this.root.hidden = !on; if (on) { this.el.touch.hidden = !isTouch(); if (VR.Crosshair) VR.Crosshair.place(); } }
 
     // ------------------------------------------------------------ HUD
     /** the small line above a title: "Mission 2 of 5", or the area's own label */

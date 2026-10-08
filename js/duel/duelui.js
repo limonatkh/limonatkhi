@@ -136,7 +136,7 @@
         </div>
         <div class="du-waitbar panel" hidden><b class="du-wt"></b><span class="du-wo"></span><small class="du-ws"></small>
           <button class="btn small du-wexit" type="button"></button></div>
-        <div class="du-cross xh-target"></div>
+        <div class="du-cross xh-target xh-game"></div>
         <div class="du-hit" hidden><i></i><i></i><i></i><i></i></div>
         <div class="du-scope" hidden></div>
         <div class="du-dmg"></div>

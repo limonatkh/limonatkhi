@@ -153,9 +153,12 @@
   .card .kb-row .kb-key { width: 128px; min-width: 0; flex: 0 0 auto; font-size: 13px; padding: 6px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kb-row .kb-key.wait { background: var(--lemon); color: var(--ink); }
   .xh-card { width: min(520px, 96vw); }
-  .xh-preview { height: 110px; display: grid; place-items: center; margin: 4px 0 10px; border: 3px solid var(--ink);
-    background: linear-gradient(135deg, #6f8fb8 0 50%, #c9b27a 50% 100%); }
-  .xh-preview .xh-target svg { display: block; transform: scale(2); }
+  .xh-previews { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin: 4px 0 10px; }
+  .xh-preview { position: relative; height: 120px; display: grid; place-items: center; border: 3px solid var(--ink); overflow: hidden;
+    background: repeating-linear-gradient(0deg, #b9a46e 0 18px, #a8935f 18px 20px), #b9a46e; }
+  .xh-preview.xh-real { background: linear-gradient(180deg, #c7b37e 0 55%, #8f8a80 55% 100%); }
+  .xh-preview small { position: absolute; bottom: 3px; inset-inline-start: 6px; font-size: 11px; color: #fff; text-shadow: 0 1px 0 #000; }
+  .xh-preview.xh-zoom .xh-target svg { transform: scale(4); image-rendering: pixelated; }
   .xh-set { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-family: var(--display); font-size: 15px; }
   .xh-set > label { flex: 0 0 90px; text-align: start; }
   .xh-set input[type=range] { flex: 1; accent-color: var(--lemon); }
