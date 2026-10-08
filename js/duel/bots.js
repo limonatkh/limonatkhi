@@ -29,18 +29,22 @@
                   picks: [['smg', 'revolver'], ['shotgun', 'smg'], ['rifle', 'pistol'], ['rifle', 'shotgun']], reward: 110 },
     impossible: { react: 0.18, err: 0.014, turn: 16,  fireMul: 0.95, head: 0.55, speed: 1.15, strafe: 1.0,  nades: 7,  retreat: true,
                   picks: [['rifle', 'shotgun'], ['smg', 'shotgun'], ['dmr', 'rifle'], ['lmg', 'revolver']], reward: 180 },
+    // "impossible +": the only bot allowed the sniper, and it carries nothing else. No mercy:
+    // instant reaction, near-perfect aim, almost always the head, very fast turning.
+    impossiblePlus: { react: 0.06, err: 0.0035, turn: 40, fireMul: 1.0, head: 0.92, speed: 1.25, strafe: 1.0, nades: 5, retreat: true,
+                  picks: [['sniper']], sniperOnly: true, reward: 300 },
   };
-  const ORDER = ['normal', 'medium', 'hard', 'impossible'];
+  const ORDER = ['normal', 'medium', 'hard', 'impossible', 'impossiblePlus'];
   const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14] };
   const NAMES = [{ en: 'Limo', ar: 'ليمو' }, { en: 'Sour', ar: 'حامض' }, { en: 'Peel', ar: 'قشرة' }];
   const WALK = () => VR.CONFIG.FP.SPEED_UNITS * VR.CONFIG.FP.UNIT;
 
   Object.assign(VR.I18N.STRINGS.en, {
-    'bot.diff.normal': 'Normal', 'bot.diff.medium': 'Medium', 'bot.diff.hard': 'Hard', 'bot.diff.impossible': 'Impossible',
+    'bot.diff.normal': 'Normal', 'bot.diff.medium': 'Medium', 'bot.diff.hard': 'Hard', 'bot.diff.impossible': 'Impossible', 'bot.diff.impossiblePlus': 'Impossible +',
     'bot.team': 'Computer', 'bot.you': 'You', 'bot.youTwo': 'You two',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
-    'bot.diff.normal': 'عادي', 'bot.diff.medium': 'متوسط', 'bot.diff.hard': 'صعب', 'bot.diff.impossible': 'مستحيل',
+    'bot.diff.normal': 'عادي', 'bot.diff.medium': 'متوسط', 'bot.diff.hard': 'صعب', 'bot.diff.impossible': 'مستحيل', 'bot.diff.impossiblePlus': 'مستحيل +',
     'bot.team': 'الكمبيوتر', 'bot.you': 'أنت', 'bot.youTwo': 'أنتما',
   });
 
@@ -64,8 +68,8 @@
         const name = VR.L(NAMES[i % NAMES.length]) + ' · ' + VR.t('bot.diff.' + this.diffKey);
         const body = VR.DuelBody.build(ch, 'grey', col, null);         // no name tag: it would show where they hide
         this.mgr.scene.add(body.g);
-        // bots never carry the sniper (any other weapon is fine)
-        const pick = this.diff.picks[(Math.random() * this.diff.picks.length) | 0].filter(id => id !== 'sniper');
+        // only "impossible +" carries the sniper (and only the sniper); every other bot never does
+        const pick = this.diff.sniperOnly ? ['sniper'] : this.diff.picks[(Math.random() * this.diff.picks.length) | 0].filter(id => id !== 'sniper');
         this.list.push({ i, name, body, pos: body.pos, vel: new T.Vector3(), yaw: Math.PI, pitch: 0, hp: 100, alive: true,
           lo: new (FK().Loadout)({ weapons: pick, nades: false }), net: null });
       }
