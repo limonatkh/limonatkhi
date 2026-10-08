@@ -43,6 +43,10 @@
       this.countdownEl = document.getElementById('countdown');
       this.bindUI();
       VR.SettingsX.init();                            // Settings → Controls / Crosshair
+      VR.SettingsX.initName(this);                    // the player's name (Settings, and once on the menu)
+      // coins an older version took away on NEW GAME come back (once)
+      const back = VR.Profiles.recoverFromBackup();
+      if (back > 0) setTimeout(() => { UI.toast(VR.t('save.recovered', { n: back }), 3200); UI.menuStats(this.best, this.bank); }, 1200);
       this.fightMenu = new VR.FightMenu(this);       // main menu → Fight (1v1, vs the computer, co-op)
       this.applySettings();
 
@@ -207,6 +211,8 @@
 
     // ------------------------------------------------------------ states
     setState(s) {
+      // a run's last coins (collected while slowing down) are paid when its result / the menu shows
+      if ((s === 'gameover' || s === 'chresult' || s === 'menu') && this.runId && this.coins > (this.banked || 0)) this.bankRun();
       this.state = s;
       const map = { adventure: null, missionsList: 'missionsList', menu: 'menu', character: 'character', settings: 'settings', paused: 'pause', gameover: 'gameover', playing: null, loading: 'loading', challenge: 'challenge', chresult: 'chresult' };
       UI.show(map[s]);
@@ -264,6 +270,7 @@
       this.powerups.reset();
       this.world.reset(seed);
       this.distance = 0; this.score = 0; this.coins = 0;
+      this.banked = 0; this.bankT = 0;             // coins of this run already in the wallet (paid as you go)
       this.multiplier = 1;
       this.speed = C.SPEED_START;
       this.lastBiome = null;
@@ -365,7 +372,7 @@
       this.shake = 0.5;
       const isBest = this.score > this.best;
       if (isBest) this.best = this.score;
-      this.wallet.credit(this.coins, `run:${this.runId}:end:${this.runEnds}`, 'run');
+      this.bankRun();
       if (!racing) VR.Rules.portal.used();           // the portal rests after every course run (js/core/rules.js)
       setTimeout(() => {
         if (this.state !== 'dying') return;                // left in the meantime
@@ -389,7 +396,7 @@
       this.newBestTime = !st.bestTime || time < st.bestTime;
       if (this.newBestTime) { st.bestTime = +time.toFixed(2); VR.Profiles.save(); }
       if (this.score > this.best) { this.best = this.score; this.newBest = true; } else this.newBest = false;
-      this.wallet.credit(this.coins, `run:${this.runId}:finish`, 'run');
+      this.bankRun();
       if (!this.challenge.inRace) VR.Rules.portal.used();
       VR.Audio.play('success');
       UI.toast(VR.t('go.title.finish'), 1400);
@@ -400,7 +407,7 @@
       if (this.state !== 'playing' || this.finishing || this.finished) return;
       this.finishing = true; this.finishT = 0; this.raceStopped = true;
       this.runEnds++;
-      this.wallet.credit(this.coins, `run:${this.runId}:end:${this.runEnds}`, 'run');
+      this.bankRun();
     }
     showFinish() {
       this.finishing = false; this.finished = true;
@@ -751,8 +758,16 @@
       }
     }
 
+    /** pay the coins collected so far into the wallet (every few seconds, and at the end),
+     *  so closing / reloading the page in the middle of a run never loses them */
+    bankRun() {
+      const due = Math.floor(this.coins) - (this.banked || 0);
+      if (due > 0) { this.wallet.credit(due, `run:${this.runId}:bank:${Math.floor(this.coins)}`, 'run'); this.banked = Math.floor(this.coins); }
+    }
     updatePlaying(dt) {
       const p = this.player;
+      this.bankT = (this.bankT || 0) + dt;
+      if (this.bankT > 3) { this.bankT = 0; this.bankRun(); }
       let a;
       if (this.finishing) { while (VR.Input.next()); }      // past the line: no more steering
       else while ((a = VR.Input.next())) { if (a === 'interact') this.duel.onRunnerInteract(); else p.action(a, this); }

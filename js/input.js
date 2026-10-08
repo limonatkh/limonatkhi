@@ -259,6 +259,9 @@
         BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\' };
       return N[code] || code;
     },
+    /** is the input of an action held right now (e.g. Tab → the scoreboard) */
+    actionHeld(a) { return !!binds[a] && isHeld(a); },
+    touchHeld(name) { return touchHold.has(name); },
     /** the first input bound to an action, as a label (for hint texts) */
     keyFor(action) { const b = binds[action]; return this.label((b && (b[0] || b[1])) || ''); },
     setTouchMove(x, y) { touchMove.x = x; touchMove.y = y; },

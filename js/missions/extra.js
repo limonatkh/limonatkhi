@@ -48,9 +48,9 @@
     c.fillStyle = grd; c.fillRect(0, 0, 512, 300);
     c.fillStyle = '#ffe14a'; c.beginPath(); c.arc(256, 112, 52, 0, Math.PI * 2); c.fill();             // play button
     c.fillStyle = '#0e111a'; c.beginPath(); c.moveTo(240, 86); c.lineTo(240, 138); c.lineTo(284, 112); c.closePath(); c.fill();
-    c.fillStyle = '#ffe14a'; c.font = '700 34px "Reem Kufi", "Tajawal", sans-serif'; c.textAlign = 'center'; c.direction = 'rtl';
+    c.fillStyle = '#ffe14a'; c.font = '700 34px "Cairo", sans-serif'; c.textAlign = 'center'; c.direction = 'rtl';
     c.fillText('قناة ليمونات', 256, 210);
-    if (title) { c.fillStyle = '#f4f1e6'; c.font = '700 26px "Reem Kufi", "Tajawal", sans-serif'; c.fillText(title, 256, 254, 480); }
+    if (title) { c.fillStyle = '#f4f1e6'; c.font = '700 26px "Cairo", sans-serif'; c.fillText(title, 256, 254, 480); }
     const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace;
     const mat = new T.MeshBasicMaterial({ map: tex }); mat.toneMapped = false; mat.userData.own = true;
     const screen = new T.Mesh(new T.PlaneGeometry(1.36, 0.8), mat);

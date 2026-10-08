@@ -126,8 +126,12 @@
     }
   }
 
-  /** shop weapons not bought yet (they show locked on the buy screen) */
-  function locked() { return BUY.LOCKED.filter(id => !(VR.Shop && VR.Shop.ownsArena(id))); }
+  /** shop weapons not bought yet (they show locked on the buy screen). In a match against
+   *  another player (1v1 or co-op) everything is open for both, so it is always fair. */
+  function locked(type) {
+    if (type === 'pvp' || type === 'coop') return [];
+    return BUY.LOCKED.filter(id => !(VR.Shop && VR.Shop.ownsArena(id)));
+  }
 
   VR.FightKit = { WEAPONS, NAMES, BUY, damage, cost, sanitize, locked, Loadout };
 })();

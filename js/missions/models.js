@@ -60,7 +60,7 @@
                     : new T.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.1 });
     return new T.Mesh(new T.PlaneGeometry(size, size), mat);
   }
-  function labelPlane(text, w, h, fg = '#2a2010', bg = '#d8b45a', font = '700 72px "Chakra Petch", sans-serif') {
+  function labelPlane(text, w, h, fg = '#2a2010', bg = '#d8b45a', font = '700 72px "Cairo", sans-serif') {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = Math.round(256 * h / w);
     const c = cv.getContext('2d'); c.direction = 'ltr'; c.fillStyle = bg; c.fillRect(0, 0, cv.width, cv.height);
     c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 8; c.strokeRect(4, 4, cv.width - 8, cv.height - 8);
@@ -214,7 +214,7 @@
         vb.addBox(0.2, 0.08, 0, 0.04, 0.04, 0.04, 'brass');        // key hole (no key)
       });
     },
-    plaque(n) { return labelPlane(String(n), 0.22, 0.14, '#2a2010', '#d8b45a', '700 96px "Chakra Petch", sans-serif'); },
+    plaque(n) { return labelPlane(String(n), 0.22, 0.14, '#2a2010', '#d8b45a', '700 96px "Cairo", sans-serif'); },
 
     buttonPanel(symbols) {
       const g = vbGroup(vb => {

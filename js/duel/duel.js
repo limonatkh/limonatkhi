@@ -388,12 +388,12 @@
     }
     renderBuy() {
       const m = this.match; if (!m || m.readyMe) return;
-      this.ui.showBuy({ pick: m.pick, left: m.buyLeft, budget: FK().BUY.BUDGET, prices: FK().BUY.PRICES, order: FK().BUY.ORDER, locked: FK().locked() },
+      this.ui.showBuy({ pick: m.pick, left: m.buyLeft, budget: FK().BUY.BUDGET, prices: FK().BUY.PRICES, order: FK().BUY.ORDER, locked: FK().locked(m.type) },
         { toggle: (id) => this.buyToggle(id), ready: () => this.buyReady(), leave: () => this.forfeit() }, m.type);
     }
     buyToggle(id) {
       const m = this.match; if (!m || m.readyMe) return;
-      if (FK().locked().includes(id)) { VR.Audio.play('buzz'); this.ui.buyNote(VR.t('fm.locked')); return; }
+      if (FK().locked(m.type).includes(id)) { VR.Audio.play('buzz'); this.ui.buyNote(VR.t('fm.locked')); return; }
       const p = { weapons: m.pick.weapons.slice(), nades: m.pick.nades, mines: !!m.pick.mines };
       if (id === 'nades') p.nades = !p.nades;
       else if (id === 'mines') p.mines = !p.mines;
@@ -539,7 +539,7 @@
       VR.Input.resetCrouch();
       this.deathT = 0; this.ui.setDead(false); this.ui.spectate(null);
       for (const mi of this.mines) this.scene.remove(mi.obj);
-      this.mines = [];
+      this.mines = []; this.shotMarks = [];
       if (m.solo) this.lo = new (FK().Loadout)({ weapons: ['sniper', 'pistol'], nades: true }, D.NADES);   // the waiting room: a free practice kit
       this.lo.refill(); this.scoped = false; this.ads = false; this.adsK = 0; this.reloadSnd = false;
       this.kick = 0; this.shake = 0; this.dmgFlash = 0; this.stepAcc = 0;
@@ -588,8 +588,7 @@
       const me = this.side();
       this.ui.setScore(sc[me], sc[this.oside()]);
       if (why === 'kill' && w) {
-        if (m.type === 'pvp') this.ui.feed(VR.t('du.kill', { a: m.names[w], b: m.names[OTHER[w]] }), w === me ? 'good' : 'bad');
-        else this.ui.feed(VR.t(w === 'h' ? 'fm.botsDown' : 'fm.teamDown'), w === me ? 'good' : 'bad');
+        if (m.type !== 'pvp') this.ui.feed(VR.t(w === 'h' ? 'fm.botsDown' : 'fm.teamDown'), w === me ? 'good' : 'bad');
       }
       if (why === 'time') this.ui.feed(VR.t('du.timeUp'));
       if (!w) { this.ui.big(VR.t('du.roundDraw'), 'draw', 0); VR.Audio.play('buzz'); }
@@ -758,9 +757,9 @@
       if (w.melee && res.hits.size === 0) { this.send(msg); return; }
       if (m.type === 'pvp') {
         this.send(msg);
-        if (m.role === 'h' && !m.solo) { const h = res.hits.get('op'); if (h) this.applyHit(m.op, h.dmg, h.head, m.me); }
+        if (m.role === 'h' && !m.solo) { const h = res.hits.get('op'); if (h) this.applyHit(m.op, h.dmg, h.head, m.me, null, wid); }
       } else if (m.role === 'h') {                       // against bots: my game decides (co-op: the host's)
-        for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.me);
+        for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.me, wid);
         if (m.type === 'coop') this.send(msg);           // the teammate sees the shot
       } else this.send(msg);                             // co-op guest: the host decides
     }
@@ -781,12 +780,12 @@
     }
 
     /** Host only: a player was hit (by the other player, or by a bot). */
-    applyHit(target, dmg, head, by, bi) {
+    applyHit(target, dmg, head, by, bi, w) {
       const m = this.match;
       if (!dmg || m.phase !== 'fight' || m.dead[target]) return;
       m.hp[target] = Math.max(0, m.hp[target] - dmg);
       const dead = m.hp[target] <= 0;
-      const msg = { k: 'hit', t: target, by, bi: bi == null ? -1 : bi, head: head ? 1 : 0, dmg: Math.round(dmg), hp: { h: Math.round(m.hp.h * 10) / 10, g: Math.round(m.hp.g * 10) / 10 }, dead: dead ? 1 : 0 };
+      const msg = { k: 'hit', t: target, by, bi: bi == null ? -1 : bi, w: w || '', head: head ? 1 : 0, dmg: Math.round(dmg), hp: { h: Math.round(m.hp.h * 10) / 10, g: Math.round(m.hp.g * 10) / 10 }, dead: dead ? 1 : 0 };
       if (m.type !== 'bots') this.send(msg);
       this.onHit(msg);
       if (dead && m.type === 'pvp') this.endRound(by, 'kill');
@@ -798,6 +797,7 @@
       const o = new T.Vector3().fromArray(d.o);
       const dirs = (d.ds || (d.d ? [d.d] : [])).slice(0, def.pellets).map(a => new T.Vector3().fromArray(a).normalize());
       const muzzle = this.avatar ? this.avatar.pos.clone().add(new T.Vector3(0, 1.45, 0)) : o;
+      if (m.type === 'pvp' && this.avatar) this.markShot(this.avatar.pos);          // (a teammate is always on the map)
       let ok = false;
       if (m.role === 'h') {
         // referee: is this shot possible? (their weapon, its fire rate, origin near the shooter)
@@ -814,10 +814,10 @@
         const sets = [this.boxesAt(this.ctrl.pos, this.ctrl.crouching)];
         if (m.role === 'h') { const cutoff = performance.now() - 300; for (const h of m.history) if (h.t >= cutoff) sets.push(this.boxesAt(h.p, h.low)); }
         res = this.traceShot(o, dirs, sets.map(s => ({ parts: { head: s.head, body: s.body }, ref: 'me' })), wid, reach);
-        if (ok) { const h = res.hits.get('me'); if (h) this.applyHit(m.me, h.dmg, h.head, m.op); }
+        if (ok) { const h = res.hits.get('me'); if (h) this.applyHit(m.me, h.dmg, h.head, m.op, null, wid); }
       } else {
         res = this.traceShot(o, dirs, this.bots.targets(), wid, reach);
-        if (ok) for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.op);
+        if (ok) for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.op, wid);
       }
       if (!def.melee) {
         res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, 0xffe14a); if (res.missed[i] && i < 3) this.fx.puff(e); });
@@ -831,6 +831,7 @@
       const fresh = d.dead && !m.dead[d.t];
       if (d.dead) m.dead[d.t] = true;
       const killer = d.by === 'b' ? this.botName(d.bi) : m.names[d.by] || '';
+      if (fresh) this.countKill(d.by, d.bi, d.t, null, d.w, !!d.head);
       if (d.t === m.me) {
         this.dmgFlash = 1; this.shake = Math.max(this.shake, d.head ? 0.3 : 0.18);
         VR.Audio.play('hurt');
@@ -850,11 +851,27 @@
           VR.Audio.play(d.head ? 'headshot' : 'hitmark');
           if (this.avatar) this.dmgNumber(this.avatar.pos, d.dmg, !!d.head, this.avatar.low);
           if (fresh) this.ui.kill(VR.t('fm.youKilled', { name: m.names[d.t] }), 'good');
-          else if (d.head) this.ui.feed(VR.t('du.headshot'), 'good');
-        } else if (fresh && m.type === 'coop') this.ui.feed(VR.t('fm.mateDown', { name: m.names[d.t] }), 'bad');
+
+        }
       }
     }
     botName(i) { const b = this.bots.list[i]; return b ? b.name : VR.t('bot.team'); }
+    /** kills / deaths of the players this match (bots keep theirs on the bot) */
+    kd(role) { const m = this.match; m.kd = m.kd || { h: { k: 0, d: 0 }, g: { k: 0, d: 0 } }; return m.kd[role]; }
+    /** someone went down: count it and put it in the kill feed (killer → weapon → victim) */
+    countKill(by, bi, victimRole, victimBot, w, head) {
+      const m = this.match, C = VR.DuelArena.COLORS;
+      const teamCol = (role) => C[m.type === 'pvp' ? role : 'h'];
+      let kName = '', kCol = 0xffffff, kMe = false;
+      if (by === 'b') { const kb = this.bots.list[bi]; if (kb) { kb.k = (kb.k || 0) + 1; kName = kb.name; } else kName = VR.t('bot.team'); kCol = C.g; }
+      else if (by === 'h' || by === 'g') { this.kd(by).k++; kName = m.names[by]; kCol = teamCol(by); kMe = by === m.me; }
+      let vName, vCol, vMe = false;
+      if (victimBot) { victimBot.d = (victimBot.d || 0) + 1; vName = victimBot.name; vCol = C.g; }
+      else { this.kd(victimRole).d++; vName = m.names[victimRole]; vCol = teamCol(victimRole); vMe = victimRole === m.me; }
+      this.ui.killFeed({ k: kName, kc: kCol, v: vName, vc: vCol, w: w || '', head, me: kMe || vMe });
+    }
+    /** an enemy fired: show where it was on the mini-map for a moment */
+    markShot(pos) { (this.shotMarks = this.shotMarks || []).push({ x: pos.x, z: pos.z, t: performance.now() }); }
     /** a floating damage number over whoever I hit */
     dmgNumber(pos, dmg, head, low) {
       const v = new T.Vector3(pos.x, pos.y + (low ? 1.2 : 2.0), pos.z).project(this.camera);
@@ -872,11 +889,11 @@
       return out;
     }
     teamDead() { const m = this.match; return m.type === 'coop' ? (m.dead.h && m.dead.g) : m.dead[m.me]; }
-    hostBotHit(b, dmg, head, by) {
+    hostBotHit(b, dmg, head, by, w) {
       const m = this.match;
       if (!b || !b.alive || m.phase !== 'fight' || !dmg) return;
       const dead = this.bots.hurt(b, dmg);
-      const msg = { k: 'bh', i: b.i, hp: Math.round(b.hp), dmg: Math.round(dmg), head: head ? 1 : 0, by, dead: dead ? 1 : 0 };
+      const msg = { k: 'bh', i: b.i, hp: Math.round(b.hp), dmg: Math.round(dmg), head: head ? 1 : 0, by, w: w || '', dead: dead ? 1 : 0 };
       if (m.type === 'coop') this.send(msg);
       this.onBotHit(msg);
     }
@@ -892,12 +909,12 @@
       }
       if (fresh) {
         this.fx.puff(b.pos.clone().setY(b.pos.y + 1), 0xff6b5a, 16);
+        this.countKill(d.by, -1, null, b, d.w, !!d.head);
         if (d.by === m.me) this.ui.kill(VR.t('fm.youKilled', { name: b.name }), 'good');
-        else this.ui.feed(VR.t('fm.botDown', { name: b.name }), '');
         VR.Audio.play('enemyDown');
       }
     }
-    botHitPlayer(pid, dmg, head, bi) { this.applyHit(pid, dmg, head, 'b', bi); }
+    botHitPlayer(pid, dmg, head, bi) { const b = this.bots.list[bi]; this.applyHit(pid, dmg, head, 'b', bi, b ? b.lo.id : ''); }
 
     // ---- mines (bought): placed at your feet, go off when an enemy steps close. The host decides.
     placeMine() {
@@ -920,9 +937,9 @@
     mineVictims(mi) {
       const m = this.match, out = [];
       if (m.type === 'pvp') {
-        if (mi.owner === m.me) { const a = this.avatar; if (a && !m.dead[m.op]) out.push({ pos: a.target ? new T.Vector3(...a.target.p) : a.pos, hit: (d) => this.applyHit(m.op, d, false, mi.owner) }); }
-        else if (!m.dead[m.me]) out.push({ pos: this.ctrl.pos, hit: (d) => this.applyHit(m.me, d, false, mi.owner) });
-      } else for (const b of this.bots.list) if (b.alive) out.push({ pos: b.pos, hit: (d) => this.hostBotHit(b, d, false, mi.owner) });
+        if (mi.owner === m.me) { const a = this.avatar; if (a && !m.dead[m.op]) out.push({ pos: a.target ? new T.Vector3(...a.target.p) : a.pos, hit: (d) => this.applyHit(m.op, d, false, mi.owner, null, 'mine') }); }
+        else if (!m.dead[m.me]) out.push({ pos: this.ctrl.pos, hit: (d) => this.applyHit(m.me, d, false, mi.owner, null, 'mine') });
+      } else for (const b of this.bots.list) if (b.alive) out.push({ pos: b.pos, hit: (d) => this.hostBotHit(b, d, false, mi.owner, 'mine') });
       return out;
     }
     updateMines(dt) {
@@ -953,6 +970,7 @@
     botShotFx(b, ends, wid) {
       const m = this.match;
       const muzzle = new T.Vector3(b.pos.x - Math.sin(b.yaw) * 0.5, b.pos.y + 1.45, b.pos.z - Math.cos(b.yaw) * 0.5);
+      this.markShot(b.pos);
       for (const e of ends) this.fx.tracer(muzzle, e, 0xff7a3a);
       this.fx.flash(muzzle, 0xffb070);
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : 'enemyShot');
@@ -1186,10 +1204,48 @@
       this.ui.setTimer(m.phase === 'count' || m.phase === 'wait' ? this.roundTime() : m.timeLeft, Math.max(1, m.round));
       this.ui.setHP(m.hp[m.me]);
       this.ui.setLoadout(this.lo, D.NADE_RECHARGE);
+      this.mapT = (this.mapT || 0) - dt;
+      if (this.mapT <= 0) { this.mapT = 1 / 15; this.drawMap(); }
+      // the scoreboard while Tab (its binding) is held
+      const board = !m.solo && m.phase !== 'over' && (VR.Input.actionHeld('journal') || VR.Input.touchHeld('scores'));
+      if (board) { this.boardT = (this.boardT || 0) - dt; if (this.boardT <= 0 || !this.ui.boardOn) { this.boardT = 0.2; this.ui.showBoard(this.boardData()); } }
+      else if (this.ui.boardOn) this.ui.hideBoard();
       this.ui.touchMines(this.lo.mines.has);
       if (m.type !== 'pvp') this.ui.setBotsLeft(m.phase === 'fight' ? this.bots.aliveCount : null);
       this.dmgFlash = Math.max(0, this.dmgFlash - dt * 2.2);
       this.ui.damage(this.dmgFlash * 0.7 + (m.hp[m.me] <= 45 && m.phase === 'fight' ? 0.18 : 0));
+    }
+
+    /** the mini-map: the arena from above, my side at the bottom; enemies only where they last fired */
+    drawMap() {
+      const m = this.match, L = this.level; if (!m || !L) return;
+      const B = L.extras.bounds, flip = m.type === 'pvp' && m.me === 'g';
+      const now = performance.now();
+      const pts = { me: { x: this.ctrl.pos.x, z: this.ctrl.pos.z, yaw: this.ctrl.yaw, col: VR.DuelArena.COLORS[m.type === 'pvp' ? m.me : 'h'] }, mates: [], shots: [] };
+      if (m.type === 'coop' && this.avatar && !m.dead[m.op]) pts.mates.push({ x: this.avatar.pos.x, z: this.avatar.pos.z });
+      this.shotMarks = (this.shotMarks || []).filter(s => now - s.t < 2500);
+      for (const s of this.shotMarks) pts.shots.push({ x: s.x, z: s.z, a: 1 - (now - s.t) / 2500 });
+      if (!this.mapSolids) this.mapSolids = new WeakMap();
+      let solids = this.mapSolids.get(L);
+      if (!solids) {
+        solids = L.solids.filter(s => s.max[1] > 0.6 && s.min[1] < 2 && s.max[0] < B.W - 0.2 && s.min[0] > -B.W + 0.2 && s.max[2] < B.LEN - 0.2 && s.min[2] > -B.LEN + 0.2)
+          .map(s => [s.min[0], s.min[2], s.max[0], s.max[2]]);
+        this.mapSolids.set(L, solids);
+      }
+      this.ui.drawMap({ W: B.W, LEN: B.LEN, flip, solids, ...pts });
+    }
+    /** what the Tab scoreboard shows */
+    boardData() {
+      const m = this.match, C = VR.DuelArena.COLORS, ping = m.ping == null ? null : Math.round(m.ping);
+      const row = (name, role, me) => ({ name, k: this.kd(role).k, d: this.kd(role).d, ping: m.type === 'bots' ? null : ping, me, col: C[m.type === 'pvp' ? role : 'h'], dead: !!m.dead[role] });
+      const teamA = [row(m.names[m.me] || VR.t('bot.you'), m.me, true)];
+      if (m.type !== 'bots') teamA.push(row(m.names[m.op], m.op, false));
+      let teams;
+      if (m.type === 'pvp') teams = [[teamA[0]], [teamA[1]]];
+      else teams = [teamA, this.bots.list.map(b => ({ name: b.name, k: b.k || 0, d: b.d || 0, ping: 'BOT', col: C.g, dead: !b.alive }))];
+      const need = this.firstTo(), sc = [m.sc[this.side()], m.sc[this.oside()]];
+      return { teams, sc, round: Math.max(1, m.round), maxRounds: this.maxRounds(), firstTo: need, toWin: need - sc[0], toLose: need - sc[1],
+        left: Math.max(0, this.maxRounds() - Math.max(1, m.round)), mode: m.type === 'pvp' ? VR.t('du.mode') : VR.t(m.type === 'coop' ? 'fm.coopMode' : 'fm.botsMode') };
     }
 
     /** Camera effects (recoil, shake, scope FOV) and the weapon in the hands. */
@@ -1338,7 +1394,7 @@
   function nameTag(name, col) {
     const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
     const c = cv.getContext('2d');
-    c.font = '700 58px "Reem Kufi", "Pixelify Sans", sans-serif';
+    c.font = '700 58px "Cairo", sans-serif';
     const w = Math.min(500, c.measureText(name).width + 48);
     c.fillStyle = 'rgba(14,17,26,.85)'; c.fillRect((512 - w) / 2, 14, w, 92);
     c.strokeStyle = '#' + col.toString(16).padStart(6, '0'); c.lineWidth = 7; c.strokeRect((512 - w) / 2 + 3, 17, w - 6, 86);

@@ -13,7 +13,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Chakra+Petch:wght@500;700&family=Reem+Kufi:wght@500;700&family=Tajawal:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -31,14 +31,16 @@
     --stone: #7c7f86;
     --stone-dark: #585b62;
     --danger: #e5433a;
-    --display: 'Pixelify Sans', 'Reem Kufi', 'Courier New', monospace;
-    --arabic: 'Reem Kufi', 'Pixelify Sans', 'Segoe UI', Tahoma, sans-serif;
+    --display: 'Cairo', Tahoma, sans-serif;
+    --arabic: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
     --lemon: #ffe14a;
     --lemon-dark: #d9a90f;
     --leaf: #3f8a2b;
-    --body: 'Chakra Petch', 'Trebuchet MS', system-ui, sans-serif;
+    --body: 'Cairo', 'Trebuchet MS', system-ui, sans-serif;
   }
   [hidden] { display: none !important; }
+  /* numbers: Cairo, bold, same width digits (easy to read at a glance) */
+  .num, .du-timer, .du-ammo, .hud-box .val, .chip, #menuBank, #menuBest { font-family: 'Cairo', Tahoma, sans-serif; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: 'tnum' 1, 'lnum' 1; }
   html, body { height: 100%; margin: 0; background: #8fd3ff; overflow: hidden; }
   body { font-family: var(--body); color: var(--text); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   #game { position: fixed; inset: 0; touch-action: none; }
@@ -157,7 +159,7 @@
   .xh-set { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-family: var(--display); font-size: 15px; }
   .xh-set > label { flex: 0 0 90px; text-align: start; }
   .xh-set input[type=range] { flex: 1; accent-color: var(--lemon); }
-  .xh-set output { min-width: 2em; font-family: 'Pixelify Sans', monospace; }
+  .xh-set output { min-width: 2em; font-family: 'Cairo', monospace; }
   .xh-opts { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
   .card .xh-opts .btn { width: auto; flex: 1 1 auto; padding: 6px 8px; font-size: 13px; }
   .xh-opts .btn.on { background: var(--lemon); color: var(--ink); }
@@ -168,9 +170,17 @@
   .mi-xh { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; }
   #mi-cross:not(.on) { opacity: 0; }
   #mi-cross.on ~ .mi-xh { display: none; }
-  .sens-setting label { font-family: var(--display); font-size: 18px; flex: 0 0 auto; }
+  .sens-setting label, .name-setting label { font-family: var(--display); font-size: 18px; flex: 0 0 auto; }
+  .name-setting input, .name-first input { flex: 1; min-width: 0; font: 600 17px var(--body); padding: 6px 10px; border: 3px solid var(--ink); background: #fff; color: #1a1a1a; -webkit-user-select: text; user-select: text; }
+  .name-first { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px; text-align: start; }
+  @media (max-height: 560px) { .name-first small { display: none; } .name-first b { font-size: 15px; } }
+  #menu { overflow-y: auto; }
+  .name-first b { font-family: var(--display); font-size: 18px; }
+  .name-first small { font-size: 12px; opacity: .8; }
+  .name-first .name-row { display: flex; gap: 8px; }
+  .card .name-first .btn, .name-first .btn { width: auto; flex: 0 0 auto; }
   .sens-setting input[type=range], .du-sens input[type=range] { flex: 1; min-width: 80px; accent-color: var(--lemon); height: 28px; cursor: pointer; }
-  .sens-setting output, .du-sens output { font-family: 'Pixelify Sans', monospace; font-size: 18px; min-width: 2.4em; text-align: center; }
+  .sens-setting output, .du-sens output { font-family: 'Cairo', monospace; font-size: 18px; min-width: 2.4em; text-align: center; }
   .du-sens { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; font-family: var(--display); font-size: 16px; }
   .toggle { font-family: var(--display); font-size: 16px; min-width: 88px; padding: 6px 10px 8px; }
   .toggle[aria-pressed="true"] { background: var(--grass); box-shadow: inset 0 3px 0 rgba(255,255,255,.25), inset 0 -5px 0 var(--grass-dark), 0 4px 0 var(--ink); }
@@ -241,7 +251,7 @@
   .course-bar .course-opp { position: absolute; top: -5px; width: 6px; height: 18px; margin-left: -3px; background: #b9c3d6; border: 2px solid var(--ink); }
   .course-bar .course-opp[hidden] { display: none; }
   .course-bar .course-flag { position: absolute; right: -6px; top: -14px; font-size: 16px; }
-  .course-bar #courseTime { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); font-family: 'Pixelify Sans', monospace; font-size: 15px; color: #fff; text-shadow: 0 2px 0 var(--ink); }
+  .course-bar #courseTime { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); font-family: 'Cairo', monospace; font-size: 15px; color: #fff; text-shadow: 0 2px 0 var(--ink); }
   .ng-confirm { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
   .ng-confirm[hidden] { display: none; }
   .ng-confirm p { margin: 0; font-size: 13px; opacity: .85; }
@@ -342,7 +352,7 @@
   .mi-card.mi-shop { width: min(560px, 94vw); max-height: 92vh; display: flex; flex-direction: column; gap: 6px; }
   .sh-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .sh-head .heading { margin: 0; }
-  .sh-coins { display: flex; align-items: center; gap: 6px; font-family: 'Pixelify Sans', monospace; font-size: 22px; direction: ltr; }
+  .sh-coins { display: flex; align-items: center; gap: 6px; font-family: 'Cairo', monospace; font-size: 22px; direction: ltr; }
   .sh-note { min-height: 18px; font-size: 13px; } .sh-note.good { color: #8fe08f; } .sh-note.bad { color: #ff8a80; }
   .sh-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-inline-end: 4px; }
   .sh-group { font-size: 12px; color: var(--lemon); margin-top: 4px; }
@@ -359,12 +369,12 @@
   .cb-hpbar { width: 150px; height: 12px; background: rgba(0,0,0,.45); border: 2px solid var(--ink); overflow: hidden; }
   .cb-hpbar i { display: block; height: 100%; background: #5fdc5f; transform-origin: left; transition: transform .12s; }
   .cb-hpbar.low i { background: #ff4b3a; }
-  .cb-hpn { font-family: 'Pixelify Sans', monospace; font-size: 18px; min-width: 34px; }
+  .cb-hpn { font-family: 'Cairo', monospace; font-size: 18px; min-width: 34px; }
   .cb-ammo { position: absolute; right: 12px; bottom: max(14px, env(safe-area-inset-bottom)); padding: 6px 12px 8px; text-align: end; min-width: 150px; }
   .cb-wname { display: block; font-size: 13px; color: var(--lemon); }
-  .cb-mag { font-family: 'Pixelify Sans', monospace; font-size: 30px; line-height: 1; direction: ltr; unicode-bidi: isolate; }
+  .cb-mag { font-family: 'Cairo', monospace; font-size: 30px; line-height: 1; direction: ltr; unicode-bidi: isolate; }
   .cb-mag.low { color: #ff8a80; }
-  .cb-res { font-family: 'Pixelify Sans', monospace; font-size: 16px; opacity: .75; margin-inline-start: 6px; direction: ltr; unicode-bidi: isolate; }
+  .cb-res { font-family: 'Cairo', monospace; font-size: 16px; opacity: .75; margin-inline-start: 6px; direction: ltr; unicode-bidi: isolate; }
   .cb-slots { display: flex; gap: 4px; justify-content: flex-end; margin-top: 4px; font-size: 11px; }
   .cb-slots i { font-style: normal; padding: 1px 5px; border: 2px solid rgba(255,255,255,.25); opacity: .6; }
   .cb-slots i.on { border-color: var(--lemon); opacity: 1; }
@@ -406,8 +416,8 @@
 
   /* ============================ ARABIC / RTL ============================ */
   html[lang="ar"] {
-    --display: 'Reem Kufi', 'Pixelify Sans', Tahoma, sans-serif;
-    --body: 'Tajawal', 'Chakra Petch', Tahoma, sans-serif;
+    --display: 'Cairo', Tahoma, sans-serif;
+    --body: 'Cairo', Tahoma, sans-serif;
   }
   html[lang="ar"] .btn, html[lang="ar"] .heading, html[lang="ar"] .title small,
   html[lang="ar"] .hud-box .lbl, html[lang="ar"] .chip .lbl, html[lang="ar"] .result .lbl,
@@ -415,7 +425,7 @@
   html[lang="ar"] .mi-jtitle, html[lang="ar"] .mi-stats span, html[lang="ar"] .mi-jcols h3, html[lang="ar"] .mi-rewards h3 { letter-spacing: 0; text-transform: none; }
   html[lang="ar"] .title small { font-size: .38em; }
   html[lang="ar"] .hud-box .lbl { font-size: 12px; }
-  html[lang="ar"] .val, html[lang="ar"] .mi-timer, html[lang="ar"] .mi-stats b, html[lang="ar"] #countdown { font-family: 'Pixelify Sans', 'Reem Kufi', monospace; }
+  html[lang="ar"] .val, html[lang="ar"] .mi-timer, html[lang="ar"] .mi-stats b, html[lang="ar"] #countdown { font-family: 'Cairo', monospace; }
   /* numbers stay left-to-right runs (Latin pixel fonts flip digits inside right-to-left runs) */
   .num, #hudScore, #hudCoins, #hudMult, #goScore, #goCoins, #goBest, #menuBest, #menuBank, .mi-timer, .mi-stats b, #countdown, .mi-progress span { direction: ltr; unicode-bidi: isolate; }
   .num { display: inline-block; }
@@ -449,10 +459,10 @@
   .ch-home { display: flex; flex-direction: column; gap: 14px; }
   .ch-join { display: flex; flex-direction: column; gap: 6px; }
   .ch-or { text-align: center; font-size: 13px; color: var(--muted); }
-  .ch-code-input { text-transform: uppercase; letter-spacing: .3em; font-family: 'Pixelify Sans', monospace; text-align: center; }
+  .ch-code-input { text-transform: uppercase; letter-spacing: .3em; font-family: 'Cairo', monospace; text-align: center; }
   .ch-room { display: flex; flex-direction: column; gap: 8px; align-items: stretch; text-align: center; }
   .ch-roomlbl { font-size: 12px; color: var(--muted); letter-spacing: .14em; }
-  .ch-roomcode { font-family: 'Pixelify Sans', monospace; font-weight: 700; font-size: 40px; letter-spacing: .25em; color: var(--lemon); text-shadow: 0 4px 0 var(--ink); }
+  .ch-roomcode { font-family: 'Cairo', monospace; font-weight: 700; font-size: 40px; letter-spacing: .25em; color: var(--lemon); text-shadow: 0 4px 0 var(--ink); }
   .ch-link { font-size: 12px !important; min-width: 0; }
   .ch-sharerow .btn { flex: 1; text-decoration: none; text-align: center; }
   .ch-whats { background: #2bb24c; box-shadow: inset 0 3px 0 rgba(255,255,255,.22), inset 0 -6px 0 #1b7a33, 0 5px 0 var(--ink); }
@@ -469,7 +479,7 @@
     display: flex; align-items: center; gap: 10px; padding: 5px 12px 7px; font-family: var(--display); white-space: nowrap; max-width: calc(100vw - 24px); box-sizing: border-box; }
   .vs-hud .vs-tag { font-size: 11px; color: var(--ink); background: var(--gold); padding: 1px 5px; font-weight: 700; }
   .vs-hud b { font-size: 16px; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; color: var(--lemon); }
-  .vs-hud #vsScore { font-size: 20px; font-weight: 700; font-family: 'Pixelify Sans', monospace; }
+  .vs-hud #vsScore { font-size: 20px; font-weight: 700; font-family: 'Cairo', monospace; }
   .vs-hud.leading { border-color: #b8331f; }
   .vs-gap { font-size: 14px; color: var(--muted); }
   .vs-gap.ahead { color: #ff8a80; } .vs-gap.behind { color: #8be06a; } .vs-gap.out { color: var(--muted); text-decoration: line-through; }
@@ -494,7 +504,7 @@
   .du-prompt .du-ptxt { display: flex; flex-direction: column; align-items: flex-start; font-family: var(--display); }
   .du-prompt b { font-size: 18px; } .du-prompt small { font-size: 12px; color: #c9b2ff; }
   @keyframes duPulse { to { box-shadow: 0 0 0 6px rgba(155,107,255,.15), 0 5px 0 rgba(0,0,0,.35); } }
-  .du-key { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; background: var(--lemon); color: var(--ink); border: 3px solid var(--ink); font-family: 'Pixelify Sans', monospace; font-weight: 700; font-size: 15px; box-sizing: border-box; }
+  .du-key { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; background: var(--lemon); color: var(--ink); border: 3px solid var(--ink); font-family: 'Cairo', monospace; font-weight: 700; font-size: 15px; box-sizing: border-box; }
   #duPick { z-index: 7; }
   #duPick .card { max-height: calc(100% - 24px); overflow-y: auto; }
   .du-sub { margin: -6px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
@@ -512,7 +522,7 @@
   .du-wbar { height: 10px; background: var(--ink); border: 2px solid var(--ink); }
   .du-wbar div { height: 100%; background: #9b6bff; transform-origin: left; transition: transform .2s linear; }
   [dir="rtl"] .du-wbar div { transform-origin: right; }
-  .du-wnum { text-align: center; font-family: 'Pixelify Sans', monospace; font-size: 30px; color: var(--lemon); }
+  .du-wnum { text-align: center; font-family: 'Cairo', monospace; font-size: 30px; color: var(--lemon); }
   .du-invite { position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 128px); left: 50%; transform: translateX(-50%); z-index: 8;
     width: min(340px, calc(100vw - 24px)); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; border-color: #9b6bff; box-sizing: border-box; }
   .du-ititle { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 18px; }
@@ -535,7 +545,7 @@
   .du-pips i { width: 11px; height: 11px; border: 2px solid var(--team); background: transparent; }
   .du-pips i.on { background: var(--team); }
   .du-mid { text-align: center; }
-  .du-timer { font-family: 'Pixelify Sans', monospace; font-weight: 700; font-size: 34px; line-height: 1; padding: 4px 12px 6px; background: rgba(14,17,26,.72); border: 3px solid var(--ink); }
+  .du-timer { font-family: 'Cairo', monospace; font-weight: 700; font-size: 34px; line-height: 1; padding: 4px 12px 6px; background: rgba(14,17,26,.72); border: 3px solid var(--ink); }
   .du-timer.low { color: #ff8a80; }
   .du-roundlbl { font-size: 12px; color: #fff; text-shadow: 0 2px 0 var(--ink); margin-top: 3px; }
   .du-cross { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; }
@@ -553,7 +563,7 @@
   .du-scope::after { content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #ff4b3a; }
   .du-dmg { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(200,20,20,.85)); transition: opacity .05s; }
   .du-big { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%); font-family: var(--display); font-weight: 700; font-size: clamp(34px, 8vw, 72px); color: #fff; text-shadow: 0 5px 0 var(--ink); white-space: nowrap; }
-  .du-big.count { font-family: 'Pixelify Sans', monospace; font-size: clamp(60px, 14vw, 120px); color: var(--lemon); }
+  .du-big.count { font-family: 'Cairo', monospace; font-size: clamp(60px, 14vw, 120px); color: var(--lemon); }
   .du-big.win { color: var(--lemon); } .du-big.lose { color: #ff8a80; } .du-big.fight { color: #c9b2ff; }
   .du-big.small { font-size: clamp(20px, 4vw, 30px); }
   .du-feed { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 64px); right: 12px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
@@ -567,23 +577,49 @@
   .du-hp .du-bar div { height: 100%; background: #8be06a; transform-origin: left; transition: transform .15s; }
   [dir="rtl"] .du-hp .du-bar div { transform-origin: right; }
   .du-hp.low .du-bar div { background: #ff6b5a; }
-  .du-hp b { font-family: 'Pixelify Sans', monospace; font-size: 22px; min-width: 2.2em; text-align: center; }
+  .du-hp b { font-family: 'Cairo', monospace; font-size: 22px; min-width: 2.2em; text-align: center; }
   .du-weapons { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
   .du-w { display: flex; align-items: center; gap: 8px; padding: 5px 10px 7px; opacity: .6; position: relative; font-family: var(--display); font-size: 15px; }
   .du-w.on { opacity: 1; border-color: var(--me); }
-  .du-ammo { font-family: 'Pixelify Sans', monospace; font-size: 18px; margin-inline-start: auto; }
+  .du-ammo { font-family: 'Cairo', monospace; font-size: 18px; margin-inline-start: auto; }
   .du-rl { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; } .du-rl div { height: 100%; background: var(--lemon); transform: scaleX(0); transform-origin: left; }
   .du-charges { display: flex; gap: 4px; margin-inline-start: auto; }
   .du-charges i { width: 14px; height: 14px; border: 2px solid #9b6bff; background: transparent; position: relative; overflow: hidden; }
   .du-charges i.on { background: #9b6bff; }
   .du-charges i.chg::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--k, 0) * 100%); background: rgba(155,107,255,.5); }
   .du-wnd, .du-wmn { opacity: 1; }
-  .du-ping, .vs-ping { font-size: 12px; font-family: 'Pixelify Sans', monospace; text-shadow: 0 1px 0 #000; margin-top: 1px; }
+  /* kill feed */
+  .kf { display: flex; align-items: center; gap: 7px; padding: 4px 10px 4px 8px; background: linear-gradient(90deg, rgba(10,12,18,.88), rgba(10,12,18,.66));
+    border-inline-start: 4px solid var(--kc, #fff); font: 700 14px 'Cairo', sans-serif; color: #fff; text-shadow: 0 1px 0 #000; white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,.35); }
+  .kf.mine { background: linear-gradient(90deg, rgba(70,58,10,.9), rgba(40,34,8,.7)); outline: 1px solid rgba(255,225,74,.65); }
+  .kf-gun { color: #eef0f4; display: inline-flex; filter: drop-shadow(0 1px 0 #000); }
+  html:not([dir="rtl"]) .kf-gun svg { transform: scaleX(-1); }
+  .kf-hs { display: inline-flex; }
+  /* mini-map */
+  .du-map { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 60px); left: 12px; width: 69px; height: 138px; image-rendering: auto; border: 3px solid var(--ink); pointer-events: none; }
+  [dir="rtl"] .du-map { left: auto; right: 12px; }
+  /* scoreboard (Tab) */
+  .du-board { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); min-width: min(460px, 92vw); padding: 12px 16px 14px; background: rgba(12,14,22,.92);
+    border: 3px solid var(--ink); box-shadow: 0 6px 0 rgba(0,0,0,.35); font-family: 'Cairo', sans-serif; color: #fff; pointer-events: none; }
+  .du-board .sb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .du-board .sb-head b { font-size: 20px; } .du-board .sb-head span { font-size: 13px; opacity: .75; }
+  .du-board .sb-score { text-align: center; font-size: 30px; font-weight: 800; color: var(--lemon); margin: 2px 0; }
+  .du-board .sb-info { text-align: center; font-size: 13px; opacity: .85; margin-bottom: 8px; line-height: 1.5; }
+  .du-board table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .du-board th { font-size: 12px; opacity: .7; font-weight: 600; padding: 4px 6px; text-align: center; }
+  .du-board th:first-child, .du-board td:first-child { text-align: start; }
+  .du-board td { padding: 5px 6px; text-align: center; border-top: 1px solid rgba(255,255,255,.08); }
+  .du-board tbody + tbody tr:first-child td { border-top: 2px solid rgba(255,255,255,.3); }
+  .du-board tr.me td { background: rgba(255,225,74,.14); }
+  .du-board tr.dead td:first-child { opacity: .5; text-decoration: line-through; }
+  .du-board td.good { color: #7ee06a; } .du-board td.ok { color: #ffd23a; } .du-board td.bad { color: #ff6b5a; }
+  .du-board .du-sw { display: inline-block; width: 10px; height: 10px; background: var(--team); margin-inline-end: 6px; border: 2px solid var(--ink); vertical-align: middle; }
+  .du-ping, .vs-ping { font-size: 12px; font-family: 'Cairo', monospace; text-shadow: 0 1px 0 #000; margin-top: 1px; }
   .du-ping.good, .vs-ping.good { color: #7ee06a; } .du-ping.ok, .vs-ping.ok { color: #ffd23a; } .du-ping.bad, .vs-ping.bad { color: #ff6b5a; }
   .vs-ping { margin-inline-start: 8px; }
-  .du-mines { font-family: 'Pixelify Sans', monospace; font-size: 18px; margin-inline-start: auto; color: #ff8a5a; }
+  .du-mines { font-family: 'Cairo', monospace; font-size: 18px; margin-inline-start: auto; color: #ff8a5a; }
   .du-nums { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-  .du-num { position: absolute; font-family: 'Pixelify Sans', monospace; font-size: 22px; font-weight: 700; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px rgba(0,0,0,.6); pointer-events: none; }
+  .du-num { position: absolute; font-family: 'Cairo', monospace; font-size: 22px; font-weight: 700; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px rgba(0,0,0,.6); pointer-events: none; }
   .du-num.head { color: #ffd23a; font-size: 28px; }
   .du-killmsg { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); padding: 6px 14px 8px; background: rgba(14,17,26,.82); border: 3px solid var(--ink); font-family: var(--display); font-size: 20px; white-space: nowrap; pointer-events: none; }
   .du-killmsg.good { color: var(--lemon); border-color: var(--lemon); } .du-killmsg.bad { color: #ff8a80; border-color: #ff6b5a; }
@@ -596,7 +632,7 @@
   .fm-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; background: rgba(14,17,26,.7); color: #fff; border: 3px solid var(--ink); font-family: var(--display); font-size: 15px; cursor: pointer; text-align: start; position: relative; }
   .fm-item.on { border-color: var(--lemon); background: rgba(255,210,58,.18); }
   .fm-item.poor { opacity: .45; }
-  .fm-item .fm-stat { font-size: 11px; color: var(--muted); font-family: 'Pixelify Sans', monospace; }
+  .fm-item .fm-stat { font-size: 11px; color: var(--muted); font-family: 'Cairo', monospace; }
   .fm-item .fm-price { position: absolute; top: 6px; inset-inline-end: 8px; font-family: var(--display); font-size: 14px; color: var(--lemon); }
   .fm-time { font-size: 13px; }
   .fm-item.locked { opacity: .55; border-style: dashed; }
@@ -635,7 +671,9 @@
     .du-tbtns { bottom: max(12px, calc(env(safe-area-inset-bottom) + 6px)); grid-template-columns: repeat(2, 60px); gap: 6px; }
     .du-tbtns .mi-tbtn { height: 44px; font-size: 13px; } .du-tbtns .du-tfire { height: 56px; font-size: 16px; }
     .du-invite { top: calc(max(10px, env(safe-area-inset-top)) + min(118px, 22vh)); }
-    .du-botsleft { left: auto; right: 12px; transform: none; top: calc(max(10px, env(safe-area-inset-top)) + 58px); font-size: 12px; }
+    .du-botsleft { left: auto; right: 12px; transform: none; top: calc(max(10px, env(safe-area-inset-top)) + 156px); font-size: 12px; }
+    .du-map, [dir="rtl"] .du-map { left: auto; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 54px); width: 46px; height: 92px; }
+    .kf { font-size: 12px; padding: 3px 8px; } .kf-gun svg { width: 30px; height: 11px; }
   }
   @media (max-width: 560px) { .du-name { font-size: 14px; max-width: 24vw; } .du-timer { font-size: 26px; } .du-pips i { width: 8px; height: 8px; } .du-side { gap: 5px; padding: 4px 6px 5px; } }
 
@@ -659,7 +697,7 @@
   .ml-list { display: flex; flex-direction: column; gap: 8px; }
   .ml-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel-2); border: 3px solid var(--ink); }
   .ml-row.locked { opacity: .55; }
-  .ml-n { width: 30px; height: 30px; display: grid; place-items: center; background: var(--lemon); color: var(--ink); font-family: 'Pixelify Sans', monospace; font-weight: 700; border: 3px solid var(--ink); }
+  .ml-n { width: 30px; height: 30px; display: grid; place-items: center; background: var(--lemon); color: var(--ink); font-family: 'Cairo', monospace; font-weight: 700; border: 3px solid var(--ink); }
   .ml-row.locked .ml-n { background: var(--stone); }
   .ml-name { font-family: var(--display); font-size: 17px; }
   .ml-st { font-size: 12px; color: var(--muted); }
@@ -722,6 +760,11 @@
       <div class="chip panel"><span class="lbl" data-i18n="menu.best">Best</span><span id="menuBest">0</span></div>
       <div class="chip panel"><span class="coin-ico"></span><span id="menuBank">0</span></div>
     </div>
+    <form class="name-first panel" id="nameFirst" hidden>
+      <b data-i18n="name.title">What is your name?</b>
+      <div class="name-row"><input type="text" id="nameFirstIn" maxlength="16" autocomplete="off" spellcheck="false" dir="auto" data-i18n-ph="name.ph"><button class="btn small lemon" type="submit" data-i18n="name.ok">OK</button></div>
+      <small data-i18n="name.sub"></small>
+    </form>
     <button class="btn primary" id="continueBtn" data-i18n="menu.continue" hidden>CONTINUE</button>
     <button class="btn" id="newGameBtn" data-i18n="menu.newGame">NEW GAME</button>
     <div class="ng-confirm panel" id="newGameConfirm" hidden>
@@ -790,6 +833,7 @@
     <div class="setting"><span data-i18n="settings.online">Online challenges</span><button class="btn toggle" id="optOnline" aria-pressed="true">ON</button></div>
     <div class="setting"><span data-i18n="settings.full">Fullscreen</span><button class="btn toggle" id="optFull" aria-pressed="false">OFF</button></div>
     <p class="hint fs-ios" id="fsIos" hidden data-i18n="fs.ios"></p>
+    <div class="setting name-setting"><label for="optName" data-i18n="settings.name">Player name</label><input type="text" id="optName" maxlength="16" autocomplete="off" spellcheck="false" dir="auto"></div>
     <div class="setting sens-setting"><label for="optSens" data-i18n="settings.sens">Mouse sensitivity</label><input type="range" id="optSens" min="0.2" max="3" step="0.1" value="1"><output id="optSensV" class="num">1.0</output></div>
     <div class="menu-row set-more"><button class="btn" id="optControls" data-i18n="kb.open">Controls</button><button class="btn" id="optCrosshair" data-i18n="xh.open">Crosshair</button></div>
     <div class="setting"><span data-i18n="settings.lang">Language</span><button class="btn toggle lang-toggle" id="optLang" lang="">English</button></div>

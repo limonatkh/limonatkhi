@@ -24,6 +24,7 @@
       'char.hero.name': 'Hero', 'char.hero.tag': 'Your original character',
       'settings.title': 'Settings', 'settings.sfx': 'Sound effects', 'settings.music': 'Music', 'settings.quality': 'Graphics',
       'settings.fps': 'Show FPS', 'settings.lang': 'Language', 'settings.back': 'BACK', 'settings.sens': 'Mouse sensitivity',
+      'save.recovered': '+{n} coins returned to you', 'settings.name': 'Player name', 'name.title': 'What is your name?', 'name.sub': 'Other players see it in races and fights. You can change it in Settings.', 'name.ok': 'OK', 'name.ph': 'Your name',
       'menu.missions': 'MISSIONS', 'ml.title': 'Missions', 'ml.sub': 'Replay a mission you have reached. New missions open by completing the one before (or at gates along the mountain route).',
       'ml.play': 'PLAY', 'ml.done': 'Completed · best {t}', 'ml.open': 'Ready to play', 'ml.locked': 'Locked: complete «{name}» first', 'ml.back': 'BACK',
       'settings.full': 'Fullscreen', 'fs.enter': 'Fullscreen', 'fs.exit': 'Exit fullscreen', 'fs.na': 'N/A',
@@ -83,6 +84,7 @@
       'char.hero.name': 'البطل', 'char.hero.tag': 'شخصيتك الأصلية',
       'settings.title': 'الإعدادات', 'settings.sfx': 'المؤثرات الصوتية', 'settings.music': 'الموسيقى', 'settings.quality': 'الرسومات',
       'settings.fps': 'عرض الإطارات', 'settings.lang': 'اللغة', 'settings.back': 'رجوع', 'settings.sens': 'حساسية الماوس',
+      'save.recovered': 'رجعنالك {n} عملة', 'settings.name': 'اسم اللاعب', 'name.title': 'شو اسمك؟', 'name.sub': 'يراه اللاعبون الآخرون في السباقات والقتال. تقدر تغيّره من الإعدادات.', 'name.ok': 'تمام', 'name.ph': 'اسمك',
       'menu.missions': 'المهمات', 'ml.title': 'المهمات', 'ml.sub': 'أعِد لعب أي مهمة وصلت إليها. تُفتح المهمات الجديدة بإكمال التي قبلها (أو من البوابات على الطريق الجبلي).',
       'ml.play': 'العب', 'ml.done': 'مكتملة · أفضل وقت {t}', 'ml.open': 'جاهزة للعب', 'ml.locked': 'مقفلة: أكمل «{name}» أولًا', 'ml.back': 'رجوع',
       'settings.full': 'ملء الشاشة', 'fs.enter': 'ملء الشاشة', 'fs.exit': 'إلغاء ملء الشاشة', 'fs.na': 'غير مدعوم',
@@ -174,7 +176,7 @@
       applyDOM();
       // make sure the Arabic faces are ready before in-world text is drawn
       if (document.fonts && document.fonts.load) {
-        Promise.all(['700 32px "Reem Kufi"', '500 32px "Reem Kufi"', '700 32px "Tajawal"', '500 32px "Tajawal"'].map(f => document.fonts.load(f).catch(() => {})))
+        Promise.all(['700 32px "Cairo"', '500 32px "Cairo"', '700 32px "Cairo"', '500 32px "Cairo"'].map(f => document.fonts.load(f).catch(() => {})))
           .then(() => listeners.forEach(fn => fn(lang, true)));
       }
       listeners.forEach(fn => fn(lang, false));

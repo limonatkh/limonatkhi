@@ -67,7 +67,7 @@
     const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
     const c = cv.getContext('2d');
     c.fillStyle = '#ffe14a'; c.fillRect(0, 0, 512, 128);
-    c.fillStyle = '#1a1a1a'; c.font = '700 84px "Chakra Petch", "Reem Kufi", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#1a1a1a'; c.font = '700 84px "Cairo", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.fillText(VR.t('course.finish'), 256, 68);
     const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace;
     const sign = new T.Mesh(new T.PlaneGeometry(3.2, 0.8), new T.MeshBasicMaterial({ map: tex }));

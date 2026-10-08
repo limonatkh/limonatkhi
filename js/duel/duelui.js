@@ -44,6 +44,8 @@
     'fm.slotEmpty': '—',
     'du.t.swapW': 'SWAP', 'du.t.knife': 'KNIFE', 'du.t.mine': 'MINE',
     'fm.locked': 'Buy it first in the weapon shop (Fight → Weapon shop, or the Lemon Shop)', 'fm.lockedSub': 'buy in the shop', 'fm.shop': '🛒 WEAPON SHOP',
+    'sb.title': 'Scoreboard', 'sb.player': 'Player', 'sb.k': 'Kills', 'sb.d': 'Deaths', 'sb.ping': 'Ping', 'sb.round': 'Round {n} of {max}',
+    'sb.left': '{n} rounds left at most', 'sb.need': 'First to {n}: you need {a} more, they need {b}', 'sb.hint': 'Hold Tab', 'du.t.scores': 'SCORES',
     'fm.youKilled': 'You took out {name}!', 'fm.killedBy': '{name} took you out', 'fm.watching': 'Watching {name}', 'fm.dead': 'YOU ARE DOWN',
     'du.keyHint': 'Y accept · N decline',
     'menu.wait': 'WAIT FOR A PLAYER', 'menu.waitSub': '1v1 Sniper Arena', 'menu.duel': '1v1 WITH AN ONLINE PLAYER',
@@ -84,6 +86,8 @@
     'fm.slotEmpty': '—',
     'du.t.swapW': 'تبديل', 'du.t.knife': 'سكّين', 'du.t.mine': 'لغم',
     'fm.locked': 'اشترِه أولًا من متجر الأسلحة (القتال ← متجر الأسلحة، أو متجر الليمون)', 'fm.lockedSub': 'يُشترى من المتجر', 'fm.shop': '🛒 متجر الأسلحة',
+    'sb.title': 'لوحة النتائج', 'sb.player': 'اللاعب', 'sb.k': 'قتل', 'sb.d': 'موت', 'sb.ping': 'البنق', 'sb.round': 'الجولة {n} من {max}',
+    'sb.left': 'باقي {n} جولات كحدٍّ أقصى', 'sb.need': 'أول من يصل {n}: باقي لكم {a}، ولهم {b}', 'sb.hint': 'اضغط مطوّلًا على Tab', 'du.t.scores': 'النتائج',
     'fm.youKilled': 'قتلت {name}!', 'fm.killedBy': '{name} قتلك', 'fm.watching': 'تشاهد {name}', 'fm.dead': 'مُتّ',
     'du.keyHint': 'Y قبول · N رفض',
     'menu.wait': 'انتظار لاعب', 'menu.waitSub': 'ساحة القنص 1v1', 'menu.duel': 'تحدَّ لاعبًا أونلاين 1v1',
@@ -94,6 +98,24 @@
   });
 
   const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+  /* kill-feed weapon icons: a little silhouette of each weapon (muzzle on the left) */
+  const ICONS = {
+    pistol: [[6, 3, 16, 4], [16, 7, 5, 6], [3, 4, 3, 2]],
+    revolver: [[1, 4, 16, 3], [17, 3, 7, 6], [22, 8, 5, 6], [19, 1, 2, 2]],
+    shotgun: [[0, 3, 24, 2], [0, 5, 22, 2], [22, 3, 7, 5], [28, 4, 12, 4], [7, 7, 9, 2]],
+    smg: [[0, 3, 7, 4], [7, 3, 17, 5], [15, 8, 3, 6], [9, 8, 3, 3], [24, 4, 10, 1], [24, 7, 10, 1], [33, 4, 2, 4]],
+    rifle: [[0, 5, 9, 2], [7, 2, 2, 4], [9, 4, 17, 5], [15, 1, 9, 3], [15, 9, 3, 5], [23, 9, 3, 4], [26, 4, 14, 5]],
+    dmr: [[0, 5, 12, 2], [12, 4, 16, 4], [14, 0, 12, 3], [18, 8, 3, 4], [28, 4, 12, 5]],
+    sniper: [[0, 5, 15, 1], [15, 4, 13, 4], [14, 0, 14, 3], [20, 8, 3, 4], [28, 4, 12, 6]],
+    lmg: [[0, 4, 10, 3], [10, 2, 18, 6], [14, 8, 8, 6], [3, 7, 1, 6], [6, 7, 1, 6], [28, 3, 12, 5]],
+    knife: [[2, 5, 20, 3], [0, 6, 2, 1], [22, 3, 2, 7], [24, 4, 12, 5]],
+  };
+  function weaponIcon(id) {
+    if (id === 'mine') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="12" y="8" width="16" height="4" fill="currentColor"/><rect x="15" y="5" width="10" height="3" fill="currentColor"/><rect x="19" y="3" width="2" height="2" fill="#ff5a3a"/></svg>`;
+    const r = ICONS[id] || ICONS.pistol;
+    return `<svg viewBox="0 0 40 14" width="40" height="14">${r.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="currentColor"/>`).join('')}</svg>`;
+  }
+  const HS_ICON = `<svg viewBox="0 0 14 14" width="14" height="14"><path d="M7 1a5 5 0 0 0-5 5v3l2 1v3h6v-3l2-1V6a5 5 0 0 0-5-5z" fill="#ffd23a"/><rect x="4" y="6" width="2" height="2" fill="#1a1a1a"/><rect x="8" y="6" width="2" height="2" fill="#1a1a1a"/></svg>`;
 
   class DuelUI {
     constructor(mgr) {
@@ -135,6 +157,8 @@
         <div class="du-spec panel" hidden></div>
         <div class="du-killmsg" hidden></div>
         <div class="du-nums"></div>
+        <canvas class="du-map" width="138" height="276"></canvas>
+        <div class="du-board" hidden></div>
         <div class="du-keys"></div>
         <div class="du-touch" hidden>
           <div class="mi-stickzone du-stickzone"><div class="mi-stick"><div class="mi-knob"></div></div></div>
@@ -147,6 +171,7 @@
             <button class="mi-tbtn" data-act="swap" data-k="du.t.swapW"></button>
             <button class="mi-tbtn" data-act="knife" data-k="du.t.knife"></button>
             <button class="mi-tbtn du-tmine" data-act="mine" data-k="du.t.mine"></button>
+            <button class="mi-tbtn" data-hold="scores" data-k="du.t.scores"></button>
             <button class="mi-tbtn du-tfire" data-hold="fire" data-act="fire" data-k="du.t.fire"></button>
           </div>
         </div>
@@ -398,8 +423,55 @@
       k.textContent = (cls === 'good' ? '☠ ' : '✖ ') + text; k.className = 'du-killmsg ' + cls; k.hidden = false;
       k.animate([{ transform: 'translateX(-50%) scale(1.4)', opacity: 0 }, { transform: 'translateX(-50%) scale(1)', opacity: 1 }], { duration: 200 });
       clearTimeout(this.killT); this.killT = setTimeout(() => { k.hidden = true; }, 2600);
-      this.feed(text, cls);
     }
+    /** kill feed: killer · weapon icon (· headshot) · victim, in their team colours */
+    killFeed(e) {
+      const d = document.createElement('div');
+      d.className = 'kf' + (e.me ? ' mine' : '');
+      d.style.setProperty('--kc', hex(e.kc));
+      d.innerHTML = `<span class="kf-n" style="color:${hex(e.kc)}">${esc(e.k)}</span><span class="kf-gun">${weaponIcon(e.w)}</span>${e.head ? `<span class="kf-hs">${HS_ICON}</span>` : ''}<span class="kf-n" style="color:${hex(e.vc)}">${esc(e.v)}</span>`;
+      this.el.feed.prepend(d);
+      d.animate([{ transform: 'translateX(18px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'ease-out' });
+      while (this.el.feed.children.length > 5) this.el.feed.lastChild.remove();
+      setTimeout(() => { d.style.transition = 'opacity .4s'; d.style.opacity = '0'; setTimeout(() => d.remove(), 420); }, 5200);
+    }
+    /** the mini-map (canvas): cover, me (arrow), my teammate, and enemies where they last fired */
+    drawMap(m) {
+      const cv = this.root.querySelector('.du-map'), c = cv.getContext('2d');
+      const Wc = cv.width, Hc = cv.height, sx = Wc / (2 * m.W), sz = Hc / (2 * m.LEN);
+      const P = (x, z) => m.flip ? [(m.W - x) * sx, (m.LEN - z) * sz] : [(x + m.W) * sx, (z + m.LEN) * sz];
+      c.clearRect(0, 0, Wc, Hc);
+      c.fillStyle = 'rgba(14,17,26,.72)'; c.fillRect(0, 0, Wc, Hc);
+      c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(0, Hc / 2); c.lineTo(Wc, Hc / 2); c.stroke();
+      c.fillStyle = 'rgba(200,185,140,.55)';
+      for (const [x0, z0, x1, z1] of m.solids) { const a = P(x0, z0), b = P(x1, z1); c.fillRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])); }
+      for (const s of m.shots) { const [x, y] = P(s.x, s.z); c.globalAlpha = Math.max(0, s.a); c.fillStyle = '#ff3b30'; c.beginPath(); c.arc(x, y, 6 + (1 - s.a) * 5, 0, Math.PI * 2); c.fill(); c.globalAlpha = Math.max(0, s.a) * 0.5; c.strokeStyle = '#ff3b30'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 10 + (1 - s.a) * 12, 0, Math.PI * 2); c.stroke(); }
+      c.globalAlpha = 1;
+      for (const t of m.mates) { const [x, y] = P(t.x, t.z); c.fillStyle = hex(m.me.col); c.strokeStyle = '#000'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2); c.fill(); c.stroke(); }
+      // me: an arrow along where I look
+      const [x, y] = P(m.me.x, m.me.z);
+      let dx = -Math.sin(m.me.yaw), dz = -Math.cos(m.me.yaw); if (m.flip) { dx = -dx; dz = -dz; }
+      const ang = Math.atan2(dz, dx);
+      c.save(); c.translate(x, y); c.rotate(ang);
+      c.fillStyle = hex(m.me.col); c.strokeStyle = '#000'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(9, 0); c.lineTo(-6, 6); c.lineTo(-3, 0); c.lineTo(-6, -6); c.closePath(); c.stroke(); c.fill();
+      c.restore();
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 2; c.strokeRect(1, 1, Wc - 2, Hc - 2);
+    }
+    /** Tab: who is playing, kills / deaths, ping, rounds */
+    showBoard(d) {
+      const el = this.root.querySelector('.du-board');
+      const row = (r) => `<tr class="${r.me ? 'me' : ''} ${r.dead ? 'dead' : ''}"><td><span class="du-sw" style="--team:${hex(r.col)}"></span>${esc(r.name)}</td><td class="num">${r.k}</td><td class="num">${r.d}</td>
+        <td class="num ${typeof r.ping === 'number' ? (r.ping < 80 ? 'good' : r.ping < 160 ? 'ok' : 'bad') : ''}">${r.ping == null ? '—' : typeof r.ping === 'number' ? r.ping + ' ms' : esc(r.ping)}</td></tr>`;
+      el.innerHTML = `<div class="sb-head"><b>${T('sb.title')}</b><span>${esc(d.mode)}</span></div>
+        <div class="sb-score num">${d.sc[0]} : ${d.sc[1]}</div>
+        <div class="sb-info">${esc(T('sb.round', { n: d.round, max: d.maxRounds }))} · ${esc(T('sb.left', { n: d.left }))}<br>${esc(T('sb.need', { n: d.firstTo, a: Math.max(0, d.toWin), b: Math.max(0, d.toLose) }))}</div>
+        <table><thead><tr><th>${T('sb.player')}</th><th>${T('sb.k')}</th><th>${T('sb.d')}</th><th>${T('sb.ping')}</th></tr></thead>
+        ${d.teams.map(t => `<tbody>${t.map(row).join('')}</tbody>`).join('')}</table>`;
+      el.hidden = false; this.boardOn = true;
+    }
+    hideBoard() { this.root.querySelector('.du-board').hidden = true; this.boardOn = false; }
     /** the screen while I am down */
     setDead(on) { this.el.deadfx.hidden = !on; if (on) this.el.deadfx.textContent = T('fm.dead'); }
     spectate(text) { const e = this.el.spec; e.hidden = !text; if (text) this.el.deadfx.hidden = true; if (text && e.textContent !== text) e.textContent = '👁 ' + text; }

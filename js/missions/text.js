@@ -9,14 +9,14 @@
 (function () {
   const STYLES = {
     // wall paint: big bold letters straight on the wall
-    paint:  { font: '700 {s}px "Pixelify Sans", "Reem Kufi", "Courier New", monospace', color: '#f4efe1', shadow: 'rgba(0,0,0,.45)', bg: null, pad: 0.06, lit: true },
-    redpaint: { font: '700 {s}px "Pixelify Sans", "Reem Kufi", "Courier New", monospace', color: '#c4271b', shadow: 'rgba(0,0,0,.35)', bg: null, pad: 0.06, lit: true },
-    chalk:  { font: '500 {s}px "Pixelify Sans", "Reem Kufi", "Courier New", monospace', color: '#eef2ea', shadow: null, bg: '#2c3a33', frame: '#6b4a2e', pad: 0.12, lit: true },
-    paper:  { font: '700 {s}px "Chakra Petch", "Tajawal", "Reem Kufi", "Trebuchet MS", sans-serif', color: '#2a2622', shadow: null, bg: '#efe6cf', frame: '#cbbd98', pad: 0.12, lit: true },
-    sign:   { font: '700 {s}px "Chakra Petch", "Tajawal", "Reem Kufi", "Trebuchet MS", sans-serif', color: '#ffd83a', shadow: null, bg: '#23313f', frame: '#ffd83a', pad: 0.1, lit: true },
-    stencil:{ font: '700 {s}px "Chakra Petch", "Tajawal", "Reem Kufi", "Trebuchet MS", sans-serif', color: '#f2c230', shadow: 'rgba(0,0,0,.4)', bg: null, pad: 0.04, lit: true },
+    paint:  { font: '700 {s}px "Cairo", "Courier New", monospace', color: '#f4efe1', shadow: 'rgba(0,0,0,.45)', bg: null, pad: 0.06, lit: true },
+    redpaint: { font: '700 {s}px "Cairo", "Courier New", monospace', color: '#c4271b', shadow: 'rgba(0,0,0,.35)', bg: null, pad: 0.06, lit: true },
+    chalk:  { font: '500 {s}px "Cairo", "Courier New", monospace', color: '#eef2ea', shadow: null, bg: '#2c3a33', frame: '#6b4a2e', pad: 0.12, lit: true },
+    paper:  { font: '700 {s}px "Cairo", "Trebuchet MS", sans-serif', color: '#2a2622', shadow: null, bg: '#efe6cf', frame: '#cbbd98', pad: 0.12, lit: true },
+    sign:   { font: '700 {s}px "Cairo", "Trebuchet MS", sans-serif', color: '#ffd83a', shadow: null, bg: '#23313f', frame: '#ffd83a', pad: 0.1, lit: true },
+    stencil:{ font: '700 {s}px "Cairo", "Trebuchet MS", sans-serif', color: '#f2c230', shadow: 'rgba(0,0,0,.4)', bg: null, pad: 0.04, lit: true },
     // glow paint: unlit, readable in total darkness
-    glow:   { font: '700 {s}px "Pixelify Sans", "Reem Kufi", "Courier New", monospace', color: '#c8ff7a', shadow: 'rgba(160,255,90,.9)', bg: null, pad: 0.06, lit: false, glowBlur: 18 },
+    glow:   { font: '700 {s}px "Cairo", "Courier New", monospace', color: '#c8ff7a', shadow: 'rgba(160,255,90,.9)', bg: null, pad: 0.06, lit: false, glowBlur: 18 },
   };
 
   const PX_PER_M = 220;

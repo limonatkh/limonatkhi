@@ -463,6 +463,35 @@ keep their scopes. Every weapon has its own model and colours (lemon pistol, woo
 double-barrel shotgun, sand SMG with a suppressor, silver revolver, black M16-style rifle
 with a carry handle, wooden marksman rifle with a scope, olive machine gun with a bipod).
 
+**Font:** the whole game uses **Cairo** (Google Fonts): Arabic and Latin text and the
+numbers (bold, same-width digits).
+
+**Player name:** Settings → *Player name*; the first time, the main menu also asks for it.
+Stored as `cubeexpress.playerName`, used in races, duels and the online list.
+
+**Coins are never lost:**
+- NEW GAME restarts the *adventure* only (story, world, what you carry there). Coins,
+  shop upgrades and supplies, fight weapons, stats and missions stay (older versions emptied
+  the wallet here — the cause of "my coins were gone after the update").
+- Older versions kept a copy before NEW GAME (`profiles.backup`): on load the coins (and
+  upgrades / fight weapons) in it are given back **once** (transaction `recover:backup:<time>`)
+  with a message.
+- A run's coins go into the wallet every 3 s while running (`run:<id>:bank:<n>`), so a page
+  reload or a closed tab in the middle of a run keeps them.
+
+**Fights against another player (1v1, co-op):** every weapon is open for both players
+(fair even for a brand-new player). Against the computer the shop unlocks still apply.
+
+**Mini-map** (top corner of the arena): the arena from above with the cover, you as an
+arrow (your side at the bottom), your teammate; an enemy (player or bot) shows up as a red
+mark **where it fired**, for 2.5 s.
+
+**Kill feed:** killer · weapon icon (each weapon has its own silhouette; mine; knife) ·
+headshot skull · victim, in team colours; your own kills / deaths are highlighted.
+
+**Scoreboard (hold Tab, touch: النتائج):** score, round *n* of *max*, rounds left, how many
+round wins each side still needs, and for every player / bot: kills, deaths and ping.
+
 **Mouse sensitivity:** Settings → *Mouse sensitivity* (0.2-3, default 1), also in the
 mission pause menu and the arena pause card. One saved value (`fpSettings.sens`, `VR.Sens`)
 used by missions, the adventure world and the arena (touch look too).

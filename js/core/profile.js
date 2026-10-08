@@ -125,15 +125,49 @@
      *  active player starts over). The old separate keys are not copied in again. */
     newGame() {
       const old = this.load();
-      store.set(KEY + '.backup', Object.assign({}, old, { backedUp: Date.now() }));
+      // (recovered: this version keeps the wallet, so there is nothing to give back from this copy)
+      store.set(KEY + '.backup', Object.assign({}, old, { backedUp: Date.now(), recovered: 'wallet-kept' }));
       const id = old.active || 'p1';
+      // a new ADVENTURE: the story, the world and what you carry there start over; what you
+      // earned and bought stays yours (coins, shop upgrades and supplies, fight weapons, stats,
+      // missions) — a new game must never take your coins
+      const prev = old.players[id], fresh = blankPlayer(id);
+      if (prev) {
+        fresh.uid = prev.uid; fresh.created = prev.created;
+        fresh.wallet = prev.wallet; fresh.upgrades = prev.upgrades || {}; fresh.unlocks = prev.unlocks;
+        fresh.stats = prev.stats; fresh.progress.missions = prev.progress.missions;
+        fresh.inventory.consumables = (prev.inventory && prev.inventory.consumables) || {};
+      }
       if (Object.keys(old.players).length > 1) {
         // other players share this save: only the active player starts over (their world stays)
-        old.players[id] = blankPlayer(id);
+        old.players[id] = fresh;
         this.data = old;
-      } else this.data = { version: VERSION, active: id, players: { [id]: blankPlayer(id) }, world: {}, migrated: 'new-game' };
+      } else this.data = { version: VERSION, active: id, players: { [id]: fresh }, world: {}, migrated: 'new-game' };
       this.save();
       return this.data;
+    },
+    /**
+     * Older versions emptied the wallet on NEW GAME. Their copy (`profiles.backup`) is still
+     * there: give the coins (and what was bought) back once. → coins returned (0 if none)
+     */
+    recoverFromBackup() {
+      const b = store.get(KEY + '.backup', null);
+      if (!b || !b.players || b.recovered) return 0;
+      const id = this.activeId(), old = b.players[id] || b.players[Object.keys(b.players)[0]], p = this.player();
+      if (!old || !old.wallet) return 0;
+      const lost = Math.floor(old.wallet.coins || 0);
+      let back = 0;
+      if (lost > 0 && VR.Wallet) { const before = VR.Wallet.of().coins; VR.Wallet.of().credit(lost, 'recover:backup:' + (b.backedUp || 0), 'recover'); back = VR.Wallet.of().coins - before; }
+      // what was bought comes back too (the higher level / the union)
+      const up = old.upgrades || {}; p.upgrades = p.upgrades || {};
+      for (const k in up) p.upgrades[k] = Math.max(p.upgrades[k] | 0, up[k] | 0);
+      const oc = (old.inventory && old.inventory.consumables) || {}, c = p.inventory.consumables || (p.inventory.consumables = {});
+      for (const k in oc) c[k] = Math.max(c[k] | 0, oc[k] | 0);
+      if (old.unlocks && old.unlocks.arena) { p.unlocks = p.unlocks || {}; p.unlocks.arena = [...new Set([...(p.unlocks.arena || []), ...old.unlocks.arena])]; }
+      if (old.stats) { p.stats.best = Math.max(p.stats.best | 0, old.stats.best | 0); }
+      b.recovered = Date.now(); store.set(KEY + '.backup', b);
+      this.save();
+      return back;
     },
     /** is there a game in progress to continue? (the adventure has been started) */
     hasAdventure(id) { const p = this.player(id); return !!(p && p.location); },

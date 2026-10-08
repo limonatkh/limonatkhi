@@ -108,7 +108,7 @@
       if (this.tag) { this.p.object.remove(this.tag); this.tag.material.map.dispose(); this.tag.material.dispose(); }
       const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
       const c = cv.getContext('2d');
-      const font = (VR.isRTL() || /[؀-ۿ]/.test(name)) ? '"Reem Kufi", "Tajawal", sans-serif' : '"Pixelify Sans", "Chakra Petch", sans-serif';
+      const font = (VR.isRTL() || /[؀-ۿ]/.test(name)) ? '"Cairo", sans-serif' : '"Cairo", sans-serif';
       c.font = '700 60px ' + font;
       const w = Math.min(500, c.measureText(name).width + 48);
       c.fillStyle = 'rgba(14,17,26,.82)'; c.fillRect((512 - w) / 2, 14, w, 92);
