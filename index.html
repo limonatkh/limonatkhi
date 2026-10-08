@@ -388,6 +388,12 @@
   .cb-over * { pointer-events: none !important; }
   .du-hit.armor i { background: #9aa4b8; }
   /* ---- feedback layer (js/duel/feedback.js) */
+  .du-wpw { border-color: var(--pc, #ffe14a) !important; opacity: .6; }
+  .du-wpw.ready { opacity: 1; } .du-wpw.active { box-shadow: 0 0 0 3px var(--pc, #ffe14a); }
+  .du-wpw .du-key { background: var(--pc, #ffe14a); color: var(--ink); }
+  .du-prompt2 { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); padding: 6px 14px; font-size: 16px; color: #fff; background: rgba(14,17,26,.78); border: 2px solid var(--lemon); white-space: nowrap; pointer-events: none; }
+  .du-hostage { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); padding: 4px 12px; font-size: 15px; color: #fff; background: rgba(14,17,26,.75); pointer-events: none; }
+  .du-hostage b { color: #7fd4ff; letter-spacing: 2px; } .du-hostage s { text-decoration: none; opacity: .25; }
   .fb-screen { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .du-teamflash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
   .du-hit.crit i { background: #ffd23a; } .du-hit.ability i { background: #7fe8ff; } .du-hit.explosion i { background: #ff9a3a; }
@@ -678,6 +684,12 @@
   .ft-card img { width: 64px; height: 75px; image-rendering: auto; }
   .ft-card b { font-size: 13px; letter-spacing: .04em; } .ft-card small { font-size: 10px; color: var(--lemon); }
   .ft-card.on { border-color: var(--lemon); background: rgba(255,225,74,.16); }
+  .ft-card { position: relative; } .ft-card i.ft-n { position: absolute; top: 2px; inset-inline-start: 4px; font-style: normal; font-size: 12px; background: var(--lemon); color: var(--ink); padding: 0 5px; }
+  .ft-card.view { outline: 2px dashed rgba(255,255,255,.6); outline-offset: -6px; }
+  .ft-hint { display: block; font-size: 12px; opacity: .8; margin-top: -4px; }
+  .ft-set { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; flex-wrap: wrap; justify-content: center; }
+  .ft-set > b { font-family: var(--display); font-size: 15px; }
+  .ft-as .btn { padding: 3px 8px; font-size: 12px; } .ft-set .btn.on { background: var(--lemon); color: var(--ink); }
   .ft-detail { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; text-align: start; padding: 8px; background: rgba(14,17,26,.55); border: 2px solid var(--ink); margin-bottom: 8px; font-family: 'Cairo', sans-serif; }
   .ft-detail img { width: 96px; height: 112px; }
   .ft-detail h4 { margin: 0; font-size: 20px; } .ft-detail .ft-title { color: var(--lemon); font-size: 13px; }
@@ -824,6 +836,7 @@
       <button class="btn lemon fm-mode" id="fmPvp"><b>🎯 <span data-i18n="fm.pvp">Friend vs friend</span></b><small data-i18n="fm.pvpSub"></small></button>
       <button class="btn lemon fm-mode" id="fmBots"><b>🤖 <span data-i18n="fm.bots">Me vs the computer</span></b><small data-i18n="fm.botsSub"></small></button>
       <button class="btn lemon fm-mode" id="fmFighters"><b>🥷 <span data-i18n="ft.mode">AI fighters</span></b><small data-i18n="ft.modeSub"></small></button>
+      <button class="btn lemon fm-mode" id="fmLoot"><b>🎁 <span data-i18n="lt.mode">Loot arena</span></b><small data-i18n="lt.modeSub"></small></button>
       <button class="btn lemon fm-mode" id="fmCoop"><b>🤝 <span data-i18n="fm.coop">Me + a friend vs the computer</span></b><small data-i18n="fm.coopSub"></small></button>
     </div>
     <div class="fm-pane" id="fmPvpPane" hidden>
@@ -834,8 +847,11 @@
     </div>
     <div class="fm-pane" id="fmFightPane" hidden>
       <h3 data-i18n="ft.pick">Choose your opponent</h3>
+      <small class="ft-hint" id="ftCount"></small>
       <div class="ft-grid" id="ftGrid"></div>
       <div class="ft-detail" id="ftDetail"></div>
+      <div class="ft-set"><b data-i18n="ft.level">Level</b><div class="fm-row" id="ftLevel"></div></div>
+      <div class="ft-set"><b data-i18n="ft.playAs">I play as</b><div class="fm-row ft-as" id="ftAs"></div></div>
       <button class="btn primary" id="ftGo" data-i18n="ft.fight">FIGHT!</button>
     </div>
     <div class="fm-pane" id="fmBotPane" hidden>
@@ -1072,6 +1088,7 @@
 <script src="js/duel/fightkit.js"></script>
 <script src="js/duel/bots.js"></script>
 <script src="js/duel/fighters.js"></script>
+<script src="js/duel/powers.js"></script>
 <script src="js/duel/duelui.js"></script>
 <script src="js/duel/duel.js"></script>
 <script src="js/duel/fightmenu.js"></script>

@@ -31,7 +31,7 @@
     'du.rounds': '{n} rounds', 'du.continue': 'BACK TO THE RUN ({n})', 'du.continueMenu': 'CONTINUE ({n})', 'du.oppLeft': '{name} left the duel: the win is yours.', 'du.reward': '+{coins} coins',
     'du.waitingOpp': 'Waiting for your opponent…', 'du.you': 'You',
     'du.t.fire': 'FIRE', 'du.t.aim': 'SCOPE', 'du.t.nade': 'PUSH', 'du.t.swap': 'SWAP', 'du.t.jump': 'Jump', 'du.t.crouch': 'Slide',
-    'du.keys': 'Left click fire / stab (hold: SMG) · Right click scope · 1 / 2 weapons · 3 or V knife · Q / G impulse grenade · B mine · R reload · Shift sprint · Space jump · C / Ctrl crouch on/off (slide when running)',
+    'du.keys': 'Left click fire / stab (hold: SMG) · Right click scope · 1 / 2 weapons · 3 or V knife · Q / G impulse grenade · B mine · R reload · Shift sprint · Space jump · C / Ctrl crouch on/off (slide when running) · X ability · F hostage · E pick up',
     'fm.title': 'Fight', 'fm.sub': 'Pick how you want to fight', 'fm.pvp': 'Friend vs friend', 'fm.pvpSub': 'You against another player (online or a friend in your room)',
     'fm.bots': 'Me vs the computer', 'fm.botsSub': 'You alone against 1-3 computer players', 'fm.coop': 'Me + a friend vs the computer', 'fm.coopSub': 'You and another player on the same team against the computer',
     'fm.howMany': 'Computer players', 'fm.diff': 'Difficulty', 'fm.start': 'START', 'fm.invite': 'INVITE A PLAYER', 'fm.back': 'BACK',
@@ -73,7 +73,7 @@
     'du.rounds': '{n} جولات', 'du.continue': 'العودة إلى الطريق ({n})', 'du.continueMenu': 'متابعة ({n})', 'du.oppLeft': '{name} غادر المواجهة: الفوز لك.', 'du.reward': '+{coins} عملة',
     'du.waitingOpp': 'بانتظار المنافس…', 'du.you': 'أنت',
     'du.t.fire': 'إطلاق', 'du.t.aim': 'منظار', 'du.t.nade': 'دفع', 'du.t.swap': 'تبديل', 'du.t.jump': 'قفز', 'du.t.crouch': 'انزلاق',
-    'du.keys': 'زر الفأرة الأيسر: إطلاق / طعن (مطوّل للرشّاش) · الأيمن: منظار · 1 / 2: الأسلحة · 3 أو V: السكّين · Q / G: قنبلة الدفع · B: لغم · R: تلقيم · Shift: ركض سريع · Space: قفز · C / Ctrl: انخفاض/وقوف (انزلاق أثناء الركض)',
+    'du.keys': 'زر الفأرة الأيسر: إطلاق / طعن (مطوّل للرشّاش) · الأيمن: منظار · 1 / 2: الأسلحة · 3 أو V: السكّين · Q / G: قنبلة الدفع · B: لغم · R: تلقيم · Shift: ركض سريع · Space: قفز · C / Ctrl: انخفاض/وقوف (انزلاق أثناء الركض) · X: القدرة · F: رهينة · E: التقاط',
     'fm.title': 'القتال', 'fm.sub': 'اختر طريقة القتال', 'fm.pvp': 'صديق ضد صديق', 'fm.pvpSub': 'أنت ضد لاعب آخر (أونلاين أو صديق في غرفتك)',
     'fm.bots': 'أنا ضد الكمبيوتر', 'fm.botsSub': 'أنت وحدك ضد 1-3 لاعبين من الكمبيوتر', 'fm.coop': 'أنا وصديق ضد الكمبيوتر', 'fm.coopSub': 'أنت ولاعب آخر في نفس الفريق ضد الكمبيوتر',
     'fm.howMany': 'عدد لاعبي الكمبيوتر', 'fm.diff': 'الصعوبة', 'fm.start': 'ابدأ', 'fm.invite': 'ادعُ لاعبًا', 'fm.back': 'رجوع',
@@ -117,6 +117,11 @@
     if (id === 'freeze') return ORB('#8fe6ff');
     if (id === 'bomb') return `<svg viewBox="0 0 40 14" width="40" height="14"><circle cx="20" cy="8" r="5" fill="currentColor"/><rect x="21" y="1" width="2" height="3" fill="#ff5a3a"/></svg>`;
     if (id === 'fall') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="10" y="12" width="20" height="2" fill="currentColor"/><rect x="19" y="0" width="2" height="7" fill="currentColor"/><rect x="15" y="5" width="10" height="2" fill="currentColor"/><rect x="17" y="7" width="6" height="2" fill="currentColor"/><rect x="19" y="9" width="2" height="2" fill="currentColor"/></svg>`;
+    if (id === 'hostage') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="12" y="2" width="16" height="11" rx="2" fill="currentColor"/><rect x="18" y="4" width="4" height="7" fill="#1a1a1a"/></svg>`;
+    const LW = VR.FightKit.WEAPONS[id];
+    if (LW && LW.loot) { const r = ICONS[LW.base] || ICONS.pistol; return `<svg viewBox="0 0 40 14" width="40" height="14">${r.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${hex(LW.color)}"/>`).join('')}</svg>`; }
+    const PW = VR.Powers && VR.Powers.DEFS[id];
+    if (PW) return ORB(hex(PW.color));
     const AB = VR.Fighters && VR.Fighters.ABILITIES && VR.Fighters.ABILITIES[id];
     if (AB && !ICONS[id]) return ORB(hex((VR.Feedback && VR.Feedback.ELEMENTS[AB.elem] || { col: [AB.color || 0xffe14a] }).col[0]));
     if (id === 'mine') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="12" y="8" width="16" height="4" fill="currentColor"/><rect x="15" y="5" width="10" height="3" fill="currentColor"/><rect x="19" y="3" width="2" height="2" fill="#ff5a3a"/></svg>`;
@@ -159,9 +164,12 @@
             <div class="du-w du-ws2 panel"><span class="du-key">3</span><span class="du-wname"></span><b class="num du-ammo"></b><div class="du-rl"><div></div></div></div>
             <div class="du-w du-wnd panel"><span class="du-key">Q</span><span class="du-wname"></span><span class="du-charges"></span></div>
             <div class="du-w du-wmn panel" hidden><span class="du-key">B</span><span class="du-wname"></span><b class="num du-mines"></b></div>
+            <div class="du-w du-wpw panel" hidden><span class="du-key">X</span><span class="du-wname"></span><b class="num du-pwst"></b></div>
           </div>
         </div>
         <div class="du-botsleft panel" hidden></div>
+        <div class="du-prompt2 panel" hidden></div>
+        <div class="du-hostage panel" hidden></div>
         <div class="du-deadfx" hidden></div>
         <div class="du-spec panel" hidden></div>
         <div class="du-killmsg" hidden></div>
@@ -180,6 +188,9 @@
             <button class="mi-tbtn" data-act="swap" data-k="du.t.swapW"></button>
             <button class="mi-tbtn" data-act="knife" data-k="du.t.knife"></button>
             <button class="mi-tbtn du-tmine" data-act="mine" data-k="du.t.mine"></button>
+            <button class="mi-tbtn du-tpow" data-act="ability" data-k="du.t.ability" hidden></button>
+            <button class="mi-tbtn du-tgrab" data-act="grab" data-k="du.t.grab" hidden></button>
+            <button class="mi-tbtn du-tpick" data-act="interact" data-k="du.t.pick" hidden></button>
             <button class="mi-tbtn" data-hold="scores" data-k="du.t.scores"></button>
             <button class="mi-tbtn du-tfire" data-hold="fire" data-act="fire" data-k="du.t.fire"></button>
           </div>
@@ -626,6 +637,34 @@
       });
     }
     resetTouch() { this.root.querySelectorAll('.du-tbtns .mi-tbtn').forEach(b => b.classList.remove('on')); }
+    /** my ability slot (fighter ability / loot power): name, ready state, charges or cooldown */
+    setPower(st) {
+      const el = this.root.querySelector('.du-wpw'), tb = this.root.querySelector('.du-tpow');
+      if (tb) tb.hidden = !st;
+      if (!st) { if (!el.hidden) el.hidden = true; this.powerSt = null; return; }
+      el.hidden = false; this.powerSt = st;
+      const n = el.querySelector('.du-wname'), b = el.querySelector('.du-pwst'), k = el.querySelector('.du-key');
+      if (n.textContent !== st.name) n.textContent = st.name;
+      if (b.textContent !== st.st) b.textContent = st.st;
+      if (k.textContent !== st.key) k.textContent = st.key;
+      el.style.setProperty('--pc', hex(st.color));
+      el.classList.toggle('ready', !!st.ready); el.classList.toggle('active', !!st.on);
+    }
+    /** holding a hostage: how many hits it can still take */
+    setHostage(st) {
+      const el = this.root.querySelector('.du-hostage');
+      if (!st) { el.hidden = true; return; }
+      el.hidden = false;
+      el.innerHTML = `🛡 ${esc(T('lt.held'))} <b>${'■'.repeat(Math.max(0, st.hits))}<s>${'■'.repeat(Math.max(0, st.max - st.hits))}</s></b>`;
+    }
+    /** "E: pick up …" / "F: take a hostage" (and the matching touch button) */
+    setPrompt(text, kind) {
+      const el = this.root.querySelector('.du-prompt2');
+      if (!text) { if (!el.hidden) { el.hidden = true; el.textContent = ''; } } else { el.hidden = false; if (el.textContent !== text) el.textContent = text; }
+      const g = this.root.querySelector('.du-tgrab'), p = this.root.querySelector('.du-tpick');
+      if (g) g.hidden = kind !== 'grab'; if (p) p.hidden = kind !== 'pick';
+      this.promptText = text || null;
+    }
     /** hide the mine button when there are no mines */
     touchMines(on) { const b = this.root.querySelector('.du-tmine'); if (b && b.hidden === on) b.hidden = !on; }
   }

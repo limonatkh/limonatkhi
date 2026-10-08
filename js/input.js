@@ -36,7 +36,8 @@
     ['slot1', 'press', ['Digit1', null]], ['slot2', 'press', ['Digit2', null]], ['slot3', 'press', ['Digit3', null]], ['knife', 'press', ['KeyV', null]],
     ['slotNext', 'press', ['WheelDown', null]], ['slotPrev', 'press', ['WheelUp', null]],
     ['burst', 'press', ['KeyQ', null]], ['grenade', 'press', ['KeyG', null]], ['mine', 'press', ['KeyB', null]], ['medkit', 'press', ['KeyH', null]],
-    ['interact', 'press', ['KeyE', 'KeyF']], ['journal', 'press', ['KeyJ', 'Tab']],
+    ['interact', 'press', ['KeyE', null]], ['journal', 'press', ['KeyJ', 'Tab']],
+    ['ability', 'press', ['KeyX', 'Mouse3']], ['grab', 'press', ['KeyF', null]],
   ];
   const KIND = Object.fromEntries(ACTIONS.map(a => [a[0], a[1]]));
   const DEFAULTS = () => Object.fromEntries(ACTIONS.map(a => [a[0], a[2].slice()]));

@@ -62,13 +62,14 @@
     setup(n, diffKey) {
       this.clear();
       // an AI fighter ("f_<id>", js/duel/fighters.js): one opponent with its own ability and brain
-      const fid = typeof diffKey === 'string' && diffKey.startsWith('f_') ? diffKey.slice(2) : null;
-      this.fsys = fid && VR.Fighters && VR.Fighters.FIGHTERS[fid] ? new VR.Fighters(this) : null;
-      if (this.fsys) n = 1;
+      // "f_<id>[+<id>…][@level]": up to three fighters, all at one level
+      const fk = VR.Fighters && VR.Fighters.parseKey ? VR.Fighters.parseKey(diffKey) : null;
+      this.fsys = fk ? new VR.Fighters(this) : null;
+      if (fk) n = fk.ids.length;
       this.diffKey = DIFF[diffKey] ? diffKey : this.fsys ? 'hard' : 'normal';
       const col = VR.DuelArena.COLORS.g;
       for (let i = 0; i < n; i++) {
-        const ch = VR.CHARACTERS[(i + 1) % VR.CHARACTERS.length].id;
+        const ch = VR.CHARACTERS[(fk ? VR.Fighters.FIGHTERS[fk.ids[i]].char : i + 1) % VR.CHARACTERS.length].id;
         const name = VR.L(NAMES[i % NAMES.length]) + ' · ' + VR.t('bot.diff.' + this.diffKey);
         const body = VR.DuelBody.build(ch, 'grey', col, null);         // no name tag: it would show where they hide
         this.mgr.scene.add(body.g);
@@ -76,7 +77,7 @@
         const pick = this.diff.sniperOnly ? ['sniper'] : this.diff.picks[(Math.random() * this.diff.picks.length) | 0].filter(id => id !== 'sniper');
         this.list.push({ i, name, body, pos: body.pos, vel: new T.Vector3(), yaw: Math.PI, pitch: 0, hp: 100, alive: true,
           lo: new (FK().Loadout)({ weapons: pick, nades: false }), net: null });
-        if (this.fsys) this.fsys.equip(this.list[i], fid);
+        if (this.fsys) this.fsys.equip(this.list[i], fk.ids[i], fk.level);
       }
       this.respawn();
     }
@@ -91,7 +92,7 @@
         b.yaw = sp.yaw; b.pitch = 0; b.hp = 100; b.alive = true; b.vel.set(0, 0, 0);
         b.lo.refill(); b.downShown = false; b.seenT = 0; b.lastSeen = null; b.react = 0; b.strafe = Math.random() < 0.5 ? -1 : 1; b.strafeT = rnd(0.6, 1.4);
         b.detourT = 0; b.stuckT = 0; b.nadeT = rnd(3, 6); b.headPick = false; b.aimErr = new T.Vector2(); b.errT = 0; b.net = null;
-        b.body.g.visible = true; b.body.deadT = 0; b.body.g.rotation.z = 0; b.body.g.scale.set(1, 1, 1);
+        b.body.g.visible = true; b.body.deadT = 0; b.body.g.rotation.z = 0; b.body.g.scale.set(1, 1, 1); b.held = false; b.slowT = 0;
         b.body.yaw = b.yaw; b.body.pitch = 0;
         VR.DuelBody.animate(b.body, 0);
       }
@@ -99,7 +100,7 @@
     }
     /** hit boxes for shots (alive bots only) */
     targets() {
-      const out = this.list.filter(b => b.alive).map(b => { const bx = WK().boxesAt(b.pos, false); return { parts: { head: bx.head, body: bx.body }, ref: b }; });
+      const out = this.list.filter(b => b.alive && !b.held).map(b => { const bx = WK().boxesAt(b.pos, false); return { parts: { head: bx.head, body: bx.body }, ref: b }; });
       return this.fsys ? out.concat(this.fsys.decoyTargets()) : out;
     }
 
@@ -124,6 +125,7 @@
       const blocked = (x, z) => this.mgr.level.solids.some(s => s.max[1] > y0 && s.min[1] < y1 &&
         x + r > s.min[0] && x - r < s.max[0] && z + r > s.min[2] && z - r < s.max[2]);
       const x0 = b.pos.x, z0 = b.pos.z;
+      if (b.slowT > 0) { dx *= 0.5; dz *= 0.5; }                      // frozen by my frost / freeze
       if (!blocked(b.pos.x + dx, b.pos.z)) b.pos.x += dx;
       if (!blocked(b.pos.x, b.pos.z + dz)) b.pos.z += dz;
       return Math.hypot(b.pos.x - x0, b.pos.z - z0);
@@ -166,7 +168,7 @@
       const D = this.diff, mgr = this.mgr;
       for (const b of this.list) {
         b.lo.update(dt, VR.DUEL.NADE_RECHARGE);
-        if (!b.alive) continue;
+        if (!b.alive || b.held) continue;                             // a hostage does nothing
         const tgt = this.pickTarget(b, players);
         if (!tgt) continue;
         const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55, b.pos.z);
@@ -229,7 +231,7 @@
     }
     /** a bot fires: the shot is traced against every player (only the host does this) */
     fire(b, eye, aimPt, tgt, w, players) {
-      const D = b.f ? b.f.aim : this.diff, mgr = this.mgr;
+      const D = b.aim || (b.f ? b.f.aim : this.diff), mgr = this.mgr;
       const base = aimPt.clone().sub(eye).normalize();
       // aiming error grows with the target's speed (moving makes you harder to hit)
       const tspd = tgt.vel ? Math.hypot(tgt.vel.x, tgt.vel.z) : 0;
@@ -289,6 +291,7 @@
     render(dt) {
       for (const b of this.list) {
         const body = b.body;
+        if (b.slowT > 0) b.slowT -= dt;
         if (b.net) {                                  // guest: follow the host's reports smoothly
           const k = Math.min(1, dt * 12);
           b.pos.x += (b.net.p[0] - b.pos.x) * k; b.pos.y += (b.net.p[1] - b.pos.y) * k; b.pos.z += (b.net.p[2] - b.pos.z) * k;

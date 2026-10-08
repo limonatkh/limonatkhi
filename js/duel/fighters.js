@@ -122,6 +122,27 @@
   };
   const ORDER = ['dasher', 'flash', 'tank', 'blaster', 'bomber', 'healer', 'freezer', 'berserker', 'trickster', 'ninja'];
 
+  /**
+   * LEVELS: every fighter at four levels (its numbers above are "medium").
+   *   err / react / turn / fireMul / head scale the aim, cd the ability cooldown,
+   *   hp its health, speed its movement, reward the coins for beating it.
+   */
+  const LEVELS = {
+    normal:     { err: 1.9, react: 0.3, turn: 0.6, fireMul: 1.45, head: 0.4, cd: 1.5, hp: 0.85, speed: 0.9, reward: 0.6 },
+    medium:     { err: 1, react: 0, turn: 1, fireMul: 1, head: 1, cd: 1, hp: 1, speed: 1, reward: 1 },
+    hard:       { err: 0.6, react: -0.06, turn: 1.4, fireMul: 0.88, head: 1.6, cd: 0.8, hp: 1.15, speed: 1.06, reward: 1.6 },
+    impossible: { err: 0.3, react: -0.12, turn: 2.2, fireMul: 0.78, head: 2.6, cd: 0.6, hp: 1.3, speed: 1.12, reward: 2.5 },
+  };
+  const LEVEL_ORDER = ['normal', 'medium', 'hard', 'impossible'];
+  /** "f_dasher+tank@hard" ↔ { ids: ['dasher', 'tank'], level: 'hard' } */
+  function parseKey(key) {
+    if (typeof key !== 'string' || !key.startsWith('f_')) return null;
+    const [list, lv] = key.slice(2).split('@');
+    const ids = list.split('+').filter(id => FIGHTERS[id]).slice(0, 3);
+    return ids.length ? { ids, level: LEVELS[lv] ? lv : 'medium' } : null;
+  }
+  const makeKey = (ids, level) => 'f_' + ids.join('+') + '@' + (LEVELS[level] ? level : 'medium');
+
   /* ------------------------------------------------------------------
    * LOOK: accessories on the arena body (so each fighter is recognisable)
    * ---------------------------------------------------------------- */
@@ -278,10 +299,13 @@
     constructor(bots) { this.bots = bots; this.mgr = bots.mgr; this.projectiles = []; this.zones = []; this.decoys = []; this.events = []; }
     get list() { return this.bots.list; }
     /** turn a bot record into a fighter */
-    equip(b, id) {
-      const F = FIGHTERS[id];
-      b.f = F; b.fid = id; b.maxHp = F.hp;
-      b.name = L(F.name);
+    equip(b, id, level = 'medium') {
+      const F = FIGHTERS[id], LV = LEVELS[level] || LEVELS.medium;
+      b.f = F; b.fid = id; b.level = level; b.maxHp = Math.round(F.hp * LV.hp);
+      // this fighter at this level: its own aim, cooldowns and speed
+      b.aim = { react: Math.max(0.22, F.aim.react + LV.react), err: F.aim.err * LV.err, turn: F.aim.turn * LV.turn, fireMul: F.aim.fireMul * LV.fireMul, head: Math.min(0.6, F.aim.head * LV.head) };
+      b.cdMul = LV.cd; b.spd = F.speed * LV.speed;
+      b.name = L(F.name) + (level !== 'medium' ? ' · ' + VR.t('bot.diff.' + level) : '');
       dress(b.body, F);
       b.lo = new (FK().Loadout)({ weapons: F.weapons, nades: false });
       b.fx = {}; b.mem = {}; b.cd = 0; b.charges = ABILITIES[F.ability].charges || 0;
@@ -330,7 +354,7 @@
       const sys = this;
       for (const b of this.list) {
         b.lo.update(dt, VR.DUEL.NADE_RECHARGE);
-        if (!b.alive || !b.f) continue;
+        if (!b.alive || !b.f || b.held) continue;                      // a hostage does nothing
         const F = b.f, A = ABILITIES[F.ability], m = b.mem, fx = b.fx;
         b.cd = Math.max(0, b.cd - dt);
         for (const k of ['hitT', 'frozeT', 'flankT', 'retreatT', 'dodgeCd']) m[k] = Math.max(0, (m[k] || 0) - dt);
@@ -364,21 +388,21 @@
         }
         // aim (same limits as the other bots)
         b.errT = (b.errT || 0) - dt;
-        if (b.errT <= 0) { b.errT = rnd(0.25, 0.5); b.headPick = Math.random() < F.aim.head; b.aimErr.set(gauss(), gauss()); }
+        if (b.errT <= 0) { b.errT = rnd(0.25, 0.5); b.headPick = Math.random() < b.aim.head; b.aimErr.set(gauss(), gauss()); }
         const chest = sees ? new T.Vector3(tgt.pos.x, tgt.pos.y + (tgt.low ? 0.6 : 1.15), tgt.pos.z) : null;
         const aimPt = sees ? (b.headPick ? new T.Vector3(tgt.pos.x, tgt.pos.y + (tgt.low ? 0.75 : 1.5), tgt.pos.z) : chest) : null;
         const to = sees ? aimPt.clone().sub(eye) : new T.Vector3(goal.x - b.pos.x, 0, goal.z - b.pos.z);
         const wantYaw = Math.atan2(-to.x, -to.z), wantPitch = sees ? Math.atan2(to.y, Math.hypot(to.x, to.z)) : 0;
-        const turn = F.aim.turn * dt;
+        const turn = b.aim.turn * dt;
         b.yaw += Math.max(-turn, Math.min(turn, wrap(wantYaw - b.yaw)));
         b.pitch += Math.max(-turn, Math.min(turn, wantPitch - b.pitch));
-        const aligned = sees && Math.abs(wrap(wantYaw - b.yaw)) < 0.1 && m.seenT >= F.aim.react;
+        const aligned = sees && Math.abs(wrap(wantYaw - b.yaw)) < 0.1 && m.seenT >= b.aim.react;
         const aimDir = sees ? new T.Vector3(-Math.sin(b.yaw) * Math.cos(b.pitch), Math.sin(b.pitch), -Math.cos(b.yaw) * Math.cos(b.pitch)) : null;
         // the brain decides
         const rooted = fx.healT > 0;
         // an ability is ready when its cooldown (and charges) allow it — and, against you, only after
         // the same reaction time as its gun (no instant reflexes)
-        const ready = b.cd <= 0 && (!A.charges || b.charges > 0) && (!sees || m.seenT >= F.aim.react);
+        const ready = b.cd <= 0 && (!A.charges || b.charges > 0) && (!sees || m.seenT >= b.aim.react);
         const plan = (fx.dash || fx.strike) ? { move: 'hold' } : BRAINS[b.fid]({
           f: b, tgt: sees ? tgt : { pos: goal, vel: new T.Vector3() }, sees, dist, hpK: b.hp / b.maxHp, underAim, tReloading: !!(sees && tgt.reloading),
           ready, aligned, aimDir, charges: b.charges, sys,
@@ -388,7 +412,7 @@
         const rage = fx.rageT > 0 ? ABILITIES.rage.status : null;
         if (aligned && !rooted && !fx.dash && !fx.strike) {
           const w = b.lo.shoot();
-          if (w) { b.lo.coolT *= F.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = rage ? rage.dmg : 1; this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
+          if (w) { b.lo.coolT *= b.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = rage ? rage.dmg : 1; this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
         }
         // movement
         this.moveFighter(b, dt, plan, sees ? tgt : null, goal, dist, rage, rooted);
@@ -405,7 +429,7 @@
       if (b.f.ability === 'rage' && b.fx.raged) return false;
       const dir = arg instanceof T.Vector3 ? arg : null;
       A.use(b, ctx, dir || arg);
-      b.cd = A.cooldown; if (A.charges) b.charges--;
+      b.cd = A.cooldown * (b.cdMul || 1); if (A.charges) b.charges--;
       this.log(b, 'ability', { a: b.f.ability });
       return true;
     }
@@ -445,7 +469,7 @@
       if (tgt && mv !== 'flank') side = F.strafe * b.strafe * (mv === 'circle' ? 1 : 0.6);
       if (mv === 'flank') side *= b.strafe;
       const slowK = 1;
-      const sp = WALK() * F.speed * (rage ? rage.speed : 1) * slowK;
+      const sp = WALK() * (b.spd || F.speed) * (rage ? rage.speed : 1) * slowK;
       let mx = dir.x * fwd + dir.z * side, mz = dir.z * fwd - dir.x * side;
       if (b.detourT > 0) { b.detourT -= dt; mx = dir.z * b.strafe + dir.x * 0.3; mz = -dir.x * b.strafe + dir.z * 0.3; }
       const l = Math.hypot(mx, mz);
@@ -484,7 +508,7 @@
 
     // ---- projectiles (energy, freeze): real flying shots, blocked by walls, dodgeable
     shoot(b, A, dir, kind) {
-      const err = b.f.aim.err * 1.4;
+      const err = (b.aim || b.f.aim).err * 1.4;
       const d = dir.clone().add(new T.Vector3(gauss() * err, gauss() * err * 0.6, gauss() * err)).normalize();
       const mesh = new T.Mesh(new T.SphereGeometry(kind === 'freeze' ? 0.22 : 0.18, 10, 8), new T.MeshBasicMaterial({ color: A.color }));
       mesh.material.userData.own = true; mesh.geometry.userData.own = true; mesh.material.toneMapped = false;
@@ -510,7 +534,7 @@
           if (hit && hit.distanceTo(pr.pos) <= Math.min(len, wd)) {
             done = true;
             this.mgr.botHitPlayer(p.id, pr.A.damage, false, pr.b.i, pr.kind);
-            if (pr.kind === 'freeze') { this.mgr.statusSlow(pr.A.status.slow, pr.A.duration); pr.b.mem.frozeT = 2.6; this.log(pr.b, 'froze'); }
+            if (pr.kind === 'freeze' && p.id === this.mgr.match.me && !this.mgr.hostage.held) { this.mgr.statusSlow(pr.A.status.slow, pr.A.duration); pr.b.mem.frozeT = 2.6; this.log(pr.b, 'froze'); }
             else this.log(pr.b, 'shotHit', { kind: pr.kind });
             vfx(this, 'impact', pr.b, pr.A, { pos: hit.clone(), me: p.id === this.mgr.match.me });
           }
@@ -571,7 +595,7 @@
       for (let i = this.decoys.length - 1; i >= 0; i--) {
         const d = this.decoys[i]; d.t -= dt;
         if (d.alive && d.t > 0) {
-          const sp = WALK() * d.owner.f.speed;
+          const sp = WALK() * (d.owner.spd || d.owner.f.speed);
           const fake = { pos: d.pos };
           const moved = this.bots.move(fake, d.dir.x * sp * dt, d.dir.z * sp * dt);
           if (moved < sp * dt * 0.3) d.dir.set(-d.dir.z, 0, d.dir.x);
@@ -590,25 +614,31 @@
 
     /** status line for the HUD: name · ability ready / seconds */
     status() {
-      const b = this.list[0]; if (!b || !b.f) return '';
-      const A = ABILITIES[b.f.ability];
-      const st = A.charges ? `${b.charges}/${A.charges}` : b.f.ability === 'rage' && b.fx.raged ? (b.fx.rageT > 0 ? '🔥' : '—') : b.cd > 0 ? Math.ceil(b.cd) + 's' : '✓';
-      return `${L(b.f.name)} · ${L(A.name)} ${st}`;
+      const one = (b) => {
+        const A = ABILITIES[b.f.ability];
+        if (!b.alive) return `${L(b.f.name)} ☠`;
+        const st = A.charges ? `${b.charges}/${A.charges}` : b.f.ability === 'rage' && b.fx.raged ? (b.fx.rageT > 0 ? '🔥' : '—') : b.cd > 0 ? Math.ceil(b.cd) + 's' : '✓';
+        return this.list.length > 1 ? `${L(b.f.name)} ${st}` : `${L(b.f.name)} · ${L(A.name)} ${st}`;
+      };
+      return this.list.filter(b => b.f).map(one).join('  |  ');
     }
   }
 
   Object.assign(VR.I18N.STRINGS.en, {
     'ft.mode': 'AI fighters', 'ft.modeSub': '10 opponents, each with its own ability and style', 'ft.pick': 'Choose your opponent', 'ft.fight': 'FIGHT!',
-    'ft.ability': 'Ability', 'ft.diff': 'Difficulty', 'ft.strong': 'Strength', 'ft.weak': 'Weakness', 'ft.decoyPopped': 'That was a decoy!', 'ft.slowed': '❄ SLOWED',
+    'ft.level': 'Level', 'ft.playAs': 'I play as', 'ft.asMe': 'Myself', 'ft.count': '{n}/3 opponents chosen — click to add, click again to remove', 'ft.ability': 'Ability', 'ft.diff': 'Difficulty', 'ft.strong': 'Strength', 'ft.weak': 'Weakness', 'ft.decoyPopped': 'That was a decoy!', 'ft.slowed': '❄ SLOWED',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'ft.mode': 'مقاتلو الذكاء', 'ft.modeSub': '10 خصوم، لكلٍّ قدرته وأسلوبه', 'ft.pick': 'اختر خصمك', 'ft.fight': 'قاتل!',
-    'ft.ability': 'القدرة', 'ft.diff': 'الصعوبة', 'ft.strong': 'القوة', 'ft.weak': 'الضعف', 'ft.decoyPopped': 'كانت نسخة وهمية!', 'ft.slowed': '❄ مُبطَّأ',
+    'ft.level': 'المستوى', 'ft.playAs': 'ألعب بشخصية', 'ft.asMe': 'أنا (بلا قدرة)', 'ft.count': 'اخترت {n}/3 خصوم — اضغط لتضيف، واضغط مرة ثانية لتشيل', 'ft.ability': 'القدرة', 'ft.diff': 'الصعوبة', 'ft.strong': 'القوة', 'ft.weak': 'الضعف', 'ft.decoyPopped': 'كانت نسخة وهمية!', 'ft.slowed': '❄ مُبطَّأ',
   });
 
   Fighters.FIGHTERS = FIGHTERS; Fighters.ABILITIES = ABILITIES; Fighters.BRAINS = BRAINS; Fighters.ORDER = ORDER;
   Fighters.portrait = portrait; Fighters.dress = dress;
   /** coins for beating a fighter */
-  Fighters.reward = (id) => 40 * ((FIGHTERS[id] && FIGHTERS[id].stars) || 1);
+  /** coins for beating one fighter (at a level) or a team of them */
+  Fighters.reward = (id, level = 'medium') => Math.round(40 * ((FIGHTERS[id] && FIGHTERS[id].stars) || 1) * (LEVELS[level] || LEVELS.medium).reward);
+  Fighters.teamReward = (ids, level) => ids.reduce((s, id) => s + Fighters.reward(id, level), 0);
+  Fighters.LEVELS = LEVELS; Fighters.LEVEL_ORDER = LEVEL_ORDER; Fighters.parseKey = parseKey; Fighters.makeKey = makeKey;
   VR.Fighters = Fighters;
 })();

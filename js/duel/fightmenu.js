@@ -24,8 +24,13 @@
       click('fmBots', () => this.show('bots'));
       click('fmCoop', () => this.show('coop'));
       click('fmFighters', () => this.show('fighters'));
+      click('fmLoot', () => this.show('loot'));
       click('ftGo', () => this.goFighter());
-      this.fighter = VR.UI.store.get('fighterPick', 'dasher');
+      // AI fighters: up to three opponents, one level, and (optional) the fighter I play as
+      const fp = VR.UI.store.get('fighterPick2', null) || {};
+      this.picks = Array.isArray(fp.ids) && fp.ids.length ? fp.ids.slice(0, 3) : [VR.UI.store.get('fighterPick', 'dasher')];
+      this.fighter = this.picks[0];
+      this.level = fp.level || 'medium'; this.playAs = fp.as || null;
       click('fmBack', () => (this.mode ? this.show(null) : this.close()));
       click('fmGo', () => this.go());
       click('fmShop', () => this.show('shop'));
@@ -46,7 +51,7 @@
       this.mode = mode;
       this.el.modes.hidden = !!mode;
       this.el.pvp.hidden = mode !== 'pvp';
-      this.el.bots.hidden = mode !== 'bots' && mode !== 'coop';
+      this.el.bots.hidden = mode !== 'bots' && mode !== 'coop' && mode !== 'loot';
       document.getElementById('fmFightPane').hidden = mode !== 'fighters';
       if (mode === 'fighters') this.renderFighters();
       const shop = document.getElementById('fmShopPane');
@@ -65,12 +70,27 @@
     /** the 10 AI fighters: cards + the chosen one's details */
     renderFighters() {
       const FS = VR.Fighters, L = (v) => VR.L(v), esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-      if (!FS.FIGHTERS[this.fighter]) this.fighter = 'dasher';
+      this.picks = this.picks.filter(id => FS.FIGHTERS[id]); if (!this.picks.length) this.picks = ['dasher'];
+      if (!FS.FIGHTERS[this.fighter]) this.fighter = this.picks[0];
+      const savePick = () => VR.UI.store.set('fighterPick2', { ids: this.picks, level: this.level, as: this.playAs });
       const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
       const grid = document.getElementById('ftGrid');
-      grid.innerHTML = FS.ORDER.map(id => { const F = FS.FIGHTERS[id]; return `<button class="ft-card ${id === this.fighter ? 'on' : ''}" data-id="${id}" type="button" style="border-bottom-color:#${F.color.toString(16).padStart(6, '0')}">
-        <img alt="" src="${FS.portrait(id)}"><b>${esc(L(F.name))}</b><small class="ft-stars">${stars(F.stars)}</small></button>`; }).join('');
-      grid.querySelectorAll('.ft-card').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.fighter = b.dataset.id; VR.UI.store.set('fighterPick', this.fighter); this.renderFighters(); }));
+      grid.innerHTML = FS.ORDER.map(id => { const F = FS.FIGHTERS[id], k = this.picks.indexOf(id); return `<button class="ft-card ${k >= 0 ? 'on' : ''} ${id === this.fighter ? 'view' : ''}" data-id="${id}" type="button" style="border-bottom-color:#${F.color.toString(16).padStart(6, '0')}">
+        ${k >= 0 ? `<i class="ft-n">${k + 1}</i>` : ''}<img alt="" src="${FS.portrait(id)}"><b>${esc(L(F.name))}</b><small class="ft-stars">${stars(F.stars)}</small></button>`; }).join('');
+      // a click adds / removes an opponent (one to three), and shows its details
+      grid.querySelectorAll('.ft-card').forEach(b => b.addEventListener('click', () => {
+        VR.Audio.play('click'); const id = b.dataset.id, k = this.picks.indexOf(id);
+        if (k >= 0 && this.fighter === id && this.picks.length > 1) this.picks.splice(k, 1);
+        else if (k < 0) { if (this.picks.length >= 3) this.picks.shift(); this.picks.push(id); }
+        this.fighter = id; VR.UI.store.set('fighterPick', this.picks[0]); savePick(); this.renderFighters();
+      }));
+      document.getElementById('ftCount').textContent = VR.t('ft.count', { n: this.picks.length });
+      const lv = document.getElementById('ftLevel');
+      lv.innerHTML = FS.LEVEL_ORDER.map(k => `<button class="btn small ${k === this.level ? 'on' : ''}" data-l="${k}" type="button">${esc(VR.t('bot.diff.' + k))}</button>`).join('');
+      lv.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.level = b.dataset.l; savePick(); this.renderFighters(); }));
+      const as = document.getElementById('ftAs');
+      as.innerHTML = [null].concat(FS.ORDER).map(id => `<button class="btn small ${id === this.playAs ? 'on' : ''}" data-a="${id || ''}" type="button">${id ? esc(L(FS.FIGHTERS[id].name)) : esc(VR.t('ft.asMe'))}</button>`).join('');
+      as.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.playAs = b.dataset.a || null; savePick(); this.renderFighters(); }));
       const F = FS.FIGHTERS[this.fighter], A = FS.ABILITIES[F.ability];
       document.getElementById('ftDetail').innerHTML = `<img alt="" src="${FS.portrait(this.fighter)}"><div>
         <h4>${esc(L(F.name))}</h4><div class="ft-title">«${esc(L(F.title))}»</div>
@@ -82,11 +102,12 @@
     goFighter() {
       if (this.game.settings.fullscreen) VR.Fullscreen.request();
       this.close();
-      this.game.duel.startBots({ fighter: this.fighter });
+      this.game.duel.startBots({ fighters: this.picks.slice(0, 3), level: this.level, playAs: this.playAs });
     }
     go() {
       const opts = { bots: this.n, diff: this.diff };
-      if (this.mode === 'bots') {
+      if (this.mode === 'bots' || this.mode === 'loot') {
+        if (this.mode === 'loot') opts.loot = true;
         if (this.game.settings.fullscreen) VR.Fullscreen.request();
         this.close();
         this.game.duel.startBots(opts);

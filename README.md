@@ -859,6 +859,43 @@ move, limited turning, real cooldowns. It reads only what a person can see: wher
 look and whether you reload. The ordinary computer players now follow the same "no
 seeing through walls" rule. Reward for beating a fighter: 40 coins × its stars.
 
+## Fighter levels, teams, playing as a fighter, loot arena, hostages (`js/duel/powers.js`)
+
+**Fighter levels and teams.** The fighter screen picks **one to three** opponents (click to add,
+click again to remove) and a **level**: normal / medium (the numbers in `FIGHTERS`) / hard /
+impossible. A level scales aim error, reaction, turning, fire rate, headshot chance, ability
+cooldown, health, speed and the reward (`VR.Fighters.LEVELS`). The match key is
+`f_<id>[+<id>…]@<level>` (old `f_<id>` still works = medium).
+
+**Play as a fighter** («ألعب بشخصية»): pick one of the 10 and its ability is yours on the
+**ability key** (X / mouse 4, Settings → Controls): dash, blink, heavy shield (−65 % damage),
+energy shots (4 charges), bombs (red circle, then the blast), self-heal (slows you, a hit stops it),
+freeze shot (slows the bot), rage (once a round), decoy (the bots shoot it), shadow strike. Same
+cooldowns as the fighter. Your effects use that fighter's feedback profile.
+
+**Loot arena** («ساحة التحدي»): Fight → 🎁, 1-3 bots at a difficulty. No buy screen: pistol, knife,
+grenades. Six glowing items (beam + ring by rarity) lie on the floor and one comes back every
+10 s; **E** picks up. They are never sold and are stronger than the shop:
+
+| Weapon | vs shop |
+|---|---|
+| Railgun (المدفع الكهرومغناطيسي) | 75 / 200 — beats the sniper's 55 / 150 |
+| Plasma rifle | 24 per shot at 0.1 s — far above the rifle |
+| Minigun | 16 per shot at 0.045 s, 150 rounds |
+| Golden Fang | 60 / 150 pistol |
+| Thunder shotgun | 10 pellets × 18 |
+
+Powers (charges, on the ability key): Meteor (huge bomb), Overshield (absorbs 90), Phase jump
+(3 × 11 m blinks), Regeneration (+70), Frost nova (area slow + damage), Overdrive (rage ×1.6),
+Storm orb (4 big orbs). A loot gun fills the second gun slot or replaces the one in hand (a
+replaced loot gun drops on the floor). Each round starts again with the pistol and new loot.
+
+**Hostage** (vs the computer): standing next to an enemy **at its side or behind it** (not in its
+±60° front), **F** grabs it. It stays in front of you (a bit to the left, so you can still aim);
+you walk at your normal speed but cannot sprint; your own shots go past it. Shots from the front
+(±75°) hit the hostage instead of you: it takes **3 hits or two killing shots (200)**, then falls.
+A grenade jump makes it slip away (it lives); F again lets it go.
+
 ## Feedback & effects layer (المؤثرات) — `js/duel/feedback.js`
 
 A layer **on top of** the arena's systems (player, camera, weapons are unchanged): it reacts to

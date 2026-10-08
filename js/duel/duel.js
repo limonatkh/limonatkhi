@@ -64,6 +64,8 @@
       this.bots = new VR.DuelBots(this);
       this.nadeModel = VR.DuelWeapons.grenade();
       this.fx = new VR.DuelFx(this.scene);
+      // my ability slot (play as a fighter / loot powers), the loot arena's floor, holding a hostage (js/duel/powers.js)
+      this.powers = new VR.Powers.PlayerPowers(this); this.loot = new VR.Powers.Loot(this); this.hostage = new VR.Powers.Hostage(this);
       this.match = null; this.pending = null; this.incoming = null;
       this.cool = new Map(); this.declinedFrom = new Map();
       this.pickOpen = false; this.pickNotice = null; this.pickT = 0;
@@ -360,9 +362,12 @@
      */
     startBots(opts) {
       if (this.match || this.game.state !== 'menu') return false;
-      const fid = opts.fighter && VR.Fighters && VR.Fighters.FIGHTERS[opts.fighter] ? opts.fighter : null;
-      opts = fid ? { type: 'bots', bots: 1, diff: 'f_' + fid, fighter: fid }
-        : { type: 'bots', bots: Math.max(1, Math.min(3, opts.bots | 0 || 1)), diff: VR.DuelBots.DIFF[opts.diff] ? opts.diff : 'normal' };
+      // AI fighters: one to three of them, all at one level (opts.fighter = one id, as before)
+      const FS = VR.Fighters, list = (opts.fighters || (opts.fighter ? [opts.fighter] : [])).filter(id => FS && FS.FIGHTERS[id]).slice(0, 3);
+      const level = FS && FS.LEVELS && FS.LEVELS[opts.level] ? opts.level : 'medium';
+      const playAs = FS && FS.FIGHTERS[opts.playAs] ? opts.playAs : null;            // I play as a fighter (its ability is mine)
+      opts = list.length ? { type: 'bots', bots: list.length, diff: FS.makeKey(list, level), fighter: list[0], fighters: list, level, playAs }
+        : { type: 'bots', bots: Math.max(1, Math.min(3, opts.bots | 0 || 1)), diff: VR.DuelBots.DIFF[opts.diff] ? opts.diff : 'normal', loot: !!opts.loot, playAs };
       this.match = {
         type: 'bots', opts, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: this.botTeamName(opts),
         role: 'h', chan: { kind: 'none', key: '', name: '', send() {} }, did: 'bots-' + VR.uid(), me: 'h', op: 'g',
@@ -375,8 +380,9 @@
       return true;
     }
     botTeamName(opts) {
-      if (opts.fighter) { const F = VR.Fighters.FIGHTERS[opts.fighter]; return VR.L(F.name) + ' · ' + VR.L(F.title); }
-      return VR.t('bot.team') + ' ×' + opts.bots + ' · ' + VR.t('bot.diff.' + opts.diff);
+      if (opts.fighters && opts.fighters.length > 1) return opts.fighters.map(id => VR.L(VR.Fighters.FIGHTERS[id].name)).join(' + ') + ' · ' + VR.t('bot.diff.' + opts.level);
+      if (opts.fighter) { const F = VR.Fighters.FIGHTERS[opts.fighter]; return VR.L(F.name) + ' · ' + VR.L(F.title) + (opts.level && opts.level !== 'medium' ? ' · ' + VR.t('bot.diff.' + opts.level) : ''); }
+      return (opts.loot ? VR.t('lt.arena') + ' · ' : '') + VR.t('bot.team') + ' ×' + opts.bots + ' · ' + VR.t('bot.diff.' + opts.diff);
     }
     /** which side's score is mine (in matches against bots both players are side 'h') */
     side() { const m = this.match; return m.type === 'pvp' ? m.me : 'h'; }
@@ -390,6 +396,8 @@
       const m = this.match;
       m.pick = m.pick || { weapons: ['pistol'], nades: false };
       m.buyLeft = FK().BUY.TIME; m.readyMe = false;
+      // the loot arena: no buying — a pistol, the knife and grenades; the rest is on the floor
+      if (m.opts && m.opts.loot) { m.pick = { weapons: ['pistol'], nades: true }; this.buyReady(); return; }
       VR.Input.setFPEnabled(false); VR.Input.releaseLock();
       this.renderBuy();
     }
@@ -443,6 +451,7 @@
       if (m.type === 'pvp') this.ui.setPlayers(m.names[m.me], m.names[m.op], col[m.me], col[m.op], D.FIRST_TO);
       else this.ui.setPlayers(m.type === 'coop' ? VR.t('bot.youTwo') : m.names[m.me], m.botName, col.h, col.g, D.BOT_FIRST_TO);
       if (m.type !== 'pvp') this.bots.setup(m.opts.bots, m.opts.diff);
+      if (m.type === 'bots') this.powers.setup();
       this.ui.setScore(0, 0); this.ui.setHP(D.HP);
       this.ui.hideBig();
       this.resetMe();
@@ -488,6 +497,7 @@
         });
       }
       this.level = null; this.avatar = null; this.nades = []; this.mines = [];
+      if (this.powers) { this.powers.clearRound(); this.loot.items = []; this.hostage.held = null; }
       this.bots.list = [];                          // their bodies went with the scene
       this.gunId = null;
     }
@@ -552,6 +562,9 @@
       for (const mi of this.mines) this.scene.remove(mi.obj);
       this.mines = []; this.shotMarks = [];
       if (m.solo) this.lo = new (FK().Loadout)({ weapons: ['sniper', 'pistol'], nades: true }, D.NADES);   // the waiting room: a free practice kit
+      if (m.opts && m.opts.loot && m.readyMe) this.lo = new (FK().Loadout)(m.pick, D.NADES);              // loot arena: back to the pistol each round
+      this.hostage.release('round');
+      if (m.type === 'bots') { this.powers.resetRound(); this.loot.resetRound(); }
       this.lo.refill(); this.scoped = false; this.ads = false; this.adsK = 0; this.reloadSnd = false;
       this.kick = 0; this.shake = 0; this.dmgFlash = 0; this.stepAcc = 0;
       this.hands.hold(null); this.gunHolder.visible = true;
@@ -653,7 +666,7 @@
       let reward;
       if (forfeited) reward = 0;
       else if (m.type === 'pvp') reward = win === true ? D.REWARD_WIN : D.REWARD_LOSE;
-      else { const R = m.opts.fighter ? VR.Fighters.reward(m.opts.fighter) : VR.DuelBots.DIFF[m.opts.diff].reward; reward = win === true ? R : win === false ? D.REWARD_BOT_LOSE : Math.round(R / 3); }
+      else { const R = m.opts.fighters ? VR.Fighters.teamReward(m.opts.fighters, m.opts.level) : Math.round(VR.DuelBots.DIFF[m.opts.diff].reward * (m.opts.loot ? 1.25 : 1)); reward = win === true ? R : win === false ? D.REWARD_BOT_LOSE : Math.round(R / 3); }
       m.result = { win, reward };
       // stats + coins (banked straight away, so nothing depends on the run)
       const stats = VR.Profiles.player().stats;
@@ -749,6 +762,7 @@
       const lo = this.lo, wid = lo.id;
       const w = lo.shoot();
       if (!w) return;
+      if (m.type === 'bots' && this.powers.rageT > 0) lo.coolT *= this.powers.rateMul();
       const c = this.ctrl;
       const o = this.eyePos(new T.Vector3());
       const spread = w.scope && this.scoped ? (c.grounded ? (w.scopedSpread || 0) : (w.airSpread || 0)) : w.spread * (this.ads ? 0.35 : 1);
@@ -800,6 +814,7 @@
     applyHit(target, dmg, head, by, bi, w) {
       const m = this.match;
       if (!dmg || m.phase !== 'fight' || m.dead[target]) return;
+      if (target === m.me && m.type === 'bots') { dmg = this.powers.absorb(dmg); if (dmg <= 0) { this.ui.hitmarker('armor'); return; } }   // my shield / overshield
       m.hp[target] = Math.max(0, m.hp[target] - dmg);
       const dead = m.hp[target] <= 0;
       const msg = { k: 'hit', t: target, by, bi: bi == null ? -1 : bi, w: w || '', head: head ? 1 : 0, dmg: Math.round(dmg), hp: { h: Math.round(m.hp.h * 10) / 10, g: Math.round(m.hp.g * 10) / 10 }, dead: dead ? 1 : 0 };
@@ -918,7 +933,7 @@
     /** where a hit lands on a body (head or chest) */
     hitPoint(pos, low, head) { return new T.Vector3(pos.x, pos.y + (head ? (low ? 1.0 : 1.62) : (low ? 0.6 : 1.1)), pos.z); }
     /** my character's feedback profile, a bot's (an AI fighter has its own), the other player's */
-    myProf() { const m = this.match; return (m && m.chars && m.chars[m.me]) || 'hero'; }
+    myProf() { const m = this.match; if (m && m.opts && m.opts.playAs) return 'f_' + m.opts.playAs; return (m && m.chars && m.chars[m.me]) || 'hero'; }
     botProf(b) { return b.fid ? 'f_' + b.fid : (b.body && b.body.def.id) || 'default'; }
     /** does this player going down end the round? (for the stronger last-elimination effect) */
     roundEndsWith(role) {
@@ -986,6 +1001,7 @@
       const m = this.match, c = this.ctrl;
       const out = [{ id: m.me, pos: c.pos, low: c.crouching, vel: c.vel, alive: !m.dead[m.me] }];
       if (m.type === 'coop' && this.avatar) out.push({ id: m.op, pos: this.avatar.pos, low: this.avatar.low, vel: new T.Vector3(), alive: !m.dead[m.op] });
+      const dec = m.type === 'bots' && this.powers.decoyPlayer(); if (dec) out.push(dec);        // my decoy draws their fire
       return out;
     }
     teamDead() { const m = this.match; return m.type === 'coop' ? (m.dead.h && m.dead.g) : m.dead[m.me]; }
@@ -994,6 +1010,7 @@
       if (b && b.owner) { this.bots.hurt(b, dmg); this.ui.hitmarker(false); return; }       // a fighter's decoy
       if (!b || !b.alive || m.phase !== 'fight' || !dmg) return;
       const armored = !!(b.fx && b.fx.shieldT > 0);              // a fighter's shield is up: armor feedback
+      if (by === m.me && m.type === 'bots') dmg *= this.powers.dmgMul();       // my rage
       const dead = this.bots.hurt(b, dmg);
       const msg = { k: 'bh', i: b.i, hp: Math.round(b.hp), dmg: Math.round(dmg), head: head ? 1 : 0, by, w: w || '', dead: dead ? 1 : 0, ar: armored ? 1 : 0 };
       if (m.type === 'coop') this.send(msg);
@@ -1024,7 +1041,12 @@
         VR.Audio.play('enemyDown');
       }
     }
-    botHitPlayer(pid, dmg, head, bi, w) { const b = this.bots.list[bi]; this.applyHit(pid, dmg, head, 'b', bi, w || (b ? b.lo.id : '')); }
+    botHitPlayer(pid, dmg, head, bi, w) {
+      const b = this.bots.list[bi];
+      if (pid === 'decoy') { this.powers.popDecoy(); return; }                       // they shot my decoy
+      if (pid === this.match.me && this.hostage.held && this.hostage.intercept(b ? b.pos : null, dmg)) return;   // the hostage in front took it
+      this.applyHit(pid, dmg, head, 'b', bi, w || (b ? b.lo.id : ''));
+    }
     /** an AI fighter's freeze: I move slower for a moment */
     statusSlow(k, dur) { this.slowK = k; this.slowT = Math.max(this.slowT || 0, dur); this.ui.slowed(true); VR.Audio.play('scope'); }
 
@@ -1142,7 +1164,7 @@
     }
     /** Push me away from a blast. Under the feet = rocket jump. No damage. */
     impulse(p) {
-      if (VR.WeaponKit.impulse(this.ctrl, p, D.NADE_R, D.NADE_PUSH, this._v)) this.shake = Math.max(this.shake, 0.22);
+      if (VR.WeaponKit.impulse(this.ctrl, p, D.NADE_R, D.NADE_PUSH, this._v)) { this.shake = Math.max(this.shake, 0.22); this.hostage.release('jump'); }   // a grenade jump: the hostage gets away
     }
 
     onOppState(d) {
@@ -1216,6 +1238,9 @@
         else if (a === 'slot2') this.switchTo(1);
         else if (a === 'slot3' || a === 'knife') this.switchTo(this.lo.knifeSlot);
         else if (a === 'mine') this.placeMine();
+        else if (a === 'ability') this.powers.use();
+        else if (a === 'grab') this.hostage.toggle();
+        else if (a === 'interact') this.loot.pick();
         else if (a === 'slotNext' || a === 'slotPrev' || a === 'swap') this.switchTo((this.lo.cur + 1) % this.lo.slots.length);
       }
       // automatic weapons fire while the button is held
@@ -1231,7 +1256,7 @@
       if (canLook) c.look(look.x, look.y, this.sens() * (this.scoped ? D.SCOPE_SENS : this.ads ? 0.7 : 1));
       const move = canMove ? VR.Input.moveVector() : { x: 0, y: 0 };
       if (m.phase !== 'end' && m.phase !== 'over' && m.phase !== 'wait') {
-        c.sprint = canMove && VR.Input.sprintHeld();
+        c.sprint = canMove && VR.Input.sprintHeld() && !this.hostage.held;     // no running with a hostage
         this.lastPos = (this.lastPos || new T.Vector3()).copy(c.pos);
         const evs = c.update(dt, L, move, canMove && VR.Input.crouchHeld());
         for (const e of evs) {
@@ -1299,6 +1324,12 @@
         m.sendT = D.SEND_EVERY;
         this.send({ k: 'st', p: [r2(c.pos.x), r2(c.pos.y), r2(c.pos.z)], yw: r2(c.yaw), pt: r2(c.pitch), c: c.crouching ? 1 : 0, s: c.slideTimer > 0 ? 1 : 0, w: 0, wi: this.lo.id });
       }
+      // powers, loot, a hostage held in front of me (before the bots are drawn)
+      if (m.type === 'bots') {
+        this.hostage.update(dt); this.powers.update(dt); this.loot.update(dt);
+        this.promptT = (this.promptT || 0) - dt;
+        if (this.promptT <= 0) { this.promptT = 0.15; const lp = this.loot.prompt(), hp = lp ? null : this.hostage.prompt(); this.ui.setPrompt(lp || hp, lp ? 'pick' : hp ? 'grab' : null); }
+      }
       // the bots: my game runs them (co-op: the host's, and it streams them)
       if (m.type !== 'pvp') {
         if (m.role === 'h' && m.phase === 'fight') this.bots.update(dt, this.teamPlayers());
@@ -1332,6 +1363,7 @@
       this.ui.setLoadout(this.lo, D.NADE_RECHARGE);
       // slowed (a fighter's freeze)
       if (this.slowT > 0) { this.slowT -= dt; c.speedMul = this.slowK || 0.5; if (this.slowT <= 0) { c.speedMul = 1; this.ui.slowed(false); } } else c.speedMul = 1;
+      if (m.type === 'bots') c.speedMul *= this.powers.speedMul();
       this.mapT = (this.mapT || 0) - dt;
       if (this.mapT <= 0) { this.mapT = 1 / 15; this.drawMap(); }
       // the scoreboard while Tab (its binding) is held
