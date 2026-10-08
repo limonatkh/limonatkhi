@@ -43,6 +43,7 @@
     'fm.pauseBots': 'Paused', 'fm.pauseBotsNote': 'The match against the computer waits for you. Leaving now counts as a loss.',
     'fm.slotEmpty': '—',
     'du.t.swapW': 'SWAP', 'du.t.knife': 'KNIFE', 'du.t.mine': 'MINE',
+    'fm.locked': 'Buy it first in the weapon shop (Fight → Weapon shop, or the Lemon Shop)', 'fm.lockedSub': 'buy in the shop', 'fm.shop': '🛒 WEAPON SHOP',
     'fm.youKilled': 'You took out {name}!', 'fm.killedBy': '{name} took you out', 'fm.watching': 'Watching {name}', 'fm.dead': 'YOU ARE DOWN',
     'du.keyHint': 'Y accept · N decline',
     'menu.wait': 'WAIT FOR A PLAYER', 'menu.waitSub': '1v1 Sniper Arena', 'menu.duel': '1v1 WITH AN ONLINE PLAYER',
@@ -82,6 +83,7 @@
     'fm.pauseBots': 'إيقاف مؤقت', 'fm.pauseBotsNote': 'المباراة ضد الكمبيوتر تنتظرك. الخروج الآن يُحسب خسارة.',
     'fm.slotEmpty': '—',
     'du.t.swapW': 'تبديل', 'du.t.knife': 'سكّين', 'du.t.mine': 'لغم',
+    'fm.locked': 'اشترِه أولًا من متجر الأسلحة (القتال ← متجر الأسلحة، أو متجر الليمون)', 'fm.lockedSub': 'يُشترى من المتجر', 'fm.shop': '🛒 متجر الأسلحة',
     'fm.youKilled': 'قتلت {name}!', 'fm.killedBy': '{name} قتلك', 'fm.watching': 'تشاهد {name}', 'fm.dead': 'مُتّ',
     'du.keyHint': 'Y قبول · N رفض',
     'menu.wait': 'انتظار لاعب', 'menu.waitSub': 'ساحة القنص 1v1', 'menu.duel': 'تحدَّ لاعبًا أونلاين 1v1',
@@ -324,9 +326,10 @@
       const item = (id) => {
         const on = id === 'nades' ? d.pick.nades : id === 'mines' ? !!d.pick.mines : d.pick.weapons.includes(id);
         const price = d.prices[id];
-        const can = on || price <= left;
-        return `<button class="fm-item ${on ? 'on' : ''} ${can ? '' : 'poor'}" data-id="${id}" type="button">
-          <b>${esc(VR.L(NAMES[id]))}</b>${stat(id)}<span class="fm-price">${price ? price : T('fm.free')}</span></button>`;
+        const lock = (d.locked || []).includes(id);
+        const can = !lock && (on || price <= left);
+        return `<button class="fm-item ${on ? 'on' : ''} ${can ? '' : 'poor'} ${lock ? 'locked' : ''}" data-id="${id}" type="button">
+          <b>${lock ? '🔒 ' : ''}${esc(VR.L(NAMES[id]))}</b>${stat(id)}${lock ? `<small class="fm-lock">${esc(T('fm.lockedSub'))}</small>` : ''}<span class="fm-price">${price ? price : T('fm.free')}</span></button>`;
       };
       this.el.card.innerHTML = `
         <h2 class="heading">${T('fm.buyTitle')}</h2>

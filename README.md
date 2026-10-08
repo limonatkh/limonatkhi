@@ -348,6 +348,7 @@ id (an upgrade level can only ever be charged once).
 | Medkit | supply (max 3) | 25 | +50 health, H key / ✚ button |
 | Starting shield | supply (max 3) | 35 | next solo course starts with a 20 s shield |
 | Scatter shotgun / Light SMG / Sniper | weapon | 120 / 160 / 220 | into a free slot, or replaces the one in your hands |
+| Revolver / Assault rifle / Marksman rifle / Heavy machine gun | fight weapon (once) | 250 / 400 / 450 / 550 | unlocks it on the buy screen before fights |
 
 All upgrades together cost 1,270 coins. For scale: a full course pays
 ≈ 20–100 coins, missions 50–100 each (once), the arena 60 (once), a won
@@ -721,6 +722,16 @@ The host only starts round 1 when everyone is ready.
 | Impulse grenades | 250 | no damage | 2 charges | push / rocket jump |
 | Mines ×2 | 200 | up to 85 | 2 per round | key B |
 | Knife | always carried | 50 / 100 | — | reach 2.3 m, key 3 / V |
+| 🔒 Revolver | 300 | 42 / 90 | 6 · 1.7 s | unlock in the shop (250 coins) |
+| 🔒 Assault rifle | 450 | 17 / 34 | 25 · 1.8 s | automatic; unlock 400 coins |
+| 🔒 Marksman rifle | 500 | 38 / 85 | 10 · 2.0 s | scope, 0.38 s between shots; unlock 450 coins |
+| 🔒 Heavy machine gun | 500 | 13 / 22 | 60 · 3.2 s | automatic, wide spread; unlock 550 coins |
+
+**Fight weapons from the shop.** The four 🔒 weapons are bought **once, with real coins**,
+in the weapon shop (Fight → 🛒 Weapon shop, or the Lemon Shop in the adventure square, group
+"Fight weapons"; saved in `profile.unlocks.arena`, transaction `shop:arena:<id>` so it is
+never charged twice). Until then they show locked on the buy screen; after that you pick
+them there like the others, paying match points. Hard / impossible bots use some of them too.
 
 So *sniper + SMG* fits the budget, *sniper + SMG + grenades* does not. Numbers:
 `js/duel/fightkit.js` (`WEAPONS`, `BUY`).
@@ -736,7 +747,7 @@ Against the computer alone, pause really pauses. In co-op the host's game runs t
 decides every hit (the guest's shots too) and streams the bots ~10 times a second.
 
 **Impulse grenade (everywhere: arena, combat, duel).** It rests on the ground, blinks, and
-explodes **0.25 s after landing** (bounces off walls first). Under your feet it throws you
+explodes **1/6 s after landing** (bounces off walls first). Under your feet it throws you
 **straight up where you stand** (no long jump forward), about 11 m high (push 34). The
 Lemon Burst (Q in missions) also goes straight up.
 

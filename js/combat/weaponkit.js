@@ -67,7 +67,7 @@
    * longer explodes on contact). Returns the blast point when it explodes.
    * n: { pos, vel, t, landed, landT }
    */
-  const LAND_DELAY = 0.25, AIR_MAX = 6;
+  const LAND_DELAY = 1 / 6, AIR_MAX = 6;
   function stepNade(n, dt, solids, gravity = 22) {
     if (n.landed) { n.landT = (n.landT || 0) + dt; return n.landT >= LAND_DELAY ? n.pos.clone() : null; }
     const steps = 3, sdt = dt / steps;
@@ -191,7 +191,61 @@
     for (const m of [base, top, led]) { m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); }
     return g;
   }
+  // ---- the fight weapons from the shop
+  function revolver() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.02, -0.12, 0.04, 0.04, 0.2, 0x3a3f4a);            // barrel
+    vb.addColorBox(0, -0.04, 0.0, 0.08, 0.08, 0.09, 0x50565f);             // cylinder
+    vb.addColorBox(0, -0.03, 0.06, 0.05, 0.06, 0.06, 0x3a3f4a);
+    vb.addColorBox(0, -0.13, 0.1, 0.05, 0.13, 0.06, 0x6b4526);             // wooden grip
+    g.add(vb.build());
+    strip(g, 0.006, 0.012, 0.18, 0.022, 0.0, -0.12, LEMON);
+    g.userData.muzzle = new T.Vector3(0, -0.02, -0.24);
+    return g;
+  }
+  function rifle() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.03, -0.06, 0.07, 0.09, 0.4, 0x4a5a3a);            // body
+    vb.addColorBox(0, -0.02, -0.36, 0.035, 0.035, 0.22, 0x1c1f24);         // barrel
+    vb.addColorBox(0, 0.04, -0.05, 0.03, 0.03, 0.18, 0x1c1f24);            // rail
+    vb.addColorBox(0, -0.15, -0.08, 0.045, 0.15, 0.07, 0x1c1f24);          // curved magazine
+    vb.addColorBox(0, -0.14, 0.07, 0.05, 0.11, 0.05, 0x4a5a3a);            // grip
+    vb.addColorBox(0, -0.04, 0.23, 0.06, 0.09, 0.16, 0x4a5a3a);            // stock
+    g.add(vb.build());
+    strip(g, 0.006, 0.014, 0.34, 0.037, -0.01, -0.08, 0xff9a3a);
+    g.userData.muzzle = new T.Vector3(0, -0.02, -0.48);
+    return g;
+  }
+  function dmr() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.03, -0.08, 0.065, 0.085, 0.46, 0x6b5a3a);         // long wooden body
+    vb.addColorBox(0, -0.02, -0.42, 0.03, 0.03, 0.26, 0x1c1f24);           // barrel
+    vb.addColorBox(0, 0.06, -0.06, 0.05, 0.05, 0.2, 0x1c1f24);             // scope
+    vb.addColorBox(0, -0.14, -0.04, 0.04, 0.11, 0.06, 0x1c1f24);           // magazine
+    vb.addColorBox(0, -0.05, 0.25, 0.06, 0.11, 0.16, 0x6b5a3a);            // stock
+    g.add(vb.build());
+    strip(g, 0.005, 0.012, 0.18, 0.027, 0.06, -0.06, 0x5fd0ff);
+    g.userData.muzzle = new T.Vector3(0, -0.02, -0.56);
+    return g;
+  }
+  function lmg() {
+    const g = new T.Group(), vb = new VR.VoxelBuilder();
+    vb.addColorBox(0, -0.03, -0.06, 0.09, 0.11, 0.44, 0x2e3238);           // heavy body
+    vb.addColorBox(0, -0.01, -0.38, 0.045, 0.045, 0.26, 0x1c1f24);         // thick barrel
+    vb.addColorBox(0, -0.12, -0.02, 0.11, 0.1, 0.12, 0x5a5a28);            // ammo box
+    vb.addColorBox(0, -0.15, 0.1, 0.05, 0.11, 0.05, 0x2e3238);             // grip
+    vb.addColorBox(0, -0.04, 0.24, 0.07, 0.1, 0.14, 0x2e3238);             // stock
+    vb.addColorBox(0, -0.1, -0.42, 0.012, 0.12, 0.012, 0x1c1f24);          // bipod
+    g.add(vb.build());
+    strip(g, 0.006, 0.014, 0.36, 0.047, 0.0, -0.06, 0xff4a4a);
+    g.userData.muzzle = new T.Vector3(0, -0.01, -0.52);
+    return g;
+  }
   function model(id) {
+    if (id === 'revolver') return revolver();
+    if (id === 'rifle') return rifle();
+    if (id === 'dmr') return dmr();
+    if (id === 'lmg') return lmg();
     if (id === 'pistol') return pistol();
     if (id === 'shotgun') return shotgun();
     if (id === 'smg') return smg();

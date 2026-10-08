@@ -25,6 +25,7 @@
       click('fmCoop', () => this.show('coop'));
       click('fmBack', () => (this.mode ? this.show(null) : this.close()));
       click('fmGo', () => this.go());
+      click('fmShop', () => this.show('shop'));
       // the 1v1 buttons (bound in game.js) leave this screen
       for (const id of ['duelBtn', 'waitBtn']) $(id).addEventListener('click', () => this.close());
       this.el.count.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.n = +b.dataset.n; this.save(); this.paint(); }));
@@ -43,6 +44,11 @@
       this.el.modes.hidden = !!mode;
       this.el.pvp.hidden = mode !== 'pvp';
       this.el.bots.hidden = mode !== 'bots' && mode !== 'coop';
+      const shop = document.getElementById('fmShopPane');
+      document.getElementById('fmShop').hidden = !!mode;
+      shop.hidden = mode !== 'shop';
+      if (mode === 'shop') VR.Shop.openArena(shop, () => { VR.UI.menuStats(this.game.best, this.game.bank); this.show(null); });
+      else if (shop.innerHTML) { shop.innerHTML = ''; VR.UI.menuStats(this.game.best, this.game.bank); }
       this.paint();
     }
     save() { VR.UI.store.set('fightBots', { n: this.n, diff: this.diff }); }

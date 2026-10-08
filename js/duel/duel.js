@@ -386,11 +386,12 @@
     }
     renderBuy() {
       const m = this.match; if (!m || m.readyMe) return;
-      this.ui.showBuy({ pick: m.pick, left: m.buyLeft, budget: FK().BUY.BUDGET, prices: FK().BUY.PRICES, order: FK().BUY.ORDER },
+      this.ui.showBuy({ pick: m.pick, left: m.buyLeft, budget: FK().BUY.BUDGET, prices: FK().BUY.PRICES, order: FK().BUY.ORDER, locked: FK().locked() },
         { toggle: (id) => this.buyToggle(id), ready: () => this.buyReady(), leave: () => this.forfeit() }, m.type);
     }
     buyToggle(id) {
       const m = this.match; if (!m || m.readyMe) return;
+      if (FK().locked().includes(id)) { VR.Audio.play('buzz'); this.ui.buyNote(VR.t('fm.locked')); return; }
       const p = { weapons: m.pick.weapons.slice(), nades: m.pick.nades, mines: !!m.pick.mines };
       if (id === 'nades') p.nades = !p.nades;
       else if (id === 'mines') p.mines = !p.mines;
@@ -1332,6 +1333,10 @@
   VR.Audio.define('reload', ({ tone, noise }) => { noise(0.06, 0.2, 3000); tone(600, 0.05, 'square', 0.06, null, 0.5); noise(0.06, 0.2, 3000, 0.9); tone(900, 0.05, 'square', 0.08, null, 1.4); });
   VR.Audio.define('throw', ({ noise }) => { noise(0.12, 0.15, 2500); });
   VR.Audio.define('scope', ({ tone }) => { tone(900, 0.04, 'square', 0.05); });
+  VR.Audio.define('revolver', ({ tone, noise }) => { noise(0.16, 0.45, 3200); tone(150, 0.16, 'sawtooth', 0.16, 60); });
+  VR.Audio.define('rifle', ({ tone, noise }) => { noise(0.07, 0.3, 4600); tone(260, 0.06, 'square', 0.08, 120); });
+  VR.Audio.define('dmr', ({ tone, noise }) => { noise(0.14, 0.4, 4200); tone(210, 0.14, 'sawtooth', 0.14, 70); });
+  VR.Audio.define('lmg', ({ tone, noise }) => { noise(0.08, 0.32, 3000); tone(140, 0.07, 'square', 0.1, 70); });
   VR.Audio.define('knife', ({ tone, noise }) => { noise(0.09, 0.25, 6500); tone(1200, 0.05, 'triangle', 0.05, 500); });
 
   VR.DuelManager = DuelManager;

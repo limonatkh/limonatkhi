@@ -47,6 +47,15 @@
       name: { en: 'Light SMG', ar: 'الرشّاش الخفيف' }, desc: { en: 'Automatic, hold to fire', ar: 'آلي، اضغط مطوّلًا' } },
     { id: 'sniper', kind: 'weapon', price: 220, icon: '⌖',
       name: { en: 'Sniper', ar: 'القنّاصة' }, desc: { en: 'Right click to scope', ar: 'الزر الأيمن للمنظار' } },
+    // fight weapons: bought once, then you can pick them on the buy screen before a fight
+    { id: 'revolver', kind: 'arena', price: 250, icon: '⊙',
+      name: { en: 'Revolver', ar: 'المسدس الدوّار' }, desc: { en: 'Fights: 6 heavy shots, 90 to the head', ar: 'للقتال: 6 طلقات ثقيلة، 90 في الرأس' } },
+    { id: 'rifle', kind: 'arena', price: 400, icon: '╪',
+      name: { en: 'Assault rifle', ar: 'البندقية الهجومية' }, desc: { en: 'Fights: automatic, accurate at range', ar: 'للقتال: آلية ودقيقة من بعيد' } },
+    { id: 'dmr', kind: 'arena', price: 450, icon: '⊕',
+      name: { en: 'Marksman rifle', ar: 'بندقية الرامي' }, desc: { en: 'Fights: fast scoped shots, 10 rounds', ar: 'للقتال: طلقات سريعة بمنظار، 10 طلقات' } },
+    { id: 'lmg', kind: 'arena', price: 550, icon: '☰',
+      name: { en: 'Heavy machine gun', ar: 'الرشّاش الثقيل' }, desc: { en: 'Fights: 60-round belt, slow reload', ar: 'للقتال: 60 طلقة، تلقيم بطيء' } },
   ];
   const byId = (id) => ITEMS.find(i => i.id === id) || null;
 
@@ -55,12 +64,14 @@
     'shop.level': 'Level {n}/{max}', 'shop.have': 'You have {n}/{max}', 'shop.poor': 'Not enough coins', 'shop.bought': 'Bought: {name}',
     'shop.replace': 'Replaces {name} in your hands', 'shop.close': 'CLOSE', 'shop.fullHp': 'Health is already full',
     'shop.upgrades': 'Upgrades', 'shop.supplies': 'Supplies', 'shop.weapons': 'Weapons', 'shop.shieldOn': 'Starting shield on!',
+    'shop.arena': 'Fight weapons (pick them before a fight)', 'shop.arenaTitle': 'Weapon shop',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'shop.title': 'متجر الليمون', 'shop.talk': 'تسوّق', 'shop.keeper': 'متجر الليمون', 'shop.buy': 'اشترِ', 'shop.max': 'الأقصى', 'shop.owned': 'معك',
     'shop.level': 'المستوى {n}/{max}', 'shop.have': 'معك {n}/{max}', 'shop.poor': 'العملات لا تكفي', 'shop.bought': 'اشتريت: {name}',
     'shop.replace': 'يحلّ محلّ {name} الذي بيدك', 'shop.close': 'إغلاق', 'shop.fullHp': 'الصحة ممتلئة',
     'shop.upgrades': 'ترقيات', 'shop.supplies': 'مؤن', 'shop.weapons': 'أسلحة', 'shop.shieldOn': 'درع البداية يعمل!',
+    'shop.arena': 'أسلحة القتال (تختارها قبل المواجهة)', 'shop.arenaTitle': 'متجر الأسلحة',
   });
 
   const P = () => VR.Profiles.player();
@@ -80,8 +91,11 @@
       const it = byId(id), pr = this.price(id);
       if (pr === null) return 'max';
       if (it.kind === 'weapon' && this.hasWeapon(id, combat)) return 'owned';
+      if (it.kind === 'arena' && this.ownsArena(id)) return 'owned';
       return VR.Wallet.of().canAfford(pr) ? 'buy' : 'poor';
     },
+    /** a fight weapon bought in the shop (profile.unlocks.arena) */
+    ownsArena(id) { const u = P().unlocks; return !!(u && (u.arena || []).includes(id)); },
     hasWeapon(id, combat) {
       if (combat) return combat.slots.some(s => s.id === id);
       return (P().inventory.weapons || []).some(w => w.id === id);
@@ -91,10 +105,11 @@
       const st = this.state(id, combat);
       if (st !== 'buy') return st;
       const price = this.price(id);
-      const tx = it.kind === 'upgrade' ? `shop:${id}:${this.level(id) + 1}` : `shop:${id}:${VR.uid()}`;
+      const tx = it.kind === 'upgrade' ? `shop:${id}:${this.level(id) + 1}` : it.kind === 'arena' ? `shop:arena:${id}` : `shop:${id}:${VR.uid()}`;
       if (!VR.Wallet.of().debit(price, tx, 'shop:' + id)) return 'poor';
       const p = P();
       if (it.kind === 'upgrade') { p.upgrades = p.upgrades || {}; p.upgrades[id] = this.level(id) + 1; }
+      else if (it.kind === 'arena') { const u = p.unlocks || (p.unlocks = {}); (u.arena || (u.arena = [])).push(id); }
       else if (it.kind === 'supply') { const c = p.inventory.consumables || (p.inventory.consumables = {}); c[id] = (c[id] | 0) + 1; }
       else if (it.kind === 'weapon') {
         if (combat) combat.takeWeapon(id);
@@ -142,7 +157,7 @@
         const group = (kind, title) => `<div class="sh-group">${tr(title)}</div>` + ITEMS.filter(i => i.kind === kind).map(card).join('');
         const html = `<div class="sh-head"><h2 class="heading">${tr('shop.title')}</h2><span class="sh-coins"><span class="coin-ico"></span><b id="sh-coins">${w.coins.toLocaleString('en-US')}</b></span></div>
           <div class="sh-note ${noteKind}">${esc(note)}</div>
-          <div class="sh-list">${group('upgrade', 'shop.upgrades')}${group('supply', 'shop.supplies')}${group('weapon', 'shop.weapons')}</div>
+          <div class="sh-list">${group('upgrade', 'shop.upgrades')}${group('supply', 'shop.supplies')}${group('weapon', 'shop.weapons')}${group('arena', 'shop.arena')}</div>
           <button class="btn" id="sh-close" data-focus>${tr('shop.close')}</button>`;
         const bind = (c) => {
           c.querySelector('#sh-close').addEventListener('click', () => { VR.Audio.play('click'); mgr.ui.close(); });
@@ -154,6 +169,29 @@
         };
         if (mgr.ui.modal === 'shop') { mgr.ui.el.card.innerHTML = html; bind(mgr.ui.el.card); }
         else mgr.ui.open('shop', html, bind);
+      };
+      render();
+    },
+    /** the fight weapons only, as a card over the main menu (Fight → Weapon shop) */
+    openArena(host, onClose) {
+      const render = (note = '', noteKind = '') => {
+        const w = VR.Wallet.of();
+        const row = (it) => {
+          const st = this.state(it.id), pr = this.price(it.id);
+          const btn = st === 'owned' ? `<span class="sh-tag">${tr('shop.owned')}</span>`
+            : `<button class="btn small ${st === 'buy' ? 'lemon' : ''} sh-buy" data-id="${it.id}" ${st === 'buy' ? '' : 'disabled'}><span class="coin-ico"></span>${pr}</button>`;
+          return `<div class="sh-item ${st}"><span class="sh-ico">${it.icon}</span><span class="sh-txt"><b>${esc(L(it.name))}</b><small>${esc(L(it.desc))}</small></span>${btn}</div>`;
+        };
+        host.innerHTML = `<div class="sh-head"><h2 class="heading">${tr('shop.arenaTitle')}</h2><span class="sh-coins"><span class="coin-ico"></span><b id="sh-coins">${w.coins.toLocaleString('en-US')}</b></span></div>
+          <div class="sh-note ${noteKind}">${esc(note)}</div>
+          <div class="sh-list">${ITEMS.filter(i => i.kind === 'arena').map(row).join('')}</div>
+          <button class="btn" id="sh-close">${tr('shop.close')}</button>`;
+        host.querySelector('#sh-close').addEventListener('click', () => { VR.Audio.play('click'); onClose(); });
+        host.querySelectorAll('.sh-buy').forEach(b => b.addEventListener('click', () => {
+          const it = byId(b.dataset.id), r = this.buy(it.id);
+          if (r === 'ok') { VR.Audio.play('coin'); render(tr('shop.bought', { name: L(it.name) }), 'good'); }
+          else { VR.Audio.play('buzz'); render(tr('shop.poor'), 'bad'); }
+        }));
       };
       render();
     },

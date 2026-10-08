@@ -26,12 +26,12 @@
     medium:     { react: 0.8,  err: 0.07,  turn: 4,   fireMul: 1.7,  head: 0.12, speed: 0.9,  strafe: 0.55, nades: 0,  retreat: false,
                   picks: [['smg', 'pistol'], ['shotgun', 'pistol']], reward: 70 },
     hard:       { react: 0.45, err: 0.038, turn: 7,   fireMul: 1.2,  head: 0.25, speed: 1.0,  strafe: 0.75, nades: 11, retreat: true,
-                  picks: [['smg', 'sniper'], ['shotgun', 'smg'], ['sniper', 'pistol']], reward: 110 },
+                  picks: [['smg', 'sniper'], ['shotgun', 'smg'], ['sniper', 'pistol'], ['rifle', 'pistol']], reward: 110 },
     impossible: { react: 0.18, err: 0.014, turn: 16,  fireMul: 0.95, head: 0.55, speed: 1.15, strafe: 1.0,  nades: 7,  retreat: true,
-                  picks: [['sniper', 'smg'], ['smg', 'shotgun']], reward: 180 },
+                  picks: [['sniper', 'smg'], ['smg', 'shotgun'], ['dmr', 'rifle'], ['lmg', 'revolver']], reward: 180 },
   };
   const ORDER = ['normal', 'medium', 'hard', 'impossible'];
-  const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28] };
+  const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14] };
   const NAMES = [{ en: 'Limo', ar: 'ليمو' }, { en: 'Sour', ar: 'حامض' }, { en: 'Peel', ar: 'قشرة' }];
   const WALK = () => VR.CONFIG.FP.SPEED_UNITS * VR.CONFIG.FP.UNIT;
 
@@ -137,7 +137,8 @@
         if (sees) { b.seenT += dt; b.lastSeen = tgt.pos.clone(); b.unseenT = 0; } else { b.seenT = 0; b.unseenT = (b.unseenT || 0) + dt; }
         // weapon for the distance
         if (b.lo.slots.length > 1 && b.lo.ready()) {
-          const want = b.lo.slots.findIndex(s => s.id !== 'knife' && (dist > 12 ? s.id === 'sniper' : s.id !== 'sniper'));
+          const far = (id) => id === 'sniper' || id === 'dmr';
+          const want = b.lo.slots.findIndex(s => s.id !== 'knife' && (dist > 12 ? far(s.id) : !far(s.id)));
           if (want >= 0 && want !== b.lo.cur) b.lo.switchTo(want);
         }
         // turn toward the target (limited turn speed); a new aim error every so often

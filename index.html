@@ -570,6 +570,15 @@
   .fm-item .fm-stat { font-size: 11px; color: var(--muted); font-family: 'Pixelify Sans', monospace; }
   .fm-item .fm-price { position: absolute; top: 6px; inset-inline-end: 8px; font-family: var(--display); font-size: 14px; color: var(--lemon); }
   .fm-time { font-size: 13px; }
+  .fm-item.locked { opacity: .55; border-style: dashed; }
+  .fm-item b { padding-inline-end: 40px; }
+  #fmShopPane { margin: 8px 0; text-align: start; }
+  #fmShopPane .sh-list { max-height: none; }
+  #fmShopPane .sh-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  #fmShopPane .sh-buy, #fmShopPane .sh-tag { width: auto; min-width: 84px; flex: 0 0 auto; }
+  #fmShopPane .sh-head .heading { font-size: 26px; }
+  .fm-item .fm-lock { font-size: 11px; color: #ffb36b; }
+  .fm-menu { max-height: calc(100vh - 24px); overflow-y: auto; }
   .fm-menu .fm-modes { display: grid; gap: 8px; margin: 8px 0; }
   .fm-menu .fm-mode { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: start; }
   .fm-menu .fm-mode small { font-size: 12px; opacity: .8; font-family: inherit; }
@@ -723,6 +732,8 @@
       <div class="fm-row" id="fmDiff"><button class="btn small" data-d="normal" data-i18n="bot.diff.normal">Normal</button><button class="btn small" data-d="medium" data-i18n="bot.diff.medium">Medium</button><button class="btn small" data-d="hard" data-i18n="bot.diff.hard">Hard</button><button class="btn small" data-d="impossible" data-i18n="bot.diff.impossible">Impossible</button></div>
       <button class="btn primary" id="fmGo" data-i18n="fm.start">START</button>
     </div>
+    <button class="btn lemon" id="fmShop" data-i18n="fm.shop">WEAPON SHOP</button>
+    <div class="fm-shop sh-card" id="fmShopPane" hidden></div>
     <button class="btn" id="fmBack" data-i18n="fm.back">BACK</button>
   </div>
 </section>
