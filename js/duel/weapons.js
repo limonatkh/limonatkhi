@@ -57,16 +57,16 @@
       this.tracerGeo = new T.BoxGeometry(1, 1, 1);
     }
     add(obj, life, update) { this.scene.add(obj); this.items.push({ obj, life, max: life, update }); }
-    tracer(from, to, color = NEON) {
+    tracer(from, to, color = NEON, width = 0.035) {
       const len = from.distanceTo(to);
       if (len < 0.1) return;
       const m = new T.Mesh(this.tracerGeo, new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false }));
       m.material.toneMapped = false; m.material.userData.own = true;
       m.position.copy(from).add(to).multiplyScalar(0.5);
-      m.lookAt(to); m.scale.set(0.035, 0.035, len);
+      m.lookAt(to); m.scale.set(width, width, len);
       const core = new T.Mesh(this.tracerGeo, new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
       core.material.userData.own = true; core.scale.set(0.4, 0.4, 1); m.add(core);
-      this.add(m, 0.22, (it, k) => { m.material.opacity = 0.95 * k; core.material.opacity = 0.9 * k; m.scale.x = m.scale.y = 0.035 * (0.4 + k * 0.6); });
+      this.add(m, 0.22, (it, k) => { m.material.opacity = 0.95 * k; core.material.opacity = 0.9 * k; m.scale.x = m.scale.y = width * (0.4 + k * 0.6); });
     }
     flash(pos, color = 0xfff1a8) {
       const l = new T.PointLight(color, 30, 7, 2); l.position.copy(pos);

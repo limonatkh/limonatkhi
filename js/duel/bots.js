@@ -91,7 +91,7 @@
         b.yaw = sp.yaw; b.pitch = 0; b.hp = 100; b.alive = true; b.vel.set(0, 0, 0);
         b.lo.refill(); b.downShown = false; b.seenT = 0; b.lastSeen = null; b.react = 0; b.strafe = Math.random() < 0.5 ? -1 : 1; b.strafeT = rnd(0.6, 1.4);
         b.detourT = 0; b.stuckT = 0; b.nadeT = rnd(3, 6); b.headPick = false; b.aimErr = new T.Vector2(); b.errT = 0; b.net = null;
-        b.body.g.visible = true; b.body.deadT = 0; b.body.g.rotation.z = 0;
+        b.body.g.visible = true; b.body.deadT = 0; b.body.g.rotation.z = 0; b.body.g.scale.set(1, 1, 1);
         b.body.yaw = b.yaw; b.body.pitch = 0;
         VR.DuelBody.animate(b.body, 0);
       }

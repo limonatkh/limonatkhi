@@ -26,7 +26,7 @@
     L.sun = { color: 0xfff2d6, intensity: 1.15, dir: [-0.5, 1, 0.35] };
 
     // ---- floor: 2 m checker grid + lines every 4 m
-    L.collider(-W - 1, -1, -LEN - 1, W + 1, 0, LEN + 1);
+    L.collider(-W - 1, -1, -LEN - 1, W + 1, 0, LEN + 1).mat = 'concrete';
     const A = tint('concrete', 0xf4ead2), B = tint('concrete', 0xc4b48a);
     for (let x = -W; x < W - 0.01; x += 2.3) {
       for (let z = -LEN; z < LEN - 0.01; z += 2) {

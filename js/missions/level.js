@@ -36,7 +36,7 @@
     // axis-aligned box given by its min/max corners
     box(x0, y0, z0, x1, y1, z1, mat, solid = true) {
       this.vb.addBox((x0 + x1) / 2, y0, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, mat);
-      if (solid) return this.collider(x0, y0, z0, x1, y1, z1);
+      if (solid) { const s = this.collider(x0, y0, z0, x1, y1, z1); s.mat = mat; return s; }   // mat: for surface effects
       return null;
     }
     collider(x0, y0, z0, x1, y1, z1) {

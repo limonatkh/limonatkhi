@@ -333,34 +333,80 @@
     }
     pokeReach() { this.reach = 1; }
 
+    /** arm-motion style (VR.Feedback.ARMS: normal, agile, fast, heavy, robotic, magic) */
+    setStyle(name) { this.styleName = name; this.style = (VR.Feedback && VR.Feedback.ARMS[name]) || null; }
+    /** a hit flinches the arms; an ability lifts the free hand */
+    pokeHit(k = 1) { this.hitK = Math.max(this.hitK || 0, k); }
+    pokeAbility() { this.abilityK = 1; }
+
     update(dt, ctrl, look) {
       this.time += dt;
+      const st = this.style || ARM_NORMAL;
       this.reach = Math.max(0, this.reach - dt * 4);
       const ra = Math.sin(this.reach * Math.PI);
-      // view sway lags behind mouse movement
-      this.sway.x += (-look.x * 0.0006 - this.sway.x) * Math.min(1, dt * 10);
-      this.sway.y += (look.y * 0.0006 - this.sway.y) * Math.min(1, dt * 10);
-      const run = ctrl.bobAmt, ph = ctrl.bobPhase;
+      // view sway lags behind mouse movement (inertia), then settles back to the centre
+      const sk = Math.min(1, dt * 10 / st.lag);
+      this.sway.x += (-look.x * 0.0006 * st.sway - this.sway.x) * sk;
+      this.sway.y += (look.y * 0.0006 * st.sway - this.sway.y) * sk;
+      // movement inertia: the arms lag behind a change of direction (in view space)
+      const r = ctrl.right ? ctrl.right() : null, f = ctrl.forward ? ctrl.forward() : null;
+      const lx = r ? ctrl.vel.x * r.x + ctrl.vel.z * r.z : 0, lz = f ? ctrl.vel.x * f.x + ctrl.vel.z * f.z : 0;
+      const lagK = Math.min(1, dt * 6 / st.lag);
+      this.lagX = (this.lagX || 0) + (T.MathUtils.clamp(-lx * 0.0045, -0.035, 0.035) - (this.lagX || 0)) * lagK;
+      this.lagY = (this.lagY || 0) + (T.MathUtils.clamp(-lz * 0.0018, -0.02, 0.02) - (this.lagY || 0)) * lagK;
+      // speed tiers: walk → run → sprint (leaning forward)
+      const hs = Math.hypot(ctrl.vel.x, ctrl.vel.z), walk = ctrl.walkSpeed || 5;
+      const sprinting = ctrl.sprint && ctrl.grounded && hs > walk * 1.05 && !(ctrl.slideTimer > 0);
+      this.sprintK = (this.sprintK || 0) + ((sprinting ? 1 : 0) - (this.sprintK || 0)) * Math.min(1, dt * 7);
+      // a sudden stop: the arms carry on a little, then settle
+      const decel = ((this.prevSpeed || 0) - hs) / Math.max(dt, 1e-4);
+      if (decel > 30 && (this.prevSpeed || 0) > walk * 0.7 && ctrl.grounded) this.settle = 1;
+      this.prevSpeed = hs;
+      this.settle = Math.max(0, (this.settle || 0) - dt * 2.6);
+      const settle = Math.sin(this.settle * Math.PI * 2.5) * this.settle * 0.035;
+      this.hitK = Math.max(0, (this.hitK || 0) - dt * 5);
+      this.abilityK = Math.max(0, (this.abilityK || 0) - dt * 2.5);
+      // jump up / falling / dash
+      const vy = ctrl.vel.y, inAir = !ctrl.grounded && !ctrl.climbing;
+      const up = inAir && vy > 0 ? Math.min(1, vy / 9) : 0, fall = inAir && vy < 0 ? Math.min(1, -vy / 14) : 0;
+      const dashing = ctrl.burstFov > 2.5 || hs > walk * 2.2;          // a blast / burst push, or far faster than running
+      this.dashK = (this.dashK || 0) + ((dashing ? 1 : 0) - (this.dashK || 0)) * Math.min(1, dt * 10);
+      const run = ctrl.bobAmt, ph = ctrl.bobPhase * st.freq;
+      const amp = st.amp * (0.7 + this.sprintK * 0.6);
       const breathe = Math.sin(this.time * 2.1) * 0.006;
-      const air = ctrl.grounded ? 0 : T.MathUtils.clamp(ctrl.vel.y * 0.006, -0.05, 0.06);
+      const air = inAir ? T.MathUtils.clamp(vy * 0.006, -0.05, 0.06) : 0;
       const slide = ctrl.slideTimer > 0 ? 1 : 0;
       const climb = ctrl.climbing ? 1 : 0;
       const size = Math.min(1, Math.max(0.62, this.camera.aspect / 1.2));
+      const q = (v) => (st.step ? Math.round(v / st.step) * st.step : v);      // robotic: stepped motion
       this.hands.forEach((h, i) => {
         const s = i === 0 ? -1 : 1;
         h.scale.setScalar(0.52 * size);
-        const bob = Math.sin(ph + (i ? Math.PI : 0)) * 0.03 * run;
+        // opposite phase: one arm swings forward while the other goes back
+        const sw = Math.sin(ph + (i ? Math.PI : 0));
+        const swing = q(sw * 0.045 * run * amp), lift = q(Math.abs(sw) * 0.02 * run * amp);
+        const float = st.float ? Math.sin(this.time * 2.4 + i * 1.7) * 0.012 : 0;
         const wide = Math.min(1, Math.max(0.42, this.camera.aspect / 1.5));   // keep hands on screen in portrait
-        let x = s * 0.27 * wide + this.sway.x + Math.cos(ph) * 0.012 * run;
-        let y = -0.27 + breathe + Math.abs(bob) * 0.6 - air + ctrl.landDip * 0.25 + this.sway.y - slide * 0.07;
-        let z = -0.62 + bob * 0.6;
+        let x = s * 0.27 * wide + this.sway.x + this.lagX + Math.cos(ph) * 0.012 * run - s * this.sprintK * 0.03;
+        let y = -0.27 + breathe + lift + float - air + up * -0.03 + fall * 0.07 + ctrl.landDip * 0.25 * st.weight + this.sway.y + this.lagY
+          - slide * 0.07 - this.sprintK * 0.05 - settle + this.hitK * 0.03;
+        let z = -0.62 + swing + this.dashK * 0.1 + this.sprintK * 0.03 - settle * 0.6;
         if (climb) { y += Math.sin(this.time * 9 + i * Math.PI) * 0.08 + 0.14; z -= 0.08; }
         if (i === 1) { z -= ra * 0.2; y += ra * 0.07; x -= ra * 0.06; }
+        if (i === 0 && this.abilityK > 0) { const a = Math.sin(this.abilityK * Math.PI); z -= a * 0.16; y += a * 0.1; x += a * 0.06; }
         h.position.set(x, y, z);
-        h.rotation.set(0.3 + air * 2 - ra * 0.5, -s * 0.18, s * (0.12 + slide * 0.25));
+        h.rotation.set(0.3 + air * 2 - ra * 0.5 - this.sprintK * 0.35 + fall * 0.4 - this.hitK * 0.3 + this.dashK * 0.2,
+          -s * 0.18, s * (0.12 + slide * 0.25 + fall * 0.3) + this.lagX * 2 * st.roll);
       });
+      // what the held weapon uses (a reduced share of the run motion)
+      const m = this.motion || (this.motion = {});
+      m.swing = Math.sin(ph) * run * amp; m.lift = Math.abs(Math.sin(ph)) * run * amp; m.sprint = this.sprintK;
+      m.lagX = this.lagX; m.lagY = this.lagY; m.up = up; m.fall = fall; m.dash = this.dashK; m.settle = settle; m.hit = this.hitK;
+      m.weight = st.weight; m.style = this.styleName || 'normal';
+      return m;
     }
   }
+  const ARM_NORMAL = { amp: 1, freq: 1, lag: 1, weight: 1, step: 0, float: 0, roll: 1, sway: 1 };
 
   VR.FirstPersonController = FirstPersonController;
   VR.HandsView = HandsView;

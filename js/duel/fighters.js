@@ -38,27 +38,39 @@
    *   f = the fighter (bot record), ctx = { sys, tgt, sees, dist, players }
    * ---------------------------------------------------------------- */
   const ABILITIES = {
-    dash: { name: { en: 'Dash', ar: 'الاندفاع' }, cooldown: 3.2, duration: 0.24, range: 6, damage: 0, movement: 'burst', status: null, vfx: 'trail', sfx: 'slide',
-      use(f, ctx, dir) { f.fx.dash = { dir: dir.clone().setY(0).normalize(), t: this.duration, speed: this.range / this.duration }; ctx.sys.mgr.fx.puff(f.pos.clone().setY(0.6), 0x9ef4ff, 8); VR.Audio.play(this.sfx); } },
-    flash: { name: { en: 'Flash', ar: 'الوميض' }, cooldown: 5.5, duration: 0, range: 8, damage: 0, movement: 'teleport', status: null, vfx: 'flash', sfx: 'portal',
-      use(f, ctx, to) { const fx = ctx.sys.mgr.fx; fx.puff(f.pos.clone().setY(0.9), 0xd59bff, 14); fx.flash(f.pos.clone().setY(1.2), 0xd59bff); f.pos.set(to.x, f.pos.y, to.z); fx.puff(f.pos.clone().setY(0.9), 0xd59bff, 14); VR.Audio.play(this.sfx); } },
-    shield: { name: { en: 'Heavy Shield', ar: 'الدرع الثقيل' }, cooldown: 9, duration: 3, range: 0, damage: 0, movement: null, status: { dmgTaken: 0.35 }, vfx: 'bubble', sfx: 'shieldBreak',
-      use(f) { f.fx.shieldT = this.duration; f.body.shield.visible = true; VR.Audio.play('powerup'); } },
-    energy: { name: { en: 'Energy Shot', ar: 'الطلقة الطاقية' }, cooldown: 0.9, charges: 4, recharge: 1.6, duration: 0, range: 40, damage: 22, speed: 30, movement: null, status: null, vfx: 'orb', sfx: 'sniperFar', color: 0xff9a3a,
+    dash: { elem: 'electric', name: { en: 'Dash', ar: 'الاندفاع' }, cooldown: 3.2, duration: 0.24, range: 6, damage: 0, movement: 'burst', status: null, vfx: 'trail', sfx: 'slide',
+      use(f, ctx, dir) { f.fx.dash = { dir: dir.clone().setY(0).normalize(), t: this.duration, speed: this.range / this.duration }; vfx(ctx.sys, 'launch', f, this, { pos: f.pos.clone().setY(0.9), dir }); VR.Audio.play(this.sfx); } },
+    flash: { elem: 'magic', name: { en: 'Flash', ar: 'الوميض' }, cooldown: 5.5, duration: 0, range: 8, damage: 0, movement: 'teleport', status: null, vfx: 'flash', sfx: 'portal',
+      use(f, ctx, to) { vfx(ctx.sys, 'end', f, this, { pos: f.pos.clone().setY(0.9) }); f.pos.set(to.x, f.pos.y, to.z); vfx(ctx.sys, 'impact', f, this, { pos: f.pos.clone().setY(0.9) }); VR.Audio.play(this.sfx); } },
+    shield: { elem: 'energy', name: { en: 'Heavy Shield', ar: 'الدرع الثقيل' }, cooldown: 9, duration: 3, range: 0, damage: 0, movement: null, status: { dmgTaken: 0.35 }, vfx: 'bubble', sfx: 'shieldBreak',
+      use(f, ctx) { f.fx.shieldT = this.duration; f.body.shield.visible = true; vfx(ctx.sys, 'charge', f, this, { pos: f.pos.clone().setY(1) }); VR.Audio.play('powerup'); } },
+    energy: { elem: 'fire', name: { en: 'Energy Shot', ar: 'الطلقة الطاقية' }, cooldown: 0.9, charges: 4, recharge: 1.6, duration: 0, range: 40, damage: 22, speed: 30, movement: null, status: null, vfx: 'orb', sfx: 'sniperFar', color: 0xff9a3a,
       use(f, ctx, dir) { ctx.sys.shoot(f, this, dir, 'energy'); } },
-    bomb: { name: { en: 'Bomb', ar: 'القنبلة' }, cooldown: 3.4, duration: 1.1, range: 22, damage: 48, radius: 3.3, movement: null, status: null, vfx: 'zone', sfx: 'throw',
+    bomb: { elem: 'blast', name: { en: 'Bomb', ar: 'القنبلة' }, cooldown: 3.4, duration: 1.1, range: 22, damage: 48, radius: 3.3, movement: null, status: null, vfx: 'zone', sfx: 'throw',
       use(f, ctx, at) { ctx.sys.bomb(f, this, at); } },
-    heal: { name: { en: 'Self Heal', ar: 'العلاج الذاتي' }, cooldown: 14, duration: 1.4, range: 0, damage: -45, movement: 'root', status: null, vfx: 'sparkles', sfx: 'gem',
-      use(f) { f.fx.healT = this.duration; f.body.healRing.visible = true; VR.Audio.play('gem'); } },
-    freeze: { name: { en: 'Freeze Blast', ar: 'الطلقة المجمِّدة' }, cooldown: 5.5, duration: 2.0, range: 30, damage: 8, speed: 24, movement: null, status: { slow: 0.5 }, vfx: 'orb', sfx: 'scope', color: 0x8fe6ff,
+    heal: { elem: 'nature', name: { en: 'Self Heal', ar: 'العلاج الذاتي' }, cooldown: 14, duration: 1.4, range: 0, damage: -45, movement: 'root', status: null, vfx: 'sparkles', sfx: 'gem',
+      use(f, ctx) { f.fx.healT = this.duration; f.body.healRing.visible = true; vfx(ctx.sys, 'area', f, this, { pos: f.pos.clone(), radius: 1.2 }); VR.Audio.play('gem'); } },
+    freeze: { elem: 'ice', name: { en: 'Freeze Blast', ar: 'الطلقة المجمِّدة' }, cooldown: 5.5, duration: 2.0, range: 30, damage: 8, speed: 24, movement: null, status: { slow: 0.5 }, vfx: 'orb', sfx: 'scope', color: 0x8fe6ff,
       use(f, ctx, dir) { ctx.sys.shoot(f, this, dir, 'freeze'); } },
-    rage: { name: { en: 'Rage', ar: 'الغضب' }, cooldown: 999, duration: 7, range: 0, damage: 0, movement: 'fast', status: { speed: 1.45, dmg: 1.4, rate: 0.75 }, vfx: 'aura', sfx: 'crash',
-      use(f) { f.fx.rageT = this.duration; f.fx.raged = true; f.body.aura.visible = true; VR.Audio.play('crash'); } },
-    decoy: { name: { en: 'Decoy', ar: 'النسخة الوهمية' }, cooldown: 9, duration: 5, range: 0, damage: 0, movement: null, status: null, vfx: 'clone', sfx: 'portal',
+    rage: { elem: 'fire', name: { en: 'Rage', ar: 'الغضب' }, cooldown: 999, duration: 7, range: 0, damage: 0, movement: 'fast', status: { speed: 1.45, dmg: 1.4, rate: 0.75 }, vfx: 'aura', sfx: 'crash',
+      use(f, ctx) { f.fx.rageT = this.duration; f.fx.raged = true; f.body.aura.visible = true; vfx(ctx.sys, 'charge', f, this, { pos: f.pos.clone().setY(1) }); VR.Audio.play('crash'); } },
+    decoy: { elem: 'shadow', name: { en: 'Decoy', ar: 'النسخة الوهمية' }, cooldown: 9, duration: 5, range: 0, damage: 0, movement: null, status: null, vfx: 'clone', sfx: 'portal',
       use(f, ctx) { ctx.sys.decoy(f, this, ctx); } },
-    strike: { name: { en: 'Shadow Strike', ar: 'ضربة الظل' }, cooldown: 6, duration: 0.3, range: 11, damage: 62, movement: 'burst', status: null, vfx: 'trail', sfx: 'knife',
-      use(f, ctx, dir) { f.fx.strike = { dir: dir.clone().setY(0).normalize(), t: this.duration, speed: Math.max(10, (ctx.dist - 1.4) / this.duration), hit: false }; ctx.sys.mgr.fx.puff(f.pos.clone().setY(0.8), 0x3a2a4a, 10); VR.Audio.play('slide'); } },
+    strike: { elem: 'shadow', name: { en: 'Shadow Strike', ar: 'ضربة الظل' }, cooldown: 6, duration: 0.3, range: 11, damage: 62, movement: 'burst', status: null, vfx: 'trail', sfx: 'knife',
+      use(f, ctx, dir) { f.fx.strike = { dir: dir.clone().setY(0).normalize(), t: this.duration, speed: Math.max(10, (ctx.dist - 1.4) / this.duration), hit: false }; vfx(ctx.sys, 'launch', f, this, { pos: f.pos.clone().setY(0.8), dir }); VR.Audio.play('slide'); } },
   };
+
+  /**
+   * An ability's visuals go through the feedback layer's one interface (charge / launch / trail / area /
+   * impact / end) with the ability's element; without it, the plain arena effects.
+   */
+  function vfx(sys, stage, f, A, o) {
+    const fb = sys.mgr.fb;
+    if (fb) return fb.ability(stage, Object.assign({ elem: A.elem, color: A.color || (f.f && f.f.color) }, o));
+    const fx = sys.mgr.fx, col = A.color || (f.f && f.f.color) || 0xffffff;
+    if (stage === 'impact' || stage === 'launch') fx.flash(o.pos, col);
+    fx.puff(o.pos, col, stage === 'trail' ? 2 : 10);
+  }
 
   /* ------------------------------------------------------------------
    * THE 10 FIGHTERS
@@ -331,8 +343,8 @@
           const k = Math.min(fx.healT, dt) / A.duration;
           b.hp = Math.min(b.maxHp, b.hp + (-A.damage) * k); fx.healT -= dt;
           b.body.healRing.rotation.z += dt * 3;
-          if (Math.random() < 0.3) this.mgr.fx.puff(b.pos.clone().add(new T.Vector3(rnd(-0.4, 0.4), rnd(0.4, 1.8), rnd(-0.4, 0.4))), 0x7eff7e, 2);
-          if (fx.healT <= 0) { b.body.healRing.visible = false; this.log(b, 'healed', { hp: Math.round(b.hp) }); }
+          if (Math.random() < 0.3) vfx(this, 'trail', b, A, { pos: b.pos.clone().add(new T.Vector3(rnd(-0.4, 0.4), rnd(0.4, 1.8), rnd(-0.4, 0.4))) });
+          if (fx.healT <= 0) { b.body.healRing.visible = false; vfx(this, 'end', b, A, { pos: b.pos.clone().setY(1) }); this.log(b, 'healed', { hp: Math.round(b.hp) }); }
         }
         // perception: what it sees, what it remembers
         const tgt = this.perceive(b, players, dt);
@@ -449,7 +461,9 @@
       const d = b.fx.dash || b.fx.strike; if (!d) return;
       const step = Math.min(dt, d.t);
       this.bots.move(b, d.dir.x * d.speed * step, d.dir.z * d.speed * step);
-      if (Math.random() < 0.6) this.mgr.fx.puff(b.pos.clone().setY(0.7), b.fx.strike ? 0x2a2a34 : 0x9ef4ff, 2);
+      const AB = ABILITIES[b.fx.strike ? 'strike' : 'dash'];
+      if (this.mgr.fb) this.mgr.fb.dashTrail(b.pos.clone(), 'f_' + b.fid, AB.color || b.f.color);
+      if (Math.random() < 0.6) vfx(this, 'trail', b, AB, { pos: b.pos.clone().setY(0.7) });
       d.t -= step;
       if (b.fx.strike && !d.hit) {
         // reached you: the strike (a knife hit, only if really in reach and in sight)
@@ -477,7 +491,7 @@
       const p = new T.Vector3(b.pos.x - Math.sin(b.yaw) * 0.5, b.pos.y + 1.45, b.pos.z - Math.cos(b.yaw) * 0.5);
       mesh.position.copy(p); this.mgr.scene.add(mesh);
       this.projectiles.push({ b, A, kind, pos: p, vel: d.multiplyScalar(A.speed), life: A.range / A.speed, mesh });
-      this.mgr.fx.flash(p.clone(), A.color); VR.Audio.play(A.sfx);
+      vfx(this, 'launch', b, A, { pos: p.clone(), dir: d.clone().normalize() }); VR.Audio.play(A.sfx);
       this.bots.mgr.markShot(b.pos);
       this.log(b, 'shot', { kind });
     }
@@ -498,11 +512,13 @@
             this.mgr.botHitPlayer(p.id, pr.A.damage, false, pr.b.i, pr.kind);
             if (pr.kind === 'freeze') { this.mgr.statusSlow(pr.A.status.slow, pr.A.duration); pr.b.mem.frozeT = 2.6; this.log(pr.b, 'froze'); }
             else this.log(pr.b, 'shotHit', { kind: pr.kind });
-            this.mgr.fx.puff(hit, pr.A.color, 10);
+            vfx(this, 'impact', pr.b, pr.A, { pos: hit.clone(), me: p.id === this.mgr.match.me });
           }
         }
-        if (!done && wd < len) { done = true; this.mgr.fx.puff(pr.pos.clone().addScaledVector(dir, wd), pr.A.color, 6); }
+        if (!done && wd < len) { done = true; vfx(this, 'impact', pr.b, pr.A, { pos: pr.pos.clone().addScaledVector(dir, wd) }); }
         pr.pos.add(step); pr.mesh.position.copy(pr.pos); pr.life -= dt;
+        pr.trailT = (pr.trailT || 0) - dt;
+        if (!done && pr.trailT <= 0) { pr.trailT = 0.03; vfx(this, 'trail', pr.b, pr.A, { pos: pr.pos.clone() }); }
         if (done || pr.life <= 0) { this.mgr.scene.remove(pr.mesh); this.projectiles.splice(i, 1); }
       }
     }
@@ -516,6 +532,7 @@
       edge.material.userData.own = true; edge.geometry.userData.own = true; mesh.add(edge); edge.position.z = 0.01;
       this.mgr.scene.add(mesh);
       this.zones.push({ b, A, at: new T.Vector3(at.x, 0, at.z), t: A.duration, mesh });
+      vfx(this, 'area', b, A, { pos: new T.Vector3(at.x, 0, at.z), radius: R });
       VR.Audio.play('throw'); this.log(b, 'bomb');
     }
     updateZones(dt, players) {
@@ -524,7 +541,10 @@
         z.mesh.material.opacity = 0.25 + 0.25 * Math.abs(Math.sin(z.t * 14));
         if (z.t > 0) continue;
         this.mgr.scene.remove(z.mesh); this.zones.splice(i, 1);
-        this.mgr.fx.wave(z.at.clone().setY(0.4)); this.mgr.fx.puff(z.at.clone().setY(0.6), 0xff6a2a, 18); VR.Audio.play('crash');
+        const me = this.mgr.match && players.some(p => p.id === this.mgr.match.me && p.alive && Math.hypot(p.pos.x - z.at.x, p.pos.z - z.at.z) < z.A.radius);
+        if (this.mgr.fb) vfx(this, 'impact', z.b, z.A, { pos: z.at.clone().setY(0.5), radius: z.A.radius, big: true, me });
+        else { this.mgr.fx.wave(z.at.clone().setY(0.4)); this.mgr.fx.puff(z.at.clone().setY(0.6), 0xff6a2a, 18); }
+        VR.Audio.play('crash');
         for (const p of players) {
           if (!p.alive) continue;
           const d = Math.hypot(p.pos.x - z.at.x, p.pos.z - z.at.z);
@@ -545,7 +565,7 @@
       const side = Math.random() < 0.5 ? -1 : 1;
       this.decoys.push({ body, owner: b, t: A.duration, dir: new T.Vector3(toT.x + toT.z * side * 0.8, 0, toT.z - toT.x * side * 0.8).normalize(), alive: true, pos: body.pos, i: -1 });
       b.strafe = -side; b.mem.flankT = 2.5;                                       // the real one goes the other way
-      this.mgr.fx.puff(b.pos.clone().setY(1), 0xb26bff, 12); VR.Audio.play('portal'); this.log(b, 'decoy');
+      vfx(this, 'impact', b, A, { pos: b.pos.clone().setY(1) }); VR.Audio.play('portal'); this.log(b, 'decoy');
     }
     updateDecoys(dt) {
       for (let i = this.decoys.length - 1; i >= 0; i--) {
@@ -559,7 +579,7 @@
           VR.DuelBody.animate(d.body, dt);
         }
         if (!d.alive || d.t <= 0) {
-          this.mgr.fx.puff(d.pos.clone().setY(1), 0xb26bff, 12);
+          vfx(this, 'end', d.owner, ABILITIES.decoy, { pos: d.pos.clone().setY(1) });
           this.mgr.scene.remove(d.body.g); this.decoys.splice(i, 1);
         }
       }

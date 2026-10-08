@@ -34,6 +34,7 @@
  *                 bs (bot states) bf (bot shot) bh (bot hit)
  * ===================================================================== */
 (function () {
+  const FB = () => VR.Feedback;
   const T = THREE;
   const FP = () => VR.CONFIG.FP;
   const D = {
@@ -322,6 +323,7 @@
         case 're': if (m.role === 'g') this.onRoundEnd(d.w, d.why, d.sc); break;
         case 'end': if (m.role === 'g') this.onMatchEnd(d.sc, null); break;
         case 'bye': this.onOppLeft(); break;
+        case 'fell': if (m.role === 'h') this.applyFall(m.op); break;
         case 'ping': this.send({ k: 'pong', ts: d.ts }); break;
         case 'pong': if (typeof d.ts === 'number') { const rtt = Math.max(0, performance.now() - d.ts); m.ping = m.ping == null ? rtt : m.ping * 0.6 + rtt * 0.4; this.ui.setPing(m.ping); } break;
       }
@@ -465,6 +467,9 @@
       sc.fog = L.ambient.fog ? new T.Fog(...L.ambient.fog) : null;
       sc.add(new T.HemisphereLight(L.ambient.sky, L.ambient.ground, L.ambient.intensity * 2.2));
       const sun = new T.DirectionalLight(L.sun.color, L.sun.intensity * 2); sun.position.set(...L.sun.dir); sc.add(sun);
+      // the effects layer (js/duel/feedback.js): pooled particles, rings, lights, the screen overlay
+      this.fb = VR.FeedbackLayer ? new VR.FeedbackLayer(sc, this.camera, this.ui.el.dmg) : null;
+      this.hands.setStyle(FB().profile(this.myProf()).arms);
       this.solidBoxes = L.solids.map(s => new T.Box3(new T.Vector3(...s.min), new T.Vector3(...s.max)));
       if (!this.match.solo && this.match.type !== 'bots') this.buildAvatar();
       this.nades = [];
@@ -473,6 +478,7 @@
     }
     clearWorld() {
       this.fx.clear();
+      if (this.fb) { this.fb.dispose(); this.fb = null; }
       const sc = this.scene;
       for (const child of [...sc.children]) {
         sc.remove(child);
@@ -556,7 +562,7 @@
       this.nades = [];
       if (this.avatar) {
         const so = this.spawnOf(m.op);
-        this.avatar.target = null; this.avatar.pos.set(...so.pos); this.avatar.yaw = so.yaw; this.avatar.g.visible = true;
+        this.avatar.target = null; this.avatar.pos.set(...so.pos); this.avatar.yaw = so.yaw; this.avatar.g.visible = true; this.avatar.g.scale.set(1, 1, 1);
         this.placeAvatar(0);
       }
       m.history.length = 0;
@@ -577,7 +583,7 @@
       this.resetMe();
       this.ui.setScore(m.sc[this.side()], m.sc[this.oside()]); this.ui.setHP(D.HP);
       this.ui.big(String(D.COUNT), 'count', 0); VR.Audio.play('click');
-      this.fx.clear();
+      this.fx.clear(); if (this.fb) this.fb.clear();
     }
     endRound(w, why) {   // host
       const m = this.match;
@@ -597,9 +603,12 @@
         if (m.type !== 'pvp') this.ui.feed(VR.t(w === 'h' ? 'fm.botsDown' : 'fm.teamDown'), w === me ? 'good' : 'bad');
       }
       if (why === 'time') this.ui.feed(VR.t('du.timeUp'));
-      if (!w) { this.ui.big(VR.t('du.roundDraw'), 'draw', 0); VR.Audio.play('buzz'); }
-      else if (w === me) { this.ui.big(VR.t('du.roundWon'), 'win', 0); VR.Audio.play('success'); }
-      else { this.ui.big(VR.t('du.roundLost'), 'lose', 0); VR.Audio.play('crash'); }
+      const teamCol = w ? VR.DuelArena.COLORS[m.type === 'pvp' ? w : (w === 'h' ? 'h' : 'g')] : 0xffffff;
+      if (!w) { this.ui.big(VR.t('du.roundDraw'), 'draw round', 2100); VR.Audio.play('buzz'); }
+      else if (w === me) { this.ui.big(VR.t('du.roundWon'), 'win round', 2100); VR.Audio.play('success'); }
+      else { this.ui.big(VR.t('du.roundLost'), 'lose round', 2100); VR.Audio.play('crash'); }
+      if (FB().settings.flashes) this.ui.teamFlash(teamCol);
+      if (this.fb) this.fb.note({ type: 'roundEnd', w: w || null });
       if (w && w !== me) this.shake = Math.max(this.shake, 0.35);
     }
     endMatch() {   // host
@@ -754,8 +763,9 @@
       const muzzle = this.muzzleWorld();
       if (w.melee) this.hands.pokeReach();                 // a stab: no tracer, no flash
       else {
-        res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, w.pellets > 1 ? 0xff9a4a : undefined); if (res.missed[i] && i < 3) this.fx.puff(e); });
-        this.fx.flash(muzzle);
+        res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : w.pellets > 1 ? 0xff9a4a : undefined, wid === 'sniper' ? 0.032 : 0.02); if (res.missed[i] && i < 3) this.impactAt(e); });
+        if (this.fb) this.fb.muzzle(muzzle, dirs[0], wid); else this.fx.flash(muzzle);
+        this.lastFireT = performance.now();
       }
       this.kick = Math.min(1.4, this.kick + w.kick); this.shake = Math.max(this.shake, 0.06 * w.kick);
       VR.Audio.play(w.sound);
@@ -778,7 +788,7 @@
       return o.addScaledVector(d, 0.75).addScaledVector(r, 0.16).add(new T.Vector3(0, -0.14, 0));
     }
     switchTo(i) {
-      if (this.lo.switchTo(i)) { this.dropScope(); VR.Audio.play('click'); }
+      if (this.lo.switchTo(i)) { this.dropScope(); VR.Audio.play(this.fb ? 'fbSwitch' : 'click'); }
     }
     /** leave the scope (switching, reloading): aim again to scope back in */
     dropScope() {
@@ -828,8 +838,8 @@
       }
       if (!def.melee) {
         if (m.type === 'coop' && m.role === 'h' && this.avatar && !def.melee) this.bots.hear(this.avatar.pos);
-      res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, 0xffe14a); if (res.missed[i] && i < 3) this.fx.puff(e); });
-        this.fx.flash(muzzle);
+      res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : 0xffe14a, 0.022); if (res.missed[i] && i < 3) this.impactAt(e); });
+        if (this.fb) this.fb.muzzle(muzzle, dirs[0] || new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle);
       }
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : def.sound);
     }
@@ -840,26 +850,43 @@
       if (d.dead) m.dead[d.t] = true;
       const killer = d.by === 'b' ? this.botName(d.bi) : m.names[d.by] || '';
       if (fresh) this.countKill(d.by, d.bi, d.t, null, d.w, !!d.head);
+      const cause = FB().causeOf(d.w, d.head), fb = this.fb;
+      const type = d.head ? 'crit' : cause.kind === 'ability' ? 'ability' : cause.kind === 'explosion' ? 'explosion' : 'normal';
       if (d.t === m.me) {
-        this.dmgFlash = 1; this.shake = Math.max(this.shake, d.head ? 0.3 : 0.18);
+        this.dmgFlash = cause.kind === 'fall' ? 0.6 : 1; this.shake = Math.max(this.shake, d.head ? 0.3 : 0.18);
         VR.Audio.play('hurt');
         this.ui.setHP(m.hp[m.me]);
+        this.hands.pokeHit(d.head ? 1 : 0.7);
+        if (fb) {
+          // where it came from: a red arc around the crosshair
+          const src = d.by === 'b' ? (this.bots.list[d.bi] && this.bots.list[d.bi].pos) : (d.by === m.op && this.avatar ? this.avatar.pos : null);
+          if (src && cause.kind !== 'fall') fb.screen.damageFrom(Math.atan2(-(src.x - this.ctrl.pos.x), -(src.z - this.ctrl.pos.z)), Math.min(1, 0.5 + d.dmg / 60));
+          if (cause.kind === 'ability' || cause.kind === 'explosion') fb.screen.tint((FB().ELEMENTS[cause.elem] || FB().ELEMENTS.energy).col[0], 0.5);
+        }
         if (fresh) {
           // I am down: say who did it, fall, and (co-op) watch my teammate
           this.dropScope();
           this.deathT = 0.0001; this.deathAt = performance.now();
-          this.ui.kill(VR.t('fm.killedBy', { name: killer }), 'bad');
+          this.ui.kill(cause.kind === 'fall' ? VR.t('fb.fell') : VR.t('fm.killedBy', { name: killer }), 'bad');
           this.ui.setDead(true);
           VR.Audio.play('crash');
+          if (fb) { fb.screen.tint(0xff2a1a, 0.7); fb.note({ type: 'myDeath', cause: cause.kind }); }
         }
       } else {
-        if (fresh && this.avatar && d.t === m.op) this.fx.puff(this.avatar.pos.clone().setY(this.avatar.pos.y + 1), 0xff6b5a, 16);
+        const a = this.avatar;
+        if (a && d.t === m.op) {
+          if (fb && d.dmg && cause.kind !== 'fall') fb.hit(this.hitPoint(a.pos, a.low, d.head), type === 'explosion' ? 'normal' : type, { prof: a.def.id, elem: cause.elem });
+          if (fresh) {
+            if (fb) fb.eliminate({ pos: (cause.kind === 'fall' && a.target ? new T.Vector3(...a.target.p) : a.pos).clone(), low: a.low, prof: a.def.id, cause, head: !!d.head, dmg: d.dmg, roundEnd: this.roundEndsWith(d.t), body: a.g });
+            else this.fx.puff(a.pos.clone().setY(a.pos.y + 1), 0xff6b5a, 16);
+          }
+        }
         if (d.by === m.me) {
-          this.ui.hitmarker(!!d.head);
+          this.ui.hitmarker(fresh ? 'kill' : type);
           VR.Audio.play(d.head ? 'headshot' : 'hitmark');
-          if (this.avatar) this.dmgNumber(this.avatar.pos, d.dmg, !!d.head, this.avatar.low);
-          if (fresh) this.ui.kill(VR.t('fm.youKilled', { name: m.names[d.t] }), 'good');
-
+          if (fresh) VR.Audio.play('fbKill');
+          if (a) this.dmgNumber(a.pos, d.dmg, type, a.low, 'op');
+          if (fresh) { this.ui.kill(VR.t('fm.youKilled', { name: m.names[d.t] }), 'good'); this.ui.numLast = null; }
         }
       }
     }
@@ -872,7 +899,7 @@
       const teamCol = (role) => C[m.type === 'pvp' ? role : 'h'];
       let kName = '', kCol = 0xffffff, kMe = false;
       if (by === 'b') { const kb = this.bots.list[bi]; if (kb) { kb.k = (kb.k || 0) + 1; kName = kb.name; } else kName = VR.t('bot.team'); kCol = C.g; }
-      else if (by === 'h' || by === 'g') { this.kd(by).k++; kName = m.names[by]; kCol = teamCol(by); kMe = by === m.me; }
+      else if ((by === 'h' || by === 'g') && !(w === 'fall' && by === victimRole)) { this.kd(by).k++; kName = m.names[by]; kCol = teamCol(by); kMe = by === m.me; }
       let vName, vCol, vMe = false;
       if (victimBot) { victimBot.d = (victimBot.d || 0) + 1; vName = victimBot.name; vCol = C.g; }
       else { this.kd(victimRole).d++; vName = m.names[victimRole]; vCol = teamCol(victimRole); vMe = victimRole === m.me; }
@@ -881,11 +908,76 @@
     /** an enemy fired: show where it was on the mini-map for a moment */
     markShot(pos) { (this.shotMarks = this.shotMarks || []).push({ x: pos.x, z: pos.z, t: performance.now() }); }
     /** a floating damage number over whoever I hit */
-    dmgNumber(pos, dmg, head, low) {
+    dmgNumber(pos, dmg, type, low, key) {
+      if (!FB().settings.numbers) return;
       const v = new T.Vector3(pos.x, pos.y + (low ? 1.2 : 2.0), pos.z).project(this.camera);
       if (v.z > 1 || v.z < -1) return;                      // behind me
       const el = this.game.renderer.domElement, r = el.getBoundingClientRect();
-      this.ui.dmgNum(r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height, Math.round(dmg), head);
+      this.ui.dmgNum(r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height, Math.round(dmg), type === true ? 'crit' : type || 'normal', key);
+    }
+    /** where a hit lands on a body (head or chest) */
+    hitPoint(pos, low, head) { return new T.Vector3(pos.x, pos.y + (head ? (low ? 1.0 : 1.62) : (low ? 0.6 : 1.1)), pos.z); }
+    /** my character's feedback profile, a bot's (an AI fighter has its own), the other player's */
+    myProf() { const m = this.match; return (m && m.chars && m.chars[m.me]) || 'hero'; }
+    botProf(b) { return b.fid ? 'f_' + b.fid : (b.body && b.body.def.id) || 'default'; }
+    /** does this player going down end the round? (for the stronger last-elimination effect) */
+    roundEndsWith(role) {
+      const m = this.match;
+      if (m.type === 'pvp') return true;
+      if (m.type === 'coop') return !!(m.dead.h && m.dead.g);
+      return role === m.me;
+    }
+    /** a shot hit the level: the effect of its material */
+    impactAt(e, far) {
+      if (!this.fb) { this.fx.puff(e); return; }
+      const s = FB().surfaceAt(this.level, e);
+      if (!s.solid) return;                                  // in the air (no wall within reach)
+      this.fb.impact(e, s.surface, s.normal);
+    }
+    surfaceUnder() { return FB().groundAt(this.level, this.ctrl.pos); }
+    /** my own steps, landings, slides and dashes */
+    onStep() {
+      if (!this.fb) { VR.Audio.play('fpStep'); return; }
+      const sf = this.surfaceUnder();
+      this.stepSide = -(this.stepSide || 1);
+      this.fb.stepSound(sf, this.myProf());
+      // dust where I step (a little ahead, so it shows at the bottom of the screen)
+      const f = this.ctrl.forward();
+      this.fb.footstep(this.ctrl.pos.clone().addScaledVector(f, 0.55), sf, this.myProf(), this.stepSide);
+    }
+    onLand(speed) {
+      if (!this.fb) { if (speed > 7) { VR.Audio.play('land'); this.fx.puff(this.ctrl.pos.clone().setY(this.ctrl.pos.y + 0.05), 0xe0d4b4, 5); } return; }
+      const P = FB().profile(this.myProf());
+      const k = this.fb.land(this.ctrl.pos, speed, this.surfaceUnder(), P.id);
+      if (k > 0) { this.landPulse = Math.max(this.landPulse || 0, k); this.shake = Math.max(this.shake, 0.1 * k * P.shake); }
+    }
+    moveFx(dt) {
+      const c = this.ctrl, fb = this.fb; if (!fb) return;
+      if (c.slideTimer > 0 && c.grounded && c.speed > 3) {
+        this.slideFxT = (this.slideFxT || 0) - dt;
+        if (this.slideFxT <= 0) { this.slideFxT = 0.035; const d = c.vel.clone().setY(0).normalize(); fb.slideTrail(c.pos.clone().addScaledVector(d, 0.6), d, this.surfaceUnder(), this.myProf()); }
+      }
+      if (c.burstFov > 2.5 || c.speed > (c.walkSpeed || 5) * 2.2) {
+        this.dashFxT = (this.dashFxT || 0) - dt;
+        if (this.dashFxT <= 0) { this.dashFxT = 0.045; const d = c.vel.clone().setY(0); if (d.lengthSq() > 1) fb.dashTrail(c.pos.clone().addScaledVector(d.normalize(), -1.4), this.myProf()); }
+      }
+    }
+    /** I fell out of the arena: a fall elimination (the host decides) */
+    onFall() {
+      const m = this.match; if (!m || m.phase !== 'fight' || m.dead[m.me]) return;
+      if (this.fb) this.fb.eliminate({ pos: this.lastPos ? this.lastPos.clone() : this.ctrl.pos.clone(), prof: this.myProf(), cause: { kind: 'fall' } });
+      if (m.role === 'h') this.applyFall(m.me); else this.send({ k: 'fell' });
+    }
+    applyFall(role) {
+      const m = this.match; if (!m || m.dead[role]) return;
+      const by = m.type === 'pvp' ? (role === 'h' ? 'g' : 'h') : role;      // 1v1: the other player takes the round
+      this.applyHit(role, 9999, false, by, null, 'fall');
+    }
+    /** bodies I only see: their steps, landings, slides and dashes */
+    watchBodies(dt) {
+      const fb = this.fb, m = this.match; if (!fb || !dt) return;
+      if (this.avatar && !(m.dead && m.dead[m.op])) fb.watchBody(this.avatar, dt, this.avatar.def.id, this.level);
+      for (const b of this.bots.list) if (b.alive) fb.watchBody(b.body, dt, this.botProf(b), this.level);
     }
 
     // ---- bots (host decides; the co-op guest is told)
@@ -901,8 +993,9 @@
       const m = this.match;
       if (b && b.owner) { this.bots.hurt(b, dmg); this.ui.hitmarker(false); return; }       // a fighter's decoy
       if (!b || !b.alive || m.phase !== 'fight' || !dmg) return;
+      const armored = !!(b.fx && b.fx.shieldT > 0);              // a fighter's shield is up: armor feedback
       const dead = this.bots.hurt(b, dmg);
-      const msg = { k: 'bh', i: b.i, hp: Math.round(b.hp), dmg: Math.round(dmg), head: head ? 1 : 0, by, w: w || '', dead: dead ? 1 : 0 };
+      const msg = { k: 'bh', i: b.i, hp: Math.round(b.hp), dmg: Math.round(dmg), head: head ? 1 : 0, by, w: w || '', dead: dead ? 1 : 0, ar: armored ? 1 : 0 };
       if (m.type === 'coop') this.send(msg);
       this.onBotHit(msg);
     }
@@ -911,13 +1004,21 @@
       const fresh = d.dead && !b.downShown;               // (the host has already marked it dead)
       if (d.dead) b.downShown = true;
       b.hp = d.hp; if (d.dead) b.alive = false;
+      const cause = FB().causeOf(d.w, d.head), prof = this.botProf(b);
+      const type = d.ar ? 'armor' : d.head ? 'crit' : cause.kind === 'ability' ? 'ability' : cause.kind === 'explosion' ? 'explosion' : 'normal';
+      if (this.fb && d.dmg) this.fb.hit(this.hitPoint(b.pos, false, d.head), type === 'explosion' ? 'normal' : type, { prof, elem: cause.elem });
       if (d.by === m.me) {
-        this.ui.hitmarker(!!d.head);
+        this.ui.hitmarker(fresh ? 'kill' : type);
         VR.Audio.play(d.head ? 'headshot' : 'hitmark');
-        if (d.dmg) this.dmgNumber(b.pos, d.dmg, !!d.head, false);
+        if (fresh) VR.Audio.play('fbKill');
+        if (d.dmg) this.dmgNumber(b.pos, d.dmg, type, false, 'b' + b.i);
       }
       if (fresh) {
-        this.fx.puff(b.pos.clone().setY(b.pos.y + 1), 0xff6b5a, 16);
+        const last = this.bots.aliveCount === 0;
+        this.ui.numLast = null;                                  // the next number (a new life) starts its own count
+        if (this.fb) this.fb.eliminate({ pos: b.pos.clone(), prof, cause, head: !!d.head, dmg: d.dmg, roundEnd: last, body: b.body.g });
+        else this.fx.puff(b.pos.clone().setY(b.pos.y + 1), 0xff6b5a, 16);
+        if (last && d.by === m.me && m.type === 'bots' && this.fb) this.fb.slowmo(0.35, 0.35);
         this.countKill(d.by, -1, null, b, d.w, !!d.head);
         if (d.by === m.me) this.ui.kill(VR.t('fm.youKilled', { name: b.name }), 'good');
         VR.Audio.play('enemyDown');
@@ -982,8 +1083,8 @@
       const m = this.match;
       const muzzle = new T.Vector3(b.pos.x - Math.sin(b.yaw) * 0.5, b.pos.y + 1.45, b.pos.z - Math.cos(b.yaw) * 0.5);
       this.markShot(b.pos);
-      for (const e of ends) this.fx.tracer(muzzle, e, 0xff7a3a);
-      this.fx.flash(muzzle, 0xffb070);
+      for (const e of ends) { this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : 0xff7a3a, 0.022); this.impactAt(e, true); }
+      if (this.fb) this.fb.muzzle(muzzle, ends[0] ? ends[0].clone().sub(muzzle).normalize() : new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle, 0xffb070);
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : 'enemyShot');
       if (m.type === 'coop') this.send({ k: 'bf', i: b.i, w: wid, e: ends.map(e => e.toArray().map(r2)) });
     }
@@ -1089,6 +1190,7 @@
     /** Arena frame (game state 'duel'). */
     update(dt) {
       const m = this.match; if (!m || !this.level) return;
+      if (this.fb) dt = this.fb.scaleDt(dt);                // a very short slow motion (last kill vs bots, if allowed)
       const c = this.ctrl, L = this.level;
       // against bots alone the game really pauses (nobody else is playing)
       if (m.type === 'bots' && this.ui.modal && m.phase !== 'wait' && m.phase !== 'over') { VR.Input.takeLook(); while (VR.Input.nextAction()); return; }
@@ -1130,14 +1232,17 @@
       const move = canMove ? VR.Input.moveVector() : { x: 0, y: 0 };
       if (m.phase !== 'end' && m.phase !== 'over' && m.phase !== 'wait') {
         c.sprint = canMove && VR.Input.sprintHeld();
+        this.lastPos = (this.lastPos || new T.Vector3()).copy(c.pos);
         const evs = c.update(dt, L, move, canMove && VR.Input.crouchHeld());
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');
-          else if (e.type === 'land' && e.speed > 7) { VR.Audio.play('land'); this.fx.puff(c.pos.clone().setY(c.pos.y + 0.05), 0xe0d4b4, 5); }
+          else if (e.type === 'land') this.onLand(e.speed);
           else if (e.type === 'slide') VR.Audio.play('slide');
+          else if (e.type === 'respawn') this.onFall();          // fell out of the world
         }
         evs.length = 0;
-        if (c.grounded && c.speed > 2 && !c.slideTimer) { this.stepAcc += c.speed * dt; if (this.stepAcc > 2.1) { this.stepAcc = 0; VR.Audio.play('fpStep'); } }
+        if (c.grounded && c.speed > 2 && !c.slideTimer) { this.stepAcc += c.speed * dt; if (this.stepAcc > 2.1) { this.stepAcc = 0; this.onStep(); } }
+        this.moveFx(dt);
       } else c.update(0, L, { x: 0, y: 0 }, false);
 
       // round phases
@@ -1209,7 +1314,17 @@
       this.updateNades(dt);
       this.updateMines(dt);
       this.fx.update(dt);
+      this.watchBodies(dt);
       this.updateView(dt, look);
+      if (this.fb) {
+        const hs = c.speed, walk = c.walkSpeed || 5;
+        let sp = Math.max(0, Math.min(1, (hs - walk * 1.15) / (walk * 1.1)));
+        if (c.burstFov > 2.5) sp = Math.max(sp, 0.85 * Math.min(1, c.burstFov / 5));
+        if (!c.grounded && c.vel.y < -13) sp = Math.max(sp, Math.min(1, (-c.vel.y - 13) / 10));
+        if (down || this.scoped) sp = 0;
+        this.fb.update(dt, { speed: sp, yaw: c.yaw });
+        if (this.fb.cameraShake) { this.shake = Math.max(this.shake, this.fb.cameraShake); this.fb.cameraShake = 0; }
+      }
 
       // HUD
       this.ui.setTimer(m.phase === 'count' || m.phase === 'wait' ? this.roundTime() : m.timeLeft, Math.max(1, m.round));
@@ -1229,7 +1344,8 @@
         else this.ui.setBotsLeft(m.phase === 'fight' ? this.bots.aliveCount : null);
       }
       this.dmgFlash = Math.max(0, this.dmgFlash - dt * 2.2);
-      this.ui.damage(this.dmgFlash * 0.7 + (m.hp[m.me] <= 45 && m.phase === 'fight' ? 0.18 : 0));
+      const fs = FB().settings, low = m.hp[m.me] <= 45 && m.phase === 'fight' && !down;
+      this.ui.damage(this.dmgFlash * 0.7 * (fs.flashes ? 1 : 0.35) + (low ? 0.14 + 0.07 * Math.sin(performance.now() / (m.hp[m.me] <= 20 ? 110 : 190)) : 0));
     }
 
     /** the mini-map: the arena from above, my side at the bottom; enemies only where they last fired */
@@ -1267,16 +1383,22 @@
     /** Camera effects (recoil, shake, scope FOV) and the weapon in the hands. */
     updateView(dt, look) {
       const c = this.ctrl, cam = this.camera;
+      const fs = FB().settings, SK = fs.shake;               // accessibility: camera shake can be reduced or turned off
       this.kick = Math.max(0, this.kick - dt * 5);
-      if (this.kick > 0) cam.rotation.x += Math.sin(this.kick * Math.PI) * 0.05;
+      if (this.kick > 0) cam.rotation.x += Math.sin(this.kick * Math.PI) * 0.05 * (0.5 + 0.5 * SK);
       if (this.shake > 0) {
         this.shake = Math.max(0, this.shake - dt);
-        const s = this.shake * 0.12;
+        const s = this.shake * 0.12 * SK;
         cam.position.x += (Math.random() - 0.5) * s; cam.position.y += (Math.random() - 0.5) * s;
       }
       this.adsK = (this.adsK || 0) + ((this.ads ? 1 : 0) - (this.adsK || 0)) * Math.min(1, dt * 14);
       const adsF = 1 - (1 - (this.lo.def.ads || 1)) * this.adsK;
-      const fov = (this.scoped ? D.SCOPE_FOV : this.baseFov() * adsF) + c.burstFov;
+      // FOV kick: sprinting widens the view a little; a landing pulses it (speed effects can be turned off)
+      const walk = c.walkSpeed || 5, sprinting = c.sprint && c.grounded && c.speed > walk * 1.05 && !this.ads && !this.scoped;
+      this.fovKick = (this.fovKick || 0) + ((fs.speed && sprinting ? 5 : 0) - (this.fovKick || 0)) * Math.min(1, dt * 6);
+      this.landPulse = Math.max(0, (this.landPulse || 0) - dt * 4);
+      const pulse = fs.speed ? Math.sin(Math.min(1, this.landPulse) * Math.PI) * -2.5 : 0;
+      const fov = (this.scoped ? D.SCOPE_FOV : this.baseFov() * adsF + this.fovKick + pulse) + c.burstFov * (fs.speed ? 1 : 0.3);
       cam.fov += (fov - cam.fov) * Math.min(1, dt * 18);
       cam.updateProjectionMatrix();
       // hands + weapon
@@ -1296,9 +1418,18 @@
       const wide = Math.min(1, Math.max(0.42, this.hands.camera.aspect / 1.5));
       const sw = lo.switchT > 0 ? Math.sin((lo.switchT / 0.25) * Math.PI) : 0;
       const rl = lo.reloadT > 0 ? Math.sin((1 - lo.reloadT / lo.def.reload) * Math.PI) : 0;
-      const bob = Math.sin(c.bobPhase) * 0.012 * c.bobAmt;
-      this.gunHolder.position.set(0.17 * wide + this.hands.sway.x, -0.2 + this.hands.sway.y - sw * 0.25 - rl * 0.1 + bob + c.landDip * 0.2, -0.46 + this.kick * 0.07);
-      this.gunHolder.rotation.set(this.kick * 0.18 + rl * 0.5, 0.04, -rl * 0.5);
+      // the weapon's own pose (light pistol, steady sniper, heavy machine gun, knife ready…) + a reduced
+      // share of the arms' run motion, inertia on look and movement, sprint / jump / landing / hit poses
+      const P = POSE[id] || POSE.rifle, mo = this.hands.motion || {}, wt = mo.weight || 1;
+      const firing = performance.now() - (this.lastFireT || 0) < 450;
+      const spr = (mo.sprint || 0) * (firing ? 0.2 : 1);
+      const bob = Math.sin(c.bobPhase) * 0.012 * c.bobAmt * P.run + (mo.lift || 0) * 0.012 * P.run;
+      this.gunHolder.position.set(
+        P.x * wide + this.hands.sway.x * P.sway + (mo.lagX || 0) * P.lag + Math.cos(c.bobPhase) * 0.006 * c.bobAmt * P.run + spr * 0.02,
+        P.y + this.hands.sway.y * P.sway + (mo.lagY || 0) * P.lag - sw * 0.25 - rl * 0.1 + bob + c.landDip * 0.2 * wt * P.heavy - spr * 0.06 + (mo.fall || 0) * 0.035 - (mo.up || 0) * 0.02 - (mo.settle || 0) * P.heavy + (mo.hit || 0) * 0.025,
+        P.z + this.kick * 0.07 + (mo.swing || 0) * 0.012 * P.run + (mo.dash || 0) * 0.06 + spr * 0.03);
+      this.gunHolder.rotation.set(this.kick * 0.18 + rl * 0.5 + P.rx - spr * 0.45 + (mo.fall || 0) * 0.15 - (mo.hit || 0) * 0.15,
+        0.04 + P.ry + spr * 0.55, -rl * 0.5 + P.rz + (mo.lagX || 0) * 2.5 * P.lag + spr * 0.15);
       // aiming down the sights: the gun comes to the middle, its sights on the centre of the screen
       const k = this.adsK, gm = this.gunModels[id];
       if (k > 0.001 && gm) {
@@ -1353,6 +1484,20 @@
   /* ------------------------------------------------------------------
    * A player-shaped body in the arena: the other player, or a bot.
    * ---------------------------------------------------------------- */
+  /** how each weapon sits in the hands: offset, sway / lag / run-motion share, heaviness, angle */
+  const POSE = {
+    pistol:   { x: 0.15, y: -0.18, z: -0.42, sway: 1.25, lag: 1.1, run: 1.1, heavy: 0.8, rx: 0.02, ry: 0, rz: 0 },
+    revolver: { x: 0.15, y: -0.19, z: -0.43, sway: 1.2, lag: 1.2, run: 1, heavy: 1, rx: 0.02, ry: 0, rz: 0 },
+    smg:      { x: 0.17, y: -0.2, z: -0.45, sway: 1.05, lag: 1, run: 1, heavy: 1, rx: 0, ry: 0, rz: 0 },
+    rifle:    { x: 0.17, y: -0.2, z: -0.46, sway: 1, lag: 1, run: 0.9, heavy: 1.1, rx: 0, ry: 0, rz: 0 },
+    shotgun:  { x: 0.17, y: -0.21, z: -0.46, sway: 1.1, lag: 1.25, run: 0.9, heavy: 1.25, rx: 0, ry: 0, rz: 0 },
+    lmg:      { x: 0.18, y: -0.24, z: -0.47, sway: 1.35, lag: 1.6, run: 0.8, heavy: 1.6, rx: -0.03, ry: 0, rz: 0.03 },
+    dmr:      { x: 0.17, y: -0.2, z: -0.46, sway: 0.75, lag: 0.8, run: 0.75, heavy: 1.1, rx: 0, ry: 0, rz: 0 },
+    sniper:   { x: 0.17, y: -0.2, z: -0.46, sway: 0.6, lag: 0.7, run: 0.7, heavy: 1.2, rx: 0, ry: 0, rz: 0 },
+    knife:    { x: 0.2, y: -0.22, z: -0.42, sway: 1.3, lag: 1.2, run: 1.2, heavy: 0.6, rx: -0.25, ry: -0.2, rz: 0.45 },
+  };
+  VR.DUEL_POSE = POSE;
+
   const DuelBody = {
     build(charId, tone, col, name) {
       const def = VR.CHARACTERS.find(c => c.id === charId) || VR.CHARACTERS[0];

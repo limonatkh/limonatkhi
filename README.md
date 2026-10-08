@@ -859,6 +859,40 @@ move, limited turning, real cooldowns. It reads only what a person can see: wher
 look and whether you reload. The ordinary computer players now follow the same "no
 seeing through walls" rule. Reward for beating a fighter: 40 coins × its stars.
 
+## Feedback & effects layer (المؤثرات) — `js/duel/feedback.js`
+
+A layer **on top of** the arena's systems (player, camera, weapons are unchanged): it reacts to
+the events they already have — the hit / kill messages (`w` weapon id + `head`), the
+controller's jump / land / slide / burst events, the streamed positions — so everything also
+shows on the other player's screen without new network messages (one exception: `fell`, the
+guest telling the host it fell out of the arena).
+
+**Profiles** (`VR.Feedback.PROFILES`, `register(id, partial, from)`): colours, matter (organic /
+robotic / armored / magic), element, death style, crit effect, run trail, arm style, weapon
+sway, step sounds, landing weight, camera shake. `hero`, `fridge` and the 10 fighters
+(`f_<id>`) are defined; **a new character is one `register()` call**, and an AI fighter can carry
+its own `fx: {…}` in its `FIGHTERS` entry (its element comes from its ability's `elem`).
+
+| Event | What you get |
+|---|---|
+| elimination | by cause + victim profile: **A** radiant core burst (headshot, energy / ice abilities), **B** dust poof, **C** progressive disintegration (body shrinks bottom-up while particles rise), **D** shockwave ring, **E** debris (sparks + shards for robotic / armored, ash + light motes + smoke for organic / magic), **F** explosive (mines, bombs, fire), **G** fall. Intensity +headshot, +big damage, +ability, +last of the round (extra ring). Body hidden or dissolved, never left standing |
+| hits | particles at the hit point: normal / crit (stars, sparks or shards by profile) / armor (Tank's shield: sparks + ripple) / ability (element). Hit marker per type + a red rotating **kill** marker. Damage numbers rise, pop, fade, coloured by type; fast hits on one target add up into one number |
+| on me | red arc pointing at the shooter, arm flinch, element tint for ability / blast hits, pulsing low-HP vignette |
+| round end | banner slides in and out, the winner's team colour flashes; vs the computer the last kill gets a 0.35 s slow motion |
+| arms (first person) | opposite-phase swing tied to speed (walk → run → sprint lean), lag on direction changes, a settle on sudden stops, jump-up / falling / landing compression / slide / dash / hit / ability poses. Styles: normal, agile, fast, heavy, robotic (stepped), magic (hover) |
+| weapon in hand | per-weapon pose (light pistol, steady sniper, heavy MG, knife ready…), look + move inertia back to centre, a reduced share of the run motion, sprint pose; much less while aiming, none in the scope |
+| movement | speed lines + FOV kick (sprint, dash, fast falls), footstep dust by surface (stone, wood, metal sparks, dirt, snow, water, energy), landing ring + dust + sound by weight + camera pulse (stronger from high), slide trail / scrape, dash afterimage |
+| weapons | muzzle by class (small, heavy + smoke, precise thin streak), tracer colour per weapon, impacts by material (metal sparks, wood splinters, stone chips + dust, soft dust / spray, energy ripple) — the level now remembers each block's material |
+| abilities | one interface: `fb.ability(stage, {pos, dir, elem, color, radius, me})`, stages charge / launch / trail / area / impact / end; elements fire, electric, ice, poison, energy, mechanical, shadow, nature, magic, blast differ in colour **and** motion (rise, jitter, fall, drift), density and sound |
+
+**Performance:** two instanced voxel particle pools (solid + glow), 12 rings, 10 sprites and 2
+lights that always stay in the scene (no shader recompiles); maximum lifetimes, automatic
+cleanup, fewer cosmetic particles far away and on lower quality; hit confirmation and
+eliminations take the place of cosmetic particles when the pool is full; sounds are throttled.
+
+**Settings → ✨ Effects** (accessibility): camera shake 0-100 %, screen flashes, speed effects,
+slow motion, damage numbers, effect quality (auto follows Graphics).
+
 ## Characters, colours, fullscreen
 
 - **Characters:** Hero (default) and **Mr. Fridge** (`character.js`). A character can define

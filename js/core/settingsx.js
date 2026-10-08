@@ -26,6 +26,16 @@
     'xh.title': 'Crosshair', 'xh.style': 'Style', 'xh.color': 'Colour', 'xh.size': 'Length', 'xh.gap': 'Gap', 'xh.thick': 'Thickness', 'xh.outline': 'Outline',
     'xh.real': 'Real size (as in the game)', 'xh.s.cross': 'Cross', 'xh.s.crossdot': 'Cross + dot', 'xh.s.dot': 'Dot', 'xh.s.circle': 'Circle', 'xh.s.tee': 'T',
   });
+  Object.assign(VR.I18N.STRINGS.en, {
+    'fx.open': '✨ Effects', 'fx.title': 'Effects', 'fx.shake': 'Camera shake', 'fx.flashes': 'Screen flashes', 'fx.speed': 'Speed effects (lines, FOV kick)',
+    'fx.slowmo': 'Slow motion on the last kill', 'fx.numbers': 'Damage numbers', 'fx.quality': 'Effect quality',
+    'fx.q.auto': 'Auto', 'fx.q.low': 'Low', 'fx.q.medium': 'Medium', 'fx.q.high': 'High', 'fx.note': 'Takes effect in the next match (quality).', 'fb.fell': 'You fell!',
+  });
+  Object.assign(VR.I18N.STRINGS.ar, {
+    'fx.open': '✨ المؤثرات', 'fx.title': 'المؤثرات', 'fx.shake': 'اهتزاز الكاميرا', 'fx.flashes': 'وميض الشاشة', 'fx.speed': 'مؤثرات السرعة (خطوط، اتساع الرؤية)',
+    'fx.slowmo': 'تصوير بطيء عند آخر إقصاء', 'fx.numbers': 'أرقام الضرر', 'fx.quality': 'جودة المؤثرات',
+    'fx.q.auto': 'تلقائي', 'fx.q.low': 'منخفضة', 'fx.q.medium': 'متوسطة', 'fx.q.high': 'عالية', 'fx.note': 'الجودة تتغيّر من المواجهة الجاية.', 'fb.fell': 'وقعت!',
+  });
   Object.assign(VR.I18N.STRINGS.ar, {
     'kb.title': 'التحكم بالأزرار', 'kb.sub': 'اضغط على خانة، ثم اضغط أي زر في لوحة المفاتيح أو الماوس أو حرّك العجلة. Esc للإلغاء، Backspace للمسح.',
     'kb.press': 'اضغط زرًا…', 'kb.reset': 'إرجاع الافتراضي', 'kb.open': '🎮 التحكم بالأزرار', 'xh.open': '⌖ الكروسهير',
@@ -124,10 +134,29 @@
       $('kbReset').addEventListener('click', () => { VR.Audio.play('click'); VR.Input.resetBinds(); this.renderControls(); });
       $('xhBack').addEventListener('click', () => { VR.Audio.play('click'); this.close(); });
       $('xhReset').addEventListener('click', () => { VR.Audio.play('click'); Crosshair.reset(); this.renderCrosshair(); });
-      VR.I18N.onChange(() => { if (!$('kbScreen').hidden) this.renderControls(); if (!$('xhScreen').hidden) this.renderCrosshair(); });
+      $('optEffects').addEventListener('click', () => { VR.Audio.play('click'); this.openEffects(); });
+      $('fxBack').addEventListener('click', () => { VR.Audio.play('click'); this.close(); });
+      $('fxReset').addEventListener('click', () => { VR.Audio.play('click'); VR.Feedback.set(Object.assign({}, VR.Feedback.DEFAULTS)); this.renderEffects(); });
+      VR.I18N.onChange(() => { if (!$('kbScreen').hidden) this.renderControls(); if (!$('xhScreen').hidden) this.renderCrosshair(); if (!$('fxScreen').hidden) this.renderEffects(); });
       Crosshair.apply();
     },
-    close() { VR.Input.cancelCapture(); $('kbScreen').hidden = true; $('xhScreen').hidden = true; },
+    close() { VR.Input.cancelCapture(); $('kbScreen').hidden = true; $('xhScreen').hidden = true; $('fxScreen').hidden = true; },
+
+    /** accessibility: every effect can be reduced or turned off */
+    openEffects() { this.close(); $('fxScreen').hidden = false; this.renderEffects(); },
+    renderEffects() {
+      const S = VR.Feedback.settings;
+      const tog = (k) => `<div class="fx-set"><label>${T('fx.' + k)}</label><button class="btn toggle small" type="button" data-k="${k}" aria-pressed="${!!S[k]}">${S[k] ? T('on') : T('off')}</button></div>`;
+      $('fxBody').innerHTML = `
+        <div class="fx-set"><label>${T('fx.shake')}</label><input type="range" data-k="shake" min="0" max="1" step="0.05" value="${S.shake}"><output class="num">${Math.round(S.shake * 100)}%</output></div>
+        ${tog('flashes')}${tog('speed')}${tog('slowmo')}${tog('numbers')}
+        <div class="fx-set"><label>${T('fx.quality')}</label><div class="fx-opts">${['auto', 'low', 'medium', 'high'].map(q => `<button class="btn small ${S.quality === q ? 'on' : ''}" type="button" data-q="${q}">${T('fx.q.' + q)}</button>`).join('')}</div></div>
+        <p class="hint">${T('fx.note')}</p>`;
+      const body = $('fxBody');
+      body.querySelector('input[data-k=shake]').addEventListener('input', (e) => { VR.Feedback.set({ shake: +e.target.value }); e.target.nextElementSibling.textContent = Math.round(e.target.value * 100) + '%'; });
+      body.querySelectorAll('button[data-k]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); VR.Feedback.set({ [b.dataset.k]: !VR.Feedback.settings[b.dataset.k] }); this.renderEffects(); }));
+      body.querySelectorAll('button[data-q]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); VR.Feedback.set({ quality: b.dataset.q }); this.renderEffects(); }));
+    },
 
     openControls() { this.close(); $('kbScreen').hidden = false; this.renderControls(); },
     renderControls() {

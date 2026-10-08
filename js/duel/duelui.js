@@ -116,6 +116,9 @@
     if (id === 'energy') return ORB('#ff9a3a');
     if (id === 'freeze') return ORB('#8fe6ff');
     if (id === 'bomb') return `<svg viewBox="0 0 40 14" width="40" height="14"><circle cx="20" cy="8" r="5" fill="currentColor"/><rect x="21" y="1" width="2" height="3" fill="#ff5a3a"/></svg>`;
+    if (id === 'fall') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="10" y="12" width="20" height="2" fill="currentColor"/><rect x="19" y="0" width="2" height="7" fill="currentColor"/><rect x="15" y="5" width="10" height="2" fill="currentColor"/><rect x="17" y="7" width="6" height="2" fill="currentColor"/><rect x="19" y="9" width="2" height="2" fill="currentColor"/></svg>`;
+    const AB = VR.Fighters && VR.Fighters.ABILITIES && VR.Fighters.ABILITIES[id];
+    if (AB && !ICONS[id]) return ORB(hex((VR.Feedback && VR.Feedback.ELEMENTS[AB.elem] || { col: [AB.color || 0xffe14a] }).col[0]));
     if (id === 'mine') return `<svg viewBox="0 0 40 14" width="40" height="14"><rect x="12" y="8" width="16" height="4" fill="currentColor"/><rect x="15" y="5" width="10" height="3" fill="currentColor"/><rect x="19" y="3" width="2" height="2" fill="#ff5a3a"/></svg>`;
     const r = ICONS[id] || ICONS.pistol;
     return `<svg viewBox="0 0 40 14" width="40" height="14">${r.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="currentColor"/>`).join('')}</svg>`;
@@ -145,6 +148,7 @@
         <div class="du-hit" hidden><i></i><i></i><i></i><i></i></div>
         <div class="du-scope" hidden></div>
         <div class="du-dmg"></div>
+        <div class="du-teamflash"></div>
         <div class="du-big" hidden></div>
         <div class="du-feed"></div>
         <div class="du-bottom">
@@ -393,9 +397,23 @@
     big(text, cls = '', ms = 1200) {
       const b = this.el.big;
       b.textContent = text; b.className = 'du-big ' + cls; b.hidden = false;
-      b.animate([{ transform: 'translate(-50%,-50%) scale(1.35)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 180 });
+      if (b.getAnimations) b.getAnimations().forEach(a => a.cancel());
+      const round = / round/.test(' ' + cls);
+      // a round banner slides in fast with a little overshoot, then leaves smoothly
+      if (round) b.animate([{ transform: 'translate(-50%,-50%) translateX(-60px) scale(1.5)', opacity: 0, letterSpacing: '0.3em' }, { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, letterSpacing: '0.02em' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
+      else b.animate([{ transform: 'translate(-50%,-50%) scale(1.35)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 180 });
       clearTimeout(this.bigT);
-      if (ms) this.bigT = setTimeout(() => { b.hidden = true; }, ms);
+      if (ms) this.bigT = setTimeout(() => {
+        if (!round) { b.hidden = true; return; }
+        const out = b.animate([{ transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }, { transform: 'translate(-50%,-50%) translateX(50px) scale(0.96)', opacity: 0 }], { duration: 240, easing: 'ease-in' });
+        out.onfinish = () => { if (b.className === 'du-big ' + cls) b.hidden = true; };
+      }, ms);
+    }
+    /** the round winner's team colour flashes over the screen */
+    teamFlash(col) {
+      const f = this.root.querySelector('.du-teamflash'); if (!f) return;
+      f.style.background = `radial-gradient(circle at 50% 40%, transparent 30%, ${hex(col)}cc)`;
+      f.animate([{ opacity: 0 }, { opacity: 0.75, offset: 0.25 }, { opacity: 0 }], { duration: 650, easing: 'ease-out' });
     }
     hideBig() { this.el.big.hidden = true; clearTimeout(this.bigT); }
     feed(text, cls = '') {
@@ -404,10 +422,14 @@
       while (this.el.feed.children.length > 4) this.el.feed.lastChild.remove();
       setTimeout(() => d.remove(), 3500);
     }
-    hitmarker(head) {
-      const h = this.el.hit; h.hidden = false; h.className = 'du-hit' + (head ? ' head' : '');
-      h.animate([{ transform: 'translate(-50%,-50%) scale(1.4)', opacity: 1 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }], { duration: 380 });
-      clearTimeout(this.hitT); this.hitT = setTimeout(() => { h.hidden = true; }, 380);
+    /** hit confirm: normal / crit (headshot) / armor / ability / explosion / kill (true = crit, for old callers) */
+    hitmarker(type) {
+      const t = type === true ? 'crit' : type === false || !type ? 'normal' : type;
+      const h = this.el.hit; h.hidden = false; h.className = 'du-hit ' + t + (t === 'crit' ? ' head' : '');
+      const big = t === 'kill' ? 1.9 : t === 'crit' ? 1.6 : 1.4, dur = t === 'kill' ? 520 : 380;
+      h.animate([{ transform: `translate(-50%,-50%) scale(${big}) rotate(${t === 'kill' ? 45 : 0}deg)`, opacity: 1 }, { transform: 'translate(-50%,-50%) scale(1) rotate(0deg)', opacity: 0 }], { duration: dur, easing: 'ease-out' });
+      clearTimeout(this.hitT); this.hitT = setTimeout(() => { h.hidden = true; }, dur);
+      this.lastHit = t;
     }
     damage(k) { this.el.dmg.style.opacity = Math.min(0.85, k); }
     /** the round trip to the other player (ms); null hides it */
@@ -419,15 +441,36 @@
       el.className = 'du-ping num ' + (v < 80 ? 'good' : v < 160 ? 'ok' : 'bad');
     }
     /** floating damage number at a screen point */
-    dmgNum(x, y, n, head) {
+    /**
+     * floating damage number: rises, pops, fades; coloured by type (normal / crit / explosion / ability / armor).
+     * Fast hits on the same target (same key) add up in one number instead of piling up.
+     */
+    dmgNum(x, y, n, type, key) {
+      const t = type === true ? 'crit' : type === false || !type ? 'normal' : type;
+      const now = performance.now(), r = this.root.getBoundingClientRect();
+      const last = key && this.numLast && this.numLast.key === key && now - this.numLast.t < 420 && this.numLast.el.isConnected ? this.numLast : null;
+      if (last) {
+        last.sum += n; last.t = now; const d = last.el;
+        d.textContent = String(last.sum);
+        if (t === 'crit' || t === 'ability' || t === 'explosion') d.className = 'du-num ' + t + (t === 'crit' ? ' head' : '');
+        d.style.left = (x - r.left) + 'px'; d.style.top = (y - r.top) + 'px';
+        if (d.getAnimations) d.getAnimations().forEach(a => a.cancel());
+        this.numAnim(d);
+        return d;
+      }
       const d = document.createElement('div');
-      d.className = 'du-num' + (head ? ' head' : ''); d.textContent = String(n);
-      const r = this.root.getBoundingClientRect();
+      d.className = 'du-num ' + t + (t === 'crit' ? ' head' : ''); d.textContent = String(n);
       d.style.left = (x - r.left + (Math.random() - 0.5) * 24) + 'px'; d.style.top = (y - r.top) + 'px';
       this.el.nums.appendChild(d);
-      d.animate([{ transform: 'translate(-50%,-50%) scale(1.3)', opacity: 1 }, { transform: 'translate(-50%,-180%) scale(1)', opacity: 1, offset: 0.6 }, { transform: 'translate(-50%,-240%) scale(0.9)', opacity: 0 }], { duration: 900, easing: 'ease-out' });
-      setTimeout(() => d.remove(), 900);
-      while (this.el.nums.children.length > 12) this.el.nums.firstChild.remove();
+      this.numAnim(d);
+      this.numLast = key ? { key, t: now, sum: n, el: d } : null;
+      while (this.el.nums.children.length > 10) this.el.nums.firstChild.remove();       // rate limit
+      return d;
+    }
+    numAnim(d) {
+      const pop = d.classList.contains('crit') || d.classList.contains('explosion') ? 1.6 : 1.3;
+      d.animate([{ transform: `translate(-50%,-50%) scale(${pop})`, opacity: 1 }, { transform: 'translate(-50%,-180%) scale(1)', opacity: 1, offset: 0.6 }, { transform: 'translate(-50%,-240%) scale(0.9)', opacity: 0 }], { duration: 900, easing: 'ease-out' });
+      clearTimeout(d._t); d._t = setTimeout(() => d.remove(), 900);
     }
     /** "you took out X" / "X took you out" */
     kill(text, cls) {
