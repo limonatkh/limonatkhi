@@ -312,7 +312,7 @@
         s.position.set(...L.sun.dir); sc.add(s); sun = s;
       }
       // outdoor areas you keep coming back to (the start area / the square) have weather
-      if (def.persistent && def.weather !== false && VR.WeatherSystem) {
+      if (VR.WEATHER_ON && def.persistent && def.weather !== false && VR.WeatherSystem) {
         this.weather = new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera,
           onChange: (ty) => this.ui.caption(VR.t('wx.now', { name: VR.L(VR.Weather.TYPES[ty].name) }) + ' ' + VR.Weather.TYPES[ty].icon, 3) });
       }

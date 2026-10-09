@@ -504,7 +504,7 @@
       const sun = new T.DirectionalLight(L.sun.color, L.sun.intensity * 2); sun.position.set(...L.sun.dir); sc.add(sun);
       // the weather (js/core/weather.js): the host's runs the schedule, the other player follows it
       const wm = this.match;
-      this.weather = VR.WeatherSystem && !wm.solo ? new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera, start: wm.opts && wm.opts.weather,
+      this.weather = VR.WEATHER_ON && VR.WeatherSystem && !wm.solo ? new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera, start: wm.opts && wm.opts.weather,
         onChange: (ty) => { this.ui.feed(VR.t('wx.now', { name: VR.L(VR.Weather.TYPES[ty].name) }) + ' ' + VR.Weather.TYPES[ty].icon); if (this.match && this.match.role === 'h') this.sendWeather(); } }) : null;
       // the effects layer (js/duel/feedback.js): pooled particles, rings, lights, the screen overlay
       this.fb = VR.FeedbackLayer ? new VR.FeedbackLayer(sc, this.camera, this.ui.el.dmg) : null;

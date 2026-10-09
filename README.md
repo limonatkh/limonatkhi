@@ -876,6 +876,14 @@ seeing through walls" rule. Reward for beating a fighter: 40 coins × its stars.
   Tiny5 for Latin and numbers, Handjet for Arabic; titles get a hard shadow + soft glow (and are
   slanted in English). In-world signs still use Cairo.
 
+
+**SHRINKER (v1.35):** a round starts with it **3× bigger and half as fast**
+(its hit boxes too, and a wider body for walls). Every hit: 30 % smaller and
+twice as fast (down to 24 %, top speed 5.5×). Its damage to you follows its size
+and falls faster than it: `damage × (size / 3)^1.6`, so each hit cuts its damage
+more than its size (100 % → 57 % → 32 % → 18 % …). Tuning: `ABILITIES.shrink.status`
+(`startScale`, `startSpeed`, `dmgPow`) in `js/duel/fighters.js`. Playing *as* the
+shrinker (`js/duel/powers.js`) is unchanged.
 ## Fighter levels, teams, playing as a fighter, loot arena, hostages (`js/duel/powers.js`)
 
 **Fighter levels and teams.** The fighter screen picks **one to three** opponents (click to add,
@@ -950,6 +958,12 @@ slow motion, damage numbers, effect quality (auto follows Graphics).
 ## Weather, wind, the square as home, match rules (v1.33)
 
 ### Weather (`js/core/weather.js`)
+> **Switched off (v1.35).** `VR.WEATHER_ON` (top of `js/core/weather.js`) is
+> `false`: no weather is made anywhere, there is no wind, and every shot is a
+> straight line again (the ballistics below only apply while it is on). The code
+> is all still here: set it to `true` to bring it back, or open the game with
+> `?weather=1` to try it.
+
 - `VR.WeatherSystem` runs in the square / adventure areas and in the fight
   arenas (not in solo training). Types: clear, cloudy, windy, rain, storm,
   dark. Each one stays **100–200 s**, then the next is picked (weighted, never

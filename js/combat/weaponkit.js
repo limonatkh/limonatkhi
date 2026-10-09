@@ -76,9 +76,11 @@
     bow: [70, 1.6, 9.8],
   };
   const drift = (k, t) => t - (1 - Math.exp(-k * t)) / k;
+  // with the weather switched off (js/core/weather.js) every shot is a straight line again
+  const ballistic = (wid) => (VR.WEATHER_ON ? BALLISTIC[wid] : null);
   /** where a shot fired from o along d is after `s` metres (wind: a Vector3, may be null) */
   function pathPoint(o, d, wid, wind, s, out = new T.Vector3()) {
-    const B = BALLISTIC[wid]; out.copy(o).addScaledVector(d, s);
+    const B = ballistic(wid); out.copy(o).addScaledVector(d, s);
     if (!B) return out;
     const t = s / B[0];
     if (wind) out.addScaledVector(wind, drift(B[1], t));
@@ -87,7 +89,7 @@
   }
   /** the drift a shot would get at distance s (what a shooter must aim against) */
   function driftAt(wid, wind, s, out = new T.Vector3()) {
-    const B = BALLISTIC[wid]; out.set(0, 0, 0);
+    const B = ballistic(wid); out.set(0, 0, 0);
     if (!B) return out;
     const t = s / B[0];
     if (wind) out.addScaledVector(wind, drift(B[1], t));
@@ -100,7 +102,7 @@
    */
   const _a = new T.Vector3(), _b = new T.Vector3(), _d = new T.Vector3();
   function tracePath(ray, solids, o, d, targets, max = 200, wid = null, wind = null) {
-    const B = BALLISTIC[wid];
+    const B = ballistic(wid);
     const calm = !wind || (Math.abs(wind.x) + Math.abs(wind.z) < 0.05);
     if (!B || (calm && !B[2])) { const r = traceParts(ray, solids, o, d, targets, max); r.path = [o.clone(), r.end.clone()]; return r; }
     const n = Math.min(24, Math.max(4, Math.ceil(max / 10)));

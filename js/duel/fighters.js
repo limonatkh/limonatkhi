@@ -58,8 +58,10 @@
       use(f, ctx) { ctx.sys.decoy(f, this, ctx); } },
     strike: { elem: 'shadow', name: { en: 'Shadow Strike', ar: 'ضربة الظل' }, cooldown: 6, duration: 0.3, range: 11, damage: 62, movement: 'burst', status: null, vfx: 'trail', sfx: 'knife',
       use(f, ctx, dir) { f.fx.strike = { dir: dir.clone().setY(0).normalize(), t: this.duration, speed: Math.max(10, (ctx.dist - 1.4) / this.duration), hit: false }; vfx(ctx.sys, 'launch', f, this, { pos: f.pos.clone().setY(0.8), dir }); VR.Audio.play('slide'); } },
-    // passive: every hit makes it 30 % smaller and twice as fast (down to a tiny, very fast fighter)
-    shrink: { elem: 'poison', name: { en: 'Shrink', ar: 'التقلّص' }, cooldown: 0, duration: 0, range: 0, damage: 0, movement: 'passive', status: { factor: 0.7, speedUp: 2, minScale: 0.24, maxSpeed: 5.5 }, vfx: 'shrink', sfx: 'pickup', color: 0x7cdc3a, passive: true,
+    // passive: it starts 3x bigger and half as fast; every hit makes it 30 % smaller and twice as fast
+    // (down to a tiny, very fast fighter) — and the smaller it is, the less its shots hurt:
+    // damage × (size / start size)^dmgPow, so each hit cuts its damage more than the one before
+    shrink: { elem: 'poison', name: { en: 'Shrink', ar: 'التقلّص' }, cooldown: 0, duration: 0, range: 0, damage: 0, movement: 'passive', status: { factor: 0.7, speedUp: 2, minScale: 0.24, maxSpeed: 5.5, startScale: 3, startSpeed: 0.5, dmgPow: 1.6 }, vfx: 'shrink', sfx: 'pickup', color: 0x7cdc3a, passive: true,
       use() {} },
   };
 
@@ -124,7 +126,7 @@
       strong: t('Balanced in everything', 'متوازن في كل شيء'), weak: t('No huge edge like the specialists', 'لا يملك تفوقًا كبيرًا مثل المتخصصين'), look: { band: 0x15151c, extra: 'tails' } },
     shrinker: { name: t('SHRINKER', 'المتقلّص'), title: t('Shrinking Fighter', 'المقاتل المتقلّص'), ability: 'shrink', stars: 4, color: 0x7cdc3a, char: 0,
       hp: 130, speed: 1.0, weapons: ['smg'], range: [3, 8], strafe: 1, dmgMul: 0.45, aim: { react: 0.34, err: 0.045, turn: 9, fireMul: 1.0, head: 0.08 },
-      desc: t('Every hit makes it 30% smaller and twice as fast — until it is tiny and very fast. Its damage is low.', 'كل ما ياكل إصابة يصغر ٣٠٪ ويصير أسرع الضعف، لحد ما يصير صغير كثير وسريع عالآخر. ضربه قليل.'),
+      desc: t('Starts 3× bigger and half as fast. Every hit makes it 30% smaller and twice as fast — and the smaller it gets, the weaker its shots, faster and faster.', 'يبدأ أكبر ٣ أضعاف وأبطأ بالنص. كل ما ياكل إصابة يصغر ٣٠٪ ويصير أسرع الضعف — وكل ما يصغر يضعف ضربه أكثر فأكثر.'),
       strong: t('Harder to hit with every hit', 'كل ما تضربه يصير أصعب تصيبه'), weak: t('Low damage; hit it hard early', 'ضربه ضعيف؛ اضربه بقوة من البداية'), look: { band: 0x7cdc3a, extra: 'leaf' }, fx: { death: 'dust', arms: 'fast', element: 'poison' } },
   };
   const ORDER = ['dasher', 'flash', 'tank', 'blaster', 'bomber', 'healer', 'freezer', 'berserker', 'trickster', 'ninja', 'shrinker'];
@@ -333,7 +335,9 @@
       this.projectiles = []; this.zones = []; this.decoys = []; this.events = [];
       for (const b of this.list) {
         if (!b.f) continue;
-        b.shrink = 1; b.spdMul = 1; if (b.body && b.body.rig) { if (b.f.hp > 150) b.body.rig.root.scale.set(1.12, 1.06, 1.12); else b.body.rig.root.scale.setScalar(1); }
+        const S0 = b.f.ability === 'shrink' ? ABILITIES.shrink.status : null;
+        b.shrink = S0 ? S0.startScale : 1; b.spdMul = S0 ? S0.startSpeed : 1;
+        if (b.body && b.body.rig) { if (S0) b.body.rig.root.scale.setScalar(b.shrink); else if (b.f.hp > 150) b.body.rig.root.scale.set(1.12, 1.06, 1.12); else b.body.rig.root.scale.setScalar(1); }
       b.hp = b.maxHp; b.fx = {}; b.cd = 1.5; b.charges = ABILITIES[b.f.ability].charges || 0; b.rechargeT = 0;
         b.mem = { hitT: 0, engageT: 0, unseenT: 9, recentDmg: 0, frozeT: 0, flankT: 0, retreatT: 0, dodgeCd: 0, seenT: 0, aimT: 0 };
         b.body.shield.visible = false; b.body.healRing.visible = false; b.body.aura.visible = false;
@@ -352,6 +356,12 @@
       return d;
     }
 
+    /** SHRINKER: how hard its shots hit at its size now (1 at the start, falling faster than the size) */
+    shrinkDmg(b) {
+      if (!b.f || b.f.ability !== 'shrink') return 1;
+      const S = ABILITIES.shrink.status;
+      return Math.pow((b.shrink || S.startScale) / S.startScale, S.dmgPow);
+    }
     /** SHRINKER: smaller (hit boxes too) and faster after every hit */
     shrink(b) {
       const S = ABILITIES.shrink.status;
@@ -441,7 +451,7 @@
         const rage = fx.rageT > 0 ? ABILITIES.rage.status : null;
         if (aligned && !rooted && !fx.dash && !fx.strike && (!b.lo.def.melee || dist <= b.lo.def.range - 0.2)) {
           const w = b.lo.shoot();
-          if (w) { b.lo.coolT *= b.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = (rage ? rage.dmg : 1) * (F.dmgMul || 1); this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
+          if (w) { b.lo.coolT *= b.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = (rage ? rage.dmg : 1) * (F.dmgMul || 1) * this.shrinkDmg(b); this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
         }
         // movement
         this.moveFighter(b, dt, plan, sees ? tgt : null, goal, dist, rage, rooted);

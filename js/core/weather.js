@@ -26,6 +26,13 @@
 (function () {
   const T = THREE;
   const t2 = (en, ar) => ({ en, ar });
+  /**
+   * THE SWITCH. The weather is turned OFF: no weather object is made anywhere (no sky change,
+   * rain, dust, sounds or wind HUD), the wind is nil, and shots fly straight like before
+   * (js/combat/weaponkit.js asks VR.WEATHER_ON). Everything below is kept as it is.
+   * To bring it back: set this to true — or open the game with ?weather=1 to try it.
+   */
+  VR.WEATHER_ON = typeof location !== 'undefined' && /[?&]weather=1/.test(location.search);
   //            cloud: grey sky · dark: less light · rain 0-1 · wind m/s (+ gusts) · fog: × fog distance · dust specks
   const TYPES = {
     clear:  { name: t2('Clear', 'صافي'), icon: '☀', cloud: 0, dark: 0, rain: 0, wind: 1.5, gust: 1, fog: 1, dust: 0, w: 0.3 },

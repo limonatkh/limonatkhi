@@ -125,9 +125,13 @@
       return this.mgr.wallDist(from, d, dist) >= dist - 0.05;
     }
     move(b, dx, dz) {
-      const r = 0.36, y0 = b.pos.y + 0.4, y1 = b.pos.y + 1.75;
-      const blocked = (x, z) => this.mgr.level.solids.some(s => s.max[1] > y0 && s.min[1] < y1 &&
+      // a big body (the SHRINKER at the start) is wider — up to 1.5x
+      const big = 0.36 * Math.min(1.5, Math.max(1, b.shrink || 1)), y0 = b.pos.y + 0.4, y1 = b.pos.y + 1.75;
+      const hits = (x, z, r) => this.mgr.level.solids.some(s => s.max[1] > y0 && s.min[1] < y1 &&
         x + r > s.min[0] && x - r < s.max[0] && z + r > s.min[2] && z - r < s.max[2]);
+      // already touching a wall with the big body (e.g. where it spawned): the normal body decides, so it can walk out
+      const r = big > 0.36 && hits(b.pos.x, b.pos.z, big) ? 0.36 : big;
+      const blocked = (x, z) => hits(x, z, r);
       const x0 = b.pos.x, z0 = b.pos.z;
       if (b.slowT > 0) { dx *= 0.5; dz *= 0.5; }                      // frozen by my frost / freeze
       const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.25));     // fast movers: short steps (never through a wall)
