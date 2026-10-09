@@ -1006,6 +1006,82 @@ slow motion, damage numbers, effect quality (auto follows Graphics).
   them against the computer. Rules travel in invites; the loot arena keeps
   its own weapons.
 
+## Mini-games: Billiards & Basketball (v1.34) — `js/mini/`
+
+The square is the hub of three experiences: the **runner** portal (unchanged),
+the **BILLIARDS** door and the **BASKETBALL** portal (`js/adventure/hubgates.js`).
+Walk up, **E: Enter**.
+
+### The shared loop (`js/mini/minigame.js`)
+gate → fade → the world → intro (goal, controls, opponent level, the rewards) →
+the match → result (**YOU WIN / YOU LOSE / DRAW**, final score, coins) →
+**RETURN TO LEMONAT** → back in front of the same gate. **Play again** starts a
+new match. Esc / ⏸ pauses: resume, or **leave the match** (abandoned = 0 coins).
+Game states: `miniEnter` → `mini` → `miniReturn`.
+
+**Coins** go through the shared wallet (`js/core/wallet.js`), never a separate
+currency. Each match has its own transaction id `mini:<game>:<matchId>`: it is
+paid once when the result is final, and the result screen, a second click on
+RETURN, or a reload can never pay it again. Entering takes nothing. The amounts
+are in `VR.MiniGames.REWARDS`:
+
+| | win | draw | lose | abandoned |
+|---|---|---|---|---|
+| billiards | 100 | — | 10 | 0 |
+| basketball | 120 | 30 | 10 | 0 |
+
+Adding another mini-game: a class with `intro() / start(level) / update(dt, live) /
+pause(on) / dispose()` that calls `mgr.finish(outcome, lines)`, registered with
+`VR.MiniGames.register(id, Class)`, plus a `hubGate` with that `action`.
+
+### Billiards — 8-ball vs the computer (`poolsim.js`, `billiards.js`)
+- **Physics** (`PoolSim`, plain numbers, also runs in node): an 8-ft table,
+  6 pockets with real openings and jaws, ball–ball collisions (restitution),
+  cushions, rolling friction, fixed 1/240 s steps with sub-steps by speed (no
+  tunnelling), balls stop on their own.
+- **Rules** (`EightBall`, simplified): you break with the cue ball in hand behind
+  the line; the table stays open after the break; the first ball legally pocketed
+  gives its group (solids / stripes). Fouls: scratch, no ball hit, wrong ball
+  first, no cushion after contact → the opponent gets **ball in hand anywhere**
+  (the green area shows where). Pocketing only the opponent's ball ends your turn.
+  The 8: legally after your group = win; early, on an open table or with a foul
+  = loss; on the break it is re-spotted. Turns are judged only after every ball
+  has stopped.
+- **Controls**: drag on the table (or A/D, ←/→; Shift = fine) to aim — in the top
+  view the cue follows the pointer; the **POWER** bar: press, pull down, let go
+  (or W/S + Space). V / 👁 = behind the cue ↔ top view, wheel = zoom. The guide
+  shows the cue ball's line, the contact (ghost ball) and the object ball's
+  direction (first contact only).
+- **The computer** finds ghost-ball shots for every legal ball and pocket, plays
+  each one on a copy of the table to see whether it really goes in without a foul,
+  picks one, then adds its own error (`SKILL`: easy / normal / hard — aim, power,
+  blunders, shot choice, safeties). It places the cue ball with ball in hand,
+  turns the cue, pulls back and strikes like the player does.
+
+### Basketball — 1-on-1 vs the computer (`hoopsim.js`, `basketball.js`)
+- 90 s (`time`), a 3-2-1 countdown, you start with the ball. You attack the
+  **yellow** hoop, the bot the **purple** one (paint, board stripes, signs).
+- **Ball physics**: gravity, the rim as a ring, the backboard, the floor, the
+  arena walls, the net. A basket counts only when the ball drops **down through**
+  the rim of the hoop that team attacks — once per shot (not from below, not for
+  a loose ball, not for touching the board or rim). 2 points inside the 6 m arc,
+  3 beyond it (where the feet were at the release). A shot in the air at the
+  buzzer still counts.
+- **Shooting**: hold to load the meter, let go in the **green**: early = short,
+  late = long and wild; distance, moving and a defender in front add spread.
+  Close shots are easier than long ones.
+- **Possession**: steals (close, a chance, a cool-down; a miss leaves you
+  off-balance), blocks (a defender in the air right there), loose balls and
+  rebounds go to whoever really reaches the ball, after a basket the other side
+  inbounds under that basket.
+- **The bot** (`Brain`, `LEVELS`): defends between you and its basket, reaches
+  in, jumps at shots, drives around you, chooses close / mid / 3-point shots,
+  chases rebounds where the ball will come down — with a reaction delay and
+  its own release timing (easy / normal / hard).
+- Controls: WASD (+ Shift), hold left click = shoot, E or right click = steal,
+  Space = jump, the mouse = camera. Touch: stick, SHOOT (hold), STEAL, JUMP,
+  drag on the right to turn the camera.
+
 ## Characters, colours, fullscreen
 
 - **Characters:** Hero (default) and **Mr. Fridge** (`character.js`). A character can define

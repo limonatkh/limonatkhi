@@ -37,6 +37,8 @@
       this.challenge = new VR.Challenge(this);
       // 1v1 Sniper Arena: gates beside the track, invites, the arena itself
       this.duel = new VR.DuelManager(this);
+      // the mini-games behind the gates in the square (js/mini/)
+      this.mini = new VR.MiniGames.Manager(this);
       this.world.duelGateProvider = null;
       this.fade = { value: 0, target: 0, speed: 3 };
       this.fadeEl = document.getElementById('fade');
@@ -98,6 +100,7 @@
       this.camera.updateProjectionMatrix();
       if (this.missions) this.missions.resize(w, h);
       if (this.duel) this.duel.resize(w, h);
+      if (this.mini) this.mini.resize(w, h);
     }
 
     applySettings() {
@@ -190,6 +193,8 @@
       });
       VR.Input.onPause(() => {
         if (this.state === 'duel') return this.duel.onPauseKey();
+        if (this.state === 'mini') return this.mini.onPauseKey();
+        if (this.state === 'miniEnter' || this.state === 'miniReturn') return;
         if (this.state === 'duelPick' || this.state === 'duelEnter' || this.state === 'duelReturn') return;
         if (this.state === 'mission' || this.state === 'adventure') this.missions.onPauseKey();
         else if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume();
@@ -198,6 +203,7 @@
         if (!document.hidden) return;
         if (this.state === 'playing') this.pause();
         else if (this.state === 'mission' || this.state === 'adventure') this.missions.pause();
+        else if (this.state === 'mini') this.mini.pause();
       });
     }
 
@@ -256,7 +262,12 @@
      * fight / challenge open what the menu used to; the mini-games say they are coming.
      */
     hubAction(action, at, name) {
-      if (action === 'billiards' || action === 'basketball') { VR.Audio.play('click'); this.missions.ui.caption(VR.t('hub.soon', { name }), 3.5); return; }
+      if (action === 'billiards' || action === 'basketball') {
+        if (!VR.MiniGames.has(action)) { VR.Audio.play('click'); this.missions.ui.caption(VR.t('hub.soon', { name }), 3.5); return; }
+        this.hubReturn = at;
+        this.mini.enter(action);
+        return;
+      }
       this.hubReturn = at;
       this.missions.saveArea && this.missions.saveArea();
       VR.Audio.play('portal');
@@ -334,6 +345,7 @@
     startChallengeRun(seed) {
       VR.Audio.unlock();
       if (this.missions.active) this.missions.abort();
+      if (this.mini && this.mini.active) this.mini.abort();
       this.fade.value = this.fade.target = 0; this.updateFade(0);
       this.resetRun(seed);
       this.world.update(0, this.player, C.SPEED_START, 0, this, true);
@@ -382,6 +394,7 @@
       if (this.duel.match || this.duel.pending || this.duel.pickOpen) this.duel.abort();
       if (this.challenge.active) this.challenge.leave(false);
       if (this.missions.active) this.missions.abort();
+      if (this.mini && this.mini.active) this.mini.abort();
       this.fade.value = this.fade.target = 0; this.updateFade(0);
       this.countdownEl.hidden = true;
       this.resetRun();
@@ -773,11 +786,13 @@
       else if (st === 'duelEnter') this.updateDuelEnter(dt);
       else if (st === 'duel' || st === 'duelReturn') this.updateDuelMode(dt);
       else if (st === 'duelPick') this.world.animateGates(dt);
+      else if (st === 'mini' || st === 'miniEnter' || st === 'miniReturn') this.mini.update(dt);
       this.challenge.update(dt);
       this.duel.tick(dt);
       this.updateFade(dt);
       if (this.state === 'mission' || this.state === 'gateReturn' || this.state === 'adventure') this.missions.render(this.renderer);
       else if (this.state === 'duel' || this.state === 'duelReturn') this.duel.render(this.renderer);
+      else if (this.state === 'mini' || this.state === 'miniEnter' || this.state === 'miniReturn') this.mini.render(this.renderer);
       else {
         this.collect.fx.mesh.visible = true;
         this.backdrop.update(dt, this.camera.position);
