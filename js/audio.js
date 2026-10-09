@@ -57,7 +57,7 @@
   // --- the synth sound library (name -> function) ---------------------
   let coinStep = 0, coinStepTime = 0;
   const SYNTH = {
-    step() { noise(0.05, 0.08, 700); },
+    step() { noise(0.06, 0.13, 800); tone(90, 0.05, 'sine', 0.08, 60); },
     jump() { tone(260, 0.16, 'square', 0.12, 620); },
     land() { noise(0.09, 0.2, 500); tone(110, 0.08, 'sine', 0.2, 60); },
     slide() { noise(0.28, 0.12, 2500); },
@@ -165,6 +165,33 @@
       files[name] = await ctx.decodeAudioData(buf);
     },
     async useMusicFile(url) { await this.useFile('__music', url); },
+    /**
+     * A looping ambient sound (rain, wind): filtered noise whose loudness can be changed every frame.
+     * Returns { set(gain, freq?), stop() }. Silent until the audio is unlocked.
+     */
+    ambient(freq = 1200, type = 'lowpass') {
+      let src = null, f = null, g = null;
+      const start = () => {
+        if (src || !ensure()) return false;
+        const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), dd = b.getChannelData(0);
+        for (let i = 0; i < dd.length; i++) dd[i] = Math.random() * 2 - 1;
+        src = ctx.createBufferSource(); src.buffer = b; src.loop = true;
+        f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+        g = ctx.createGain(); g.gain.value = 0;
+        src.connect(f); f.connect(g); g.connect(sfxBus); src.start();
+        return true;
+      };
+      return {
+        set(gain, fr) {
+          if (!ctx || ctx.state !== 'running') return;
+          if (!src && gain > 0.001) start();
+          if (!g) return;
+          g.gain.setTargetAtTime(settings.sfx ? gain : 0, ctx.currentTime, 0.25);
+          if (fr) f.frequency.setTargetAtTime(fr, ctx.currentTime, 0.3);
+        },
+        stop() { if (src) { try { src.stop(); } catch (e) { /* already */ } src.disconnect(); src = null; g = null; f = null; } },
+      };
+    },
     /** Add or replace a synth sound: VR.Audio.define('name', ({tone, noise}) => {...}) */
     define(name, fn) { SYNTH[name] = () => fn({ tone, noise }); },
   };

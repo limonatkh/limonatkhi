@@ -404,6 +404,17 @@
   .du-prompt2 { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); padding: 6px 14px; font-size: 16px; color: #fff; background: rgba(14,17,26,.78); border: 2px solid var(--lemon); white-space: nowrap; pointer-events: none; }
   .du-hostage { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); padding: 4px 12px; font-size: 15px; color: #fff; background: rgba(14,17,26,.75); pointer-events: none; }
   .du-hostage b { color: #7fd4ff; letter-spacing: 2px; } .du-hostage s { text-decoration: none; opacity: .25; }
+  [dir="rtl"] .du-wind { left: auto; right: 12px; }
+  .du-wind { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 206px); left: 12px; padding: 3px 8px; display: flex; align-items: center; gap: 6px; font-size: 15px; background: rgba(14,17,26,.72); pointer-events: none; }
+  .du-wind .du-warrow { font-style: normal; display: inline-block; color: #bfe6ff; transition: transform .2s linear; }
+  .du-wind.strong .du-warrow { color: #ffd23a; } .du-wind.strong { border-color: #ffd23a; }
+  .fm-rules { display: grid; gap: 6px; margin: 4px 0 10px; padding: 8px; background: rgba(14,17,26,.45); border: 2px solid var(--ink); }
+  .fm-rules .fm-rrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .fm-rules .fm-rrow > b { font-family: var(--display); font-size: 15px; margin-inline-end: 4px; }
+  .fm-rules .btn { width: auto; flex: 0 0 auto; margin: 0; padding: 3px 9px 5px; font-size: 13px; letter-spacing: 0; } .fm-rules .btn.on { background: var(--lemon); color: var(--ink); }
+  .fm-rules .btn.locked { opacity: .45; }
+  .ng-danger { margin-top: 14px; padding-top: 10px; border-top: 2px dashed rgba(229,67,58,.5); }
+  .ng-danger .btn { background: #5a1f1c; color: #ffd6d2; }
   .fb-screen { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .du-teamflash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
   .du-hit.crit i { background: #ffd23a; } .du-hit.ability i { background: #7fe8ff; } .du-hit.explosion i { background: #ff9a3a; }
@@ -820,12 +831,6 @@
       <small data-i18n="name.sub"></small>
     </form>
     <button class="btn primary" id="continueBtn" data-i18n="menu.continue" hidden>CONTINUE</button>
-    <button class="btn" id="newGameBtn" data-i18n="menu.newGame">NEW GAME</button>
-    <div class="ng-confirm panel" id="newGameConfirm" hidden>
-      <b data-i18n="adv.confirmTitle">Start a new game?</b>
-      <p data-i18n="adv.confirmText"></p>
-      <div class="menu-row"><button class="btn" id="newGameNo" data-i18n="adv.confirmNo">CANCEL</button><button class="btn primary" id="newGameYes" data-i18n="adv.confirmYes">START NEW GAME</button></div>
-    </div>
     <button class="btn lemon" id="challengeBtn"><span class="vs-ico" aria-hidden="true">⚔</span> <span data-i18n="menu.challenge">CHALLENGE A FRIEND</span></button>
     <button class="btn lemon wait-btn" id="fightBtn"><span class="vs-ico" aria-hidden="true">🎯</span><span class="wait-txt"><b data-i18n="fm.title">FIGHT</b><small data-i18n="fm.menuSub">Friend vs friend · Me vs the computer</small></span></button>
     <div class="menu-row">
@@ -849,6 +854,7 @@
       <button class="btn lemon fm-mode" id="fmLoot"><b>🎁 <span data-i18n="lt.mode">Loot arena</span></b><small data-i18n="lt.modeSub"></small></button>
       <button class="btn lemon fm-mode" id="fmCoop"><b>🤝 <span data-i18n="fm.coop">Me + a friend vs the computer</span></b><small data-i18n="fm.coopSub"></small></button>
     </div>
+    <div class="fm-rules" id="fmRules" hidden></div>
     <div class="fm-pane" id="fmPvpPane" hidden>
       <div class="fm-modes">
         <button class="btn lemon" id="duelBtn"><span class="vs-ico" aria-hidden="true">🎯</span> <span data-i18n="menu.duel">1v1 WITH AN ONLINE PLAYER</span></button>
@@ -902,6 +908,13 @@
     <div class="setting sens-setting"><label for="optSens" data-i18n="settings.sens">Mouse sensitivity</label><input type="range" id="optSens" min="0.2" max="3" step="0.1" value="1"><output id="optSensV" class="num">1.0</output></div>
     <div class="menu-row set-more"><button class="btn" id="optControls" data-i18n="kb.open">Controls</button><button class="btn" id="optCrosshair" data-i18n="xh.open">Crosshair</button><button class="btn" id="optEffects" data-i18n="fx.open">Effects</button></div>
     <div class="setting"><span data-i18n="settings.lang">Language</span><button class="btn toggle lang-toggle" id="optLang" lang="">English</button></div>
+    <!-- far from the hand: a new game replaces your progress (it asks first; a copy of the old save is kept) -->
+    <div class="setting ng-danger"><span data-i18n="settings.danger">Start over</span><button class="btn small" id="newGameBtn" data-i18n="menu.newGame">NEW GAME</button></div>
+    <div class="ng-confirm panel" id="newGameConfirm" hidden>
+      <b data-i18n="adv.confirmTitle">Start a new game?</b>
+      <p data-i18n="adv.confirmText"></p>
+      <div class="menu-row"><button class="btn" id="newGameNo" data-i18n="adv.confirmNo">CANCEL</button><button class="btn primary" id="newGameYes" data-i18n="adv.confirmYes">START NEW GAME</button></div>
+    </div>
     <button class="btn" id="settingsDone" data-i18n="settings.back">BACK</button>
   </div>
 </section>
@@ -1086,9 +1099,11 @@
 <script src="js/adventure/shop.js"></script>
 <script src="js/adventure/portal.js"></script>
 <script src="js/adventure/hub.js"></script>
+<script src="js/adventure/hubgates.js"></script>
 <script src="lib/mqtt.min.js"></script>
 <script src="js/challenge/net.js"></script>
 <script src="js/challenge/challenge.js"></script>
+<script src="js/core/weather.js"></script>
 <script src="js/duel/online.js"></script>
 <script src="js/duel/weapons.js"></script>
 <script src="js/duel/feedback.js"></script>

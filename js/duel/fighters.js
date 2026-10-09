@@ -135,10 +135,10 @@
    *   hp its health, speed its movement, reward the coins for beating it.
    */
   const LEVELS = {
-    normal:     { err: 1.9, react: 0.3, turn: 0.6, fireMul: 1.45, head: 0.4, cd: 1.5, hp: 0.85, speed: 0.9, reward: 0.6 },
-    medium:     { err: 1, react: 0, turn: 1, fireMul: 1, head: 1, cd: 1, hp: 1, speed: 1, reward: 1 },
-    hard:       { err: 0.6, react: -0.06, turn: 1.4, fireMul: 0.88, head: 1.6, cd: 0.8, hp: 1.15, speed: 1.06, reward: 1.6 },
-    impossible: { err: 0.3, react: -0.12, turn: 2.2, fireMul: 0.78, head: 2.6, cd: 0.6, hp: 1.3, speed: 1.12, reward: 2.5 },
+    normal:     { wind: 0.4, err: 1.9, react: 0.3, turn: 0.6, fireMul: 1.45, head: 0.4, cd: 1.5, hp: 0.85, speed: 0.9, reward: 0.6 },
+    medium:     { wind: 0.7, err: 1, react: 0, turn: 1, fireMul: 1, head: 1, cd: 1, hp: 1, speed: 1, reward: 1 },
+    hard:       { wind: 0.85, err: 0.6, react: -0.06, turn: 1.4, fireMul: 0.88, head: 1.6, cd: 0.8, hp: 1.15, speed: 1.06, reward: 1.6 },
+    impossible: { wind: 0.97, err: 0.3, react: -0.12, turn: 2.2, fireMul: 0.78, head: 2.6, cd: 0.6, hp: 1.3, speed: 1.12, reward: 2.5 },
   };
   const LEVEL_ORDER = ['normal', 'medium', 'hard', 'impossible'];
   /** "f_dasher+tank@hard" ↔ { ids: ['dasher', 'tank'], level: 'hard' } */
@@ -319,7 +319,7 @@
       b.f = F; b.fid = id; b.level = level; b.maxHp = Math.round(F.hp * LV.hp);
       // this fighter at this level: its own aim, cooldowns and speed
       b.aim = { react: Math.max(0.22, F.aim.react + LV.react), err: F.aim.err * LV.err, turn: F.aim.turn * LV.turn, fireMul: F.aim.fireMul * LV.fireMul, head: Math.min(0.6, F.aim.head * LV.head) };
-      b.cdMul = LV.cd; b.spd = F.speed * LV.speed;
+      b.cdMul = LV.cd; b.spd = F.speed * LV.speed; b.windSkill = LV.wind;
       b.name = L(F.name) + (level !== 'medium' ? ' · ' + VR.t('bot.diff.' + level) : '');
       dress(b.body, F);
       b.lo = new (FK().Loadout)({ weapons: F.weapons, nades: false });
@@ -439,7 +439,7 @@
         if (plan.ability && !rooted) this.useAbility(b, A, plan.ability, { sys, tgt, sees, dist, players });
         // fire the weapon (rage: faster and harder)
         const rage = fx.rageT > 0 ? ABILITIES.rage.status : null;
-        if (aligned && !rooted && !fx.dash && !fx.strike) {
+        if (aligned && !rooted && !fx.dash && !fx.strike && (!b.lo.def.melee || dist <= b.lo.def.range - 0.2)) {
           const w = b.lo.shoot();
           if (w) { b.lo.coolT *= b.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = (rage ? rage.dmg : 1) * (F.dmgMul || 1); this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
         }
@@ -485,7 +485,7 @@
     moveFighter(b, dt, plan, tgt, goal, dist, rage, rooted) {
       if (rooted || plan.move === 'hold' || b.fx.dash || b.fx.strike) { b.vel.set(0, 0, 0); return; }
       const F = b.f, m = b.mem;
-      const range = plan.range || F.range;
+      const range = plan.range || b.rangeOverride || F.range;
       const dir = new T.Vector3(goal.x - b.pos.x, 0, goal.z - b.pos.z); if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1); dir.normalize();
       let fwd = 0, side = 0;
       const mv = tgt ? plan.move : 'approach';
@@ -551,6 +551,8 @@
     updateProjectiles(dt, players) {
       for (let i = this.projectiles.length - 1; i >= 0; i--) {
         const pr = this.projectiles[i];
+        const wind = this.mgr.windNow && this.mgr.windNow();
+        if (wind) { pr.vel.x += wind.x * 0.5 * dt; pr.vel.z += wind.z * 0.5 * dt; }     // slow orbs drift with the wind
         const step = pr.vel.clone().multiplyScalar(dt), len = step.length(), dir = step.clone().normalize();
         let done = false;
         // walls

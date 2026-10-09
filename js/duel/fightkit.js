@@ -77,11 +77,13 @@
   }
 
   class Loadout {
-    constructor(pick, nadeMax = 2) {
-      pick = sanitize(pick);
-      this.pick = pick;
-      this.slots = pick.weapons.map(id => ({ id, mag: WEAPONS[id].mag }));
-      this.slots.push({ id: 'knife', mag: 1 });                      // everyone carries a knife (last slot)
+    /** only: a weapon id → "one weapon" rounds: that weapon and nothing else (no knife, grenades or mines) */
+    constructor(pick, nadeMax = 2, only = null) {
+      if (only && WEAPONS[only]) pick = { weapons: [], nades: false, mines: false };
+      else { only = null; pick = sanitize(pick); }
+      this.pick = pick; this.only = only;
+      this.slots = only ? [{ id: only, mag: WEAPONS[only].mag }] : pick.weapons.map(id => ({ id, mag: WEAPONS[id].mag }));
+      if (!only) this.slots.push({ id: 'knife', mag: 1 });           // everyone carries a knife (last slot)
       this.mines = { has: !!pick.mines, left: pick.mines ? BUY.MINES : 0 };
       this.cur = 0;
       this.nades = { has: pick.nades, charges: pick.nades ? nadeMax : 0, max: nadeMax, rechargeT: 0 };
@@ -138,5 +140,7 @@
     return BUY.LOCKED.filter(id => !(VR.Shop && VR.Shop.ownsArena(id)));
   }
 
-  VR.FightKit = { WEAPONS, NAMES, BUY, damage, cost, sanitize, locked, Loadout };
+  /** the weapons "one weapon" rounds can use (the shop's, the spear, the bow and the knife; never loot) */
+  const ONE_WEAPON = ['pistol', 'shotgun', 'smg', 'sniper', 'revolver', 'rifle', 'dmr', 'lmg', 'spear', 'bow', 'knife'];
+  VR.FightKit = { WEAPONS, NAMES, BUY, ONE_WEAPON, damage, cost, sanitize, locked, Loadout };
 })();

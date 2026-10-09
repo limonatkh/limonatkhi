@@ -171,6 +171,8 @@
         this.sprinting = sprinting;
         const top = this.walkSpeed * (this.crouching ? fp.CROUCH_SPEED : sprinting ? (fp.SPRINT || 1.5) : 1) * (this.speedMul || 1);
         const target = wish.clone().multiplyScalar(top);
+        // the wind (weather): walking into it is slower, with it faster; standing still it nudges you a little
+        if (this.wind && this.grounded) { const wk = wishLen > 0.05 ? 0.16 : 0.04; target.x += this.wind.x * wk; target.z += this.wind.z * wk; }
         let tau;
         if (this.grounded) tau = (wishLen > 0.05 ? fp.ACCEL_TIME : fp.STOP_TIME) / LN10;
         else tau = wishLen > 0.05 ? fp.ACCEL_TIME / LN10 / fp.AIR_CONTROL : Infinity;   // air: keep momentum
@@ -181,6 +183,8 @@
         }
       }
       this.vel.x = hv.x; this.vel.z = hv.z;
+      // in the air the wind pushes you along
+      if (this.wind && !this.grounded && !this.climbing) { this.vel.x += this.wind.x * 0.3 * dt; this.vel.z += this.wind.z * 0.3 * dt; }   // (a 10 m/s wind: +3 m/s per second in the air)
 
       // ---- jump (also out of a slide, keeping its momentum)
       if (this.jumpBuffer > 0) {

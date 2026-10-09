@@ -177,6 +177,7 @@
         <div class="du-killmsg" hidden></div>
         <div class="du-nums"></div>
         <canvas class="du-map" width="138" height="276"></canvas>
+        <div class="du-wind panel" hidden><span class="du-wicon"></span><i class="du-warrow">➤</i><b class="num du-wspd"></b></div>
         <div class="du-board" hidden></div>
         <div class="du-keys"></div>
         <div class="du-touch" hidden>
@@ -639,6 +640,20 @@
       });
     }
     resetTouch() { this.root.querySelectorAll('.du-tbtns .mi-tbtn').forEach(b => b.classList.remove('on')); }
+    /** the weather icon and the wind: an arrow showing where it blows (seen from where I look) and how hard */
+    setWind(wx, yaw) {
+      const el = this.root.querySelector('.du-wind');
+      if (!wx) { if (!el.hidden) el.hidden = true; return; }
+      el.hidden = false;
+      const w = wx.wind, sp = Math.hypot(w.x, w.z);
+      const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+      const ang = Math.atan2(w.x * rx + w.z * rz, w.x * fx + w.z * fz) * 180 / Math.PI;     // 0 = blowing away from me (up)
+      const ic = el.querySelector('.du-wicon'), sb = el.querySelector('.du-wspd'), ar = el.querySelector('.du-warrow');
+      if (ic.textContent !== wx.icon) { ic.textContent = wx.icon; el.title = wx.name; }
+      const t = Math.round(sp) + ' m/s'; if (sb.textContent !== t) sb.textContent = t;
+      ar.style.transform = `rotate(${(ang - 90).toFixed(0)}deg)`;                            // (➤ points right at 0°)
+      el.classList.toggle('strong', sp > 7);
+    }
     /** my ability slot (fighter ability / loot power): name, ready state, charges or cooldown */
     setPower(st) {
       const el = this.root.querySelector('.du-wpw'), tb = this.root.querySelector('.du-tpow');

@@ -21,21 +21,21 @@
   const WK = () => VR.WeaponKit;
 
   const DIFF = {
-    normal:     { react: 1.2,  err: 0.12,  turn: 2.6, fireMul: 2.4,  head: 0.04, speed: 0.75, strafe: 0.35, nades: 0,  retreat: false,
+    normal:     { windSkill: 0.25, react: 1.2,  err: 0.12,  turn: 2.6, fireMul: 2.4,  head: 0.04, speed: 0.75, strafe: 0.35, nades: 0,  retreat: false,
                   picks: [['pistol'], ['smg'], ['pistol', 'smg']], reward: 40 },
-    medium:     { react: 0.8,  err: 0.07,  turn: 4,   fireMul: 1.7,  head: 0.12, speed: 0.9,  strafe: 0.55, nades: 0,  retreat: false,
+    medium:     { windSkill: 0.5, react: 0.8,  err: 0.07,  turn: 4,   fireMul: 1.7,  head: 0.12, speed: 0.9,  strafe: 0.55, nades: 0,  retreat: false,
                   picks: [['smg', 'pistol'], ['shotgun', 'pistol']], reward: 70 },
-    hard:       { react: 0.45, err: 0.038, turn: 7,   fireMul: 1.2,  head: 0.25, speed: 1.0,  strafe: 0.75, nades: 11, retreat: true,
+    hard:       { windSkill: 0.8, react: 0.45, err: 0.038, turn: 7,   fireMul: 1.2,  head: 0.25, speed: 1.0,  strafe: 0.75, nades: 11, retreat: true,
                   picks: [['smg', 'revolver'], ['shotgun', 'smg'], ['rifle', 'pistol'], ['rifle', 'shotgun']], reward: 110 },
-    impossible: { react: 0.18, err: 0.014, turn: 16,  fireMul: 0.95, head: 0.55, speed: 1.15, strafe: 1.0,  nades: 7,  retreat: true,
+    impossible: { windSkill: 0.95, react: 0.18, err: 0.014, turn: 16,  fireMul: 0.95, head: 0.55, speed: 1.15, strafe: 1.0,  nades: 7,  retreat: true,
                   picks: [['rifle', 'shotgun'], ['smg', 'shotgun'], ['dmr', 'rifle'], ['lmg', 'revolver']], reward: 180 },
     // "impossible +": the only bot allowed the sniper, and it carries nothing else. No mercy:
     // instant reaction, near-perfect aim, almost always the head, very fast turning.
-    impossiblePlus: { react: 0.06, err: 0.0035, turn: 40, fireMul: 1.0, head: 0.92, speed: 1.25, strafe: 1.0, nades: 5, retreat: true,
+    impossiblePlus: { windSkill: 1, react: 0.06, err: 0.0035, turn: 40, fireMul: 1.0, head: 0.92, speed: 1.25, strafe: 1.0, nades: 5, retreat: true,
                   picks: [['sniper']], sniperOnly: true, reward: 300 },
   };
   const ORDER = ['normal', 'medium', 'hard', 'impossible', 'impossiblePlus'];
-  const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14] };
+  const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14], knife: [0.6, 1.6], spear: [1.2, 2.8], bow: [10, 20] };
   const NAMES = [{ en: 'Limo', ar: 'ليمو' }, { en: 'Sour', ar: 'حامض' }, { en: 'Peel', ar: 'قشرة' }];
   const WALK = () => VR.CONFIG.FP.SPEED_UNITS * VR.CONFIG.FP.UNIT;
 
@@ -61,6 +61,8 @@
     /** make the bots (both host and guest: the guest only draws them) */
     setup(n, diffKey) {
       this.clear();
+      const rules = this.mgr.match && this.mgr.match.rules;
+      this.only = rules && rules.weapon && FK().WEAPONS[rules.weapon] ? rules.weapon : null;
       // an AI fighter ("f_<id>", js/duel/fighters.js): one opponent with its own ability and brain
       // "f_<id>[+<id>…][@level]": up to three fighters, all at one level
       const fk = VR.Fighters && VR.Fighters.parseKey ? VR.Fighters.parseKey(diffKey) : null;
@@ -78,6 +80,8 @@
         this.list.push({ i, name, body, pos: body.pos, vel: new T.Vector3(), yaw: Math.PI, pitch: 0, hp: 100, alive: true,
           lo: new (FK().Loadout)({ weapons: pick, nades: false }), net: null });
         if (this.fsys) this.fsys.equip(this.list[i], fk.ids[i], fk.level);
+        // "one weapon" rounds: the bots get exactly that weapon too
+        if (this.only) { const bb = this.list[i]; bb.lo = new (FK().Loadout)(null, 2, this.only); bb.rangeOverride = RANGE[this.only] || null; }
       }
       this.respawn();
     }
@@ -199,13 +203,13 @@
         b.pitch += Math.max(-tr, Math.min(tr, wantPitch - b.pitch));
         const aligned = Math.abs(wrap(wantYaw - b.yaw)) < 0.12;
         // fire
-        if (sees && b.seenT >= D.react && aligned) {
+        if (sees && b.seenT >= D.react && aligned && (!b.lo.def.melee || dist <= b.lo.def.range - 0.2)) {       // a knife / spear only in reach
           const w = b.lo.shoot();
           if (w) { b.lo.coolT *= D.fireMul; this.fire(b, eye, aimPt, tgt, w, players); }
         }
         // grenade at where you were last seen (hard / impossible)
         b.nadeT -= dt;
-        if (D.nades && b.nadeT <= 0 && !sees && b.lastSeen && b.unseenT > 1.5 && b.pos.distanceTo(b.lastSeen) < 20) {
+        if (D.nades && !this.only && b.nadeT <= 0 && !sees && b.lastSeen && b.unseenT > 1.5 && b.pos.distanceTo(b.lastSeen) < 20) {
           b.nadeT = D.nades * rnd(0.8, 1.3);
           this.throwNade(b, b.lastSeen);
         }
@@ -241,18 +245,25 @@
       const err = D.err * (1 + tspd / 4);
       const right = new T.Vector3(base.z, 0, -base.x).normalize(), up = new T.Vector3().crossVectors(right, base).normalize();
       const targets = players.filter(p => p.alive).map(p => { const bx = WK().boxesAt(p.pos, p.low, p.scale || 1); return { parts: { head: bx.head, body: bx.body }, ref: p }; });
-      const hits = new Map(); const ends = [];
+      const hits = new Map(); const ends = []; const paths = [];
+      // the wind: a bot aims against it as well as its skill allows (impossible ≈ fully, normal hardly)
+      const wind = mgr.windNow ? mgr.windNow() : null;
+      if (wind) {
+        const dist = aimPt.distanceTo(eye), drift = WK().driftAt(b.lo.id, wind, dist);
+        const skill = b.windSkill != null ? b.windSkill : (this.diff.windSkill != null ? this.diff.windSkill : 0.5);
+        base.copy(aimPt).addScaledVector(drift, -skill).sub(eye).normalize();
+      }
       for (let k = 0; k < w.pellets; k++) {
         const d = base.clone().addScaledVector(right, b.aimErr.x * err + gauss() * w.spread).addScaledVector(up, b.aimErr.y * err * 0.7 + gauss() * w.spread).normalize();
-        const r = WK().traceParts(this.ray, mgr.solidBoxes, eye, d, targets);
-        if (k < 3) ends.push(r.end);
+        const r = WK().tracePath(this.ray, mgr.solidBoxes, eye, d, targets, w.melee ? w.range + 0.4 : 200, b.lo.id, wind);
+        if (k < 3) { ends.push(r.end); paths.push(r.path); }
         if (r.ref) {
           const h = hits.get(r.ref) || { dmg: 0, head: false };
           h.dmg += FK().damage(b.lo.id, r.hit, r.dist) * (b.dmgMul || 1); h.head = h.head || r.hit === 'head';
           hits.set(r.ref, h);
         }
       }
-      mgr.botShotFx(b, ends, b.lo.id);
+      mgr.botShotFx(b, ends, b.lo.id, paths);
       for (const [p, h] of hits) mgr.botHitPlayer(p.id, h.dmg, h.head, b.i);
     }
     throwNade(b, at) {

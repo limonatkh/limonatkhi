@@ -212,6 +212,8 @@
     A.define('fbStepWood', ({ tone, noise }) => { noise(0.04, 0.06, 900); tone(190, 0.05, 'triangle', 0.06, 150); });
     A.define('fbStepMetal', ({ tone, noise }) => { noise(0.03, 0.06, 3000); tone(620, 0.06, 'square', 0.03, 540); });
     A.define('fbStepWater', ({ noise }) => { noise(0.1, 0.07, 2200); });
+    A.define('runStep', ({ tone, noise }) => { noise(0.07, 0.13, 900); tone(95, 0.06, 'sine', 0.12, 60); });
+    A.define('runStepWood', ({ tone, noise }) => { noise(0.06, 0.12, 1100); tone(170, 0.07, 'triangle', 0.1, 120); });
     A.define('fbStepRobot', ({ tone, noise }) => { noise(0.04, 0.08, 1800); tone(140, 0.07, 'square', 0.06, 100); });
     A.define('fbLand1', ({ tone, noise }) => { noise(0.07, 0.15, 600); tone(130, 0.06, 'sine', 0.14, 70); });
     A.define('fbLand2', ({ tone, noise }) => { noise(0.12, 0.25, 500); tone(100, 0.12, 'sine', 0.22, 50); });
@@ -666,8 +668,9 @@
       if (P.trail === 'magic') this.burst(p, { n: 2, colors: [P.colors.glow, P.colors.main], glow: true, speed: 0.3, up: 0.8, life: 0.5, size: 0.04 });
       this.note({ type: 'step', surface, prof: P.id });
     }
-    stepSound(surface, prof) {
+    stepSound(surface, prof, running) {
       const P = profile(prof);
+      if (running && P.steps !== 'metal' && surface !== 'metal' && surface !== 'water') { const nm = surface === 'wood' ? 'runStepWood' : 'runStep'; this.sfx(nm, 0.12); return nm; }
       const name = P.steps === 'metal' ? (surface === 'metal' ? 'fbStepMetal' : 'fbStepRobot') : surface === 'metal' ? 'fbStepMetal' : surface === 'wood' ? 'fbStepWood' : surface === 'water' ? 'fbStepWater' : surface === 'dirt' || surface === 'snow' ? 'fbStepSoft' : 'fbStepStone';
       this.sfx(name, 0.12);
       return name;

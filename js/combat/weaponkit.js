@@ -61,6 +61,68 @@
     const end = o.clone().addScaledVector(d, best ? best.dist : Math.min(wall, max));
     return { hit: best ? best.part : null, ref: best ? best.ref : null, dist: best ? best.dist : wall, end, wall };
   }
+  /* ------------------------------------------------------------------
+   * BALLISTICS: shots are fast but not instant, so the wind carries them.
+   *   [muzzle speed m/s, wind coupling k 1/s, gravity m/s²]
+   * The bullet's sideways speed relaxes towards the wind's speed (drag):
+   *   v(t) = W (1 − e^(−k t))   →   x(t) = W (t − (1 − e^(−k t)) / k)
+   * so the drift grows with the square of the flight time at first: far
+   * targets need more correction, slow arrows a lot (and they also drop).
+   * Against a headwind / tailwind the same formula only stretches the path.
+   * ---------------------------------------------------------------- */
+  const BALLISTIC = {
+    pistol: [180, 6, 0], revolver: [200, 5, 0], smg: [190, 6, 0], rifle: [260, 5, 0], dmr: [330, 4, 0], sniper: [420, 3, 0],
+    lmg: [240, 5, 0], shotgun: [150, 7, 0], railgun: [600, 1.5, 0], plasma: [280, 4, 0], minigun: [230, 5, 0], goldfang: [220, 5, 0], thunder: [160, 7, 0],
+    bow: [70, 1.6, 9.8],
+  };
+  const drift = (k, t) => t - (1 - Math.exp(-k * t)) / k;
+  /** where a shot fired from o along d is after `s` metres (wind: a Vector3, may be null) */
+  function pathPoint(o, d, wid, wind, s, out = new T.Vector3()) {
+    const B = BALLISTIC[wid]; out.copy(o).addScaledVector(d, s);
+    if (!B) return out;
+    const t = s / B[0];
+    if (wind) out.addScaledVector(wind, drift(B[1], t));
+    if (B[2]) out.y -= 0.5 * B[2] * t * t;
+    return out;
+  }
+  /** the drift a shot would get at distance s (what a shooter must aim against) */
+  function driftAt(wid, wind, s, out = new T.Vector3()) {
+    const B = BALLISTIC[wid]; out.set(0, 0, 0);
+    if (!B) return out;
+    const t = s / B[0];
+    if (wind) out.addScaledVector(wind, drift(B[1], t));
+    if (B[2]) out.y -= 0.5 * B[2] * t * t;
+    return out;
+  }
+  /**
+   * traceParts along the curved path: short straight pieces, each traced against walls and targets.
+   * Same result as traceParts, plus `path` (points along the flight, for the tracer).
+   */
+  const _a = new T.Vector3(), _b = new T.Vector3(), _d = new T.Vector3();
+  function tracePath(ray, solids, o, d, targets, max = 200, wid = null, wind = null) {
+    const B = BALLISTIC[wid];
+    const calm = !wind || (Math.abs(wind.x) + Math.abs(wind.z) < 0.05);
+    if (!B || (calm && !B[2])) { const r = traceParts(ray, solids, o, d, targets, max); r.path = [o.clone(), r.end.clone()]; return r; }
+    const n = Math.min(24, Math.max(4, Math.ceil(max / 10)));
+    const step = max / n, path = [o.clone()];
+    let s0 = 0;
+    pathPoint(o, d, wid, calm ? null : wind, 0, _a);
+    for (let i = 1; i <= n; i++) {
+      const s1 = i * step;
+      pathPoint(o, d, wid, calm ? null : wind, s1, _b);
+      _d.copy(_b).sub(_a); const len = _d.length(); _d.divideScalar(len || 1);
+      const r = traceParts(ray, solids, _a, _d, targets, len);
+      if (r.ref || r.wall < len) {
+        const along = r.ref ? r.dist : Math.min(r.wall, len);
+        const end = _a.clone().addScaledVector(_d, along);
+        path.push(end.clone());
+        return { hit: r.hit, ref: r.ref, dist: s0 + along, end, wall: r.ref ? Infinity : s0 + along, path };
+      }
+      path.push(_b.clone()); _a.copy(_b); s0 = s1;
+    }
+    return { hit: null, ref: null, dist: max, end: _a.clone(), wall: max, path };
+  }
+
   /** move a grenade one frame; returns the blast point (or null) */
   /**
    * Grenade flight. It bounces off walls and ceilings; when it LANDS on top of
@@ -69,11 +131,14 @@
    * n: { pos, vel, t, landed, landT }
    */
   const LAND_DELAY = 1 / 5, AIR_MAX = 6;
-  function stepNade(n, dt, solids, gravity = 22) {
+  function stepNade(n, dt, solids, gravity = 22, wind = null) {
     if (n.landed) { n.landT = (n.landT || 0) + dt; return n.landT >= LAND_DELAY ? n.pos.clone() : null; }
     const steps = 3, sdt = dt / steps;
+    // the wind drags a flying grenade along with it (air drag towards the wind's speed)
+    const wk = wind ? 1 - Math.exp(-sdt * 0.45) : 0;
     for (let s = 0; s < steps; s++) {
       n.vel.y -= gravity * sdt;
+      if (wk) { n.vel.x += (wind.x - n.vel.x) * wk; n.vel.z += (wind.z - n.vel.z) * wk; }
       const prev = n.pos.clone();
       n.pos.addScaledVector(n.vel, sdt);
       const hit = solids.find(b => !off(b) && (b.box || b).containsPoint(n.pos));
@@ -348,5 +413,5 @@
   VR.Audio.define('spear', ({ tone, noise }) => { noise(0.14, 0.22, 3500); tone(300, 0.1, 'sawtooth', 0.06, 140); });
   VR.Audio.define('empty', ({ tone }) => { tone(1300, 0.03, 'square', 0.05); });
 
-  VR.WeaponKit = { boxesAt, wallDist, traceParts, stepNade, impulse, LAND_DELAY, WEAPONS, NADE, model };
+  VR.WeaponKit = { boxesAt, wallDist, traceParts, tracePath, pathPoint, driftAt, BALLISTIC, stepNade, impulse, LAND_DELAY, WEAPONS, NADE, model };
 })();

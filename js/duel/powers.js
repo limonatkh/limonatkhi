@@ -276,7 +276,9 @@
       }
       // orbs
       for (let i = this.projectiles.length - 1; i >= 0; i--) {
-        const p = this.projectiles[i], step = p.vel.clone().multiplyScalar(dt), len = step.length(), dir = step.clone().normalize();
+        const p = this.projectiles[i], wind = mgr.windNow && mgr.windNow();
+        if (wind) { p.vel.x += wind.x * 0.5 * dt; p.vel.z += wind.z * 0.5 * dt; }
+        const step = p.vel.clone().multiplyScalar(dt), len = step.length(), dir = step.clone().normalize();
         const wd = mgr.wallDist(p.pos, dir, len);
         let done = false;
         for (const t of mgr.bots.targets()) {

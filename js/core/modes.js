@@ -43,6 +43,22 @@
       this.game.onProfileReplaced();
       this.enterAdventure(VR.ADVENTURE.START, { intro: true, location: null });
     }
+    /**
+     * Home: the square (once you have reached it), else where you left off; a first game starts the start area.
+     */
+    /** PLAY / CONTINUE: the first time after opening the game → the square (home);
+     *  later in the same session (quit a mission, the runner, the pause menu) → back where you were */
+    enterHome() {
+      if (!this.hasSave()) return this.newGame();
+      if (this.entered) return this.continueGame();
+      const P = VR.Profiles, p = P.player(), A = VR.ADVENTURE.START;
+      const mine = ((p.progress.areas[A] || {}).flags || []), world = (P.world(A).flags || []);
+      if (mine.includes('in_plaza') && world.includes('plaza_open')) {
+        const H = VR.ADVENTURE.HOME || { pos: [0, 0.05, -34.5], yaw: 0 };
+        return this.enterAdventure(A, { intro: false, location: { area: A, pos: H.pos.slice(), yaw: H.yaw } });
+      }
+      return this.continueGame();
+    }
     continueGame() {
       const loc = VR.Profiles.player().location;
       if (!loc) return this.newGame();
@@ -52,6 +68,7 @@
     enterAdventure(areaId, { intro = false, location = null, fadeIn = false } = {}) {
       const g = this.game, def = VR.ADVENTURE.areas[areaId];
       if (!def) { console.warn('[modes] unknown area', areaId); return; }
+      this.entered = true;
       VR.Audio.unlock();
       if (g.settings.fullscreen && !fadeIn) VR.Fullscreen.request();
       if (g.missions.active) g.missions.abort();

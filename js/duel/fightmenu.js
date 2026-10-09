@@ -6,8 +6,12 @@
  * The choice of bots and difficulty is remembered on this device.
  * ===================================================================== */
 (function () {
-  Object.assign(VR.I18N.STRINGS.en, { 'fm.menuSub': 'Friend vs friend · Me vs the computer' });
-  Object.assign(VR.I18N.STRINGS.ar, { 'fm.menuSub': 'صديق ضد صديق · أنا ضد الكمبيوتر' });
+  Object.assign(VR.I18N.STRINGS.en, { 'fm.menuSub': 'Friend vs friend · Me vs the computer',
+    'fm.rounds': 'Rounds:', 'fm.firstToN': 'first to {n}', 'fm.usual': 'usual', 'fm.kind': 'Rounds type:', 'fm.kindBuy': 'buy weapons',
+    'fm.firstTo': 'first to {n}', 'fm.onlyW': '{w} only' });
+  Object.assign(VR.I18N.STRINGS.ar, { 'fm.menuSub': 'صديق ضد صديق · أنا ضد الكمبيوتر',
+    'fm.rounds': 'الجولات:', 'fm.firstToN': 'الفوز بـ {n}', 'fm.usual': 'العادي', 'fm.kind': 'نوع الجولات:', 'fm.kindBuy': 'شراء أسلحة',
+    'fm.firstTo': 'الفوز بـ {n}', 'fm.onlyW': '{w} فقط' });
 
   class FightMenu {
     constructor(game) {
@@ -18,6 +22,10 @@
       this.n = [1, 2, 3].includes(saved.n) ? saved.n : 1;
       this.diff = VR.DuelBots.DIFF[saved.diff] ? saved.diff : 'normal';
       this.mode = null;
+      // rules before a match: rounds to win and "one weapon" rounds (remembered on this device)
+      const rs = VR.UI.store.get('fightRules', null) || {};
+      this.firstTo = [1, 2, 3, 5, 7].includes(rs.firstTo) ? rs.firstTo : 0;            // 0 = the mode's usual
+      this.oneWeapon = VR.FightKit.ONE_WEAPON.includes(rs.weapon) ? rs.weapon : null;
       const click = (id, fn) => $(id).addEventListener('click', () => { VR.Audio.unlock(); VR.Audio.play('click'); fn(); });
       click('fightBtn', () => this.open());
       click('fmPvp', () => this.show('pvp'));
@@ -35,7 +43,7 @@
       click('fmGo', () => this.go());
       click('fmShop', () => this.show('shop'));
       // the 1v1 buttons (bound in game.js) leave this screen
-      for (const id of ['duelBtn', 'waitBtn']) $(id).addEventListener('click', () => this.close());
+      for (const id of ['duelBtn', 'waitBtn']) $(id).addEventListener('click', () => { this.starting = true; this.close(); });
       this.el.count.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.n = +b.dataset.n; this.save(); this.paint(); }));
       this.el.diff.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.diff = b.dataset.d; this.save(); this.paint(); }));
       VR.I18N.onChange(() => this.paint());
@@ -46,7 +54,11 @@
       this.show(null);
       this.el.root.hidden = false;
     }
-    close() { this.el.root.hidden = true; this.mode = null; }
+    close() {
+      this.el.root.hidden = true; this.mode = null;
+      if (this.fromHub) { this.fromHub = false; if (!this.starting) this.game.backToHub(); }
+      this.starting = false;
+    }
     show(mode) {
       this.mode = mode;
       this.el.modes.hidden = !!mode;
@@ -54,6 +66,7 @@
       this.el.bots.hidden = mode !== 'bots' && mode !== 'coop' && mode !== 'loot';
       document.getElementById('fmFightPane').hidden = mode !== 'fighters';
       if (mode === 'fighters') this.renderFighters();
+      this.renderRules();
       const shop = document.getElementById('fmShopPane');
       document.getElementById('fmShop').hidden = !!mode;
       shop.hidden = mode !== 'shop';
@@ -62,6 +75,30 @@
       this.paint();
     }
     save() { VR.UI.store.set('fightBots', { n: this.n, diff: this.diff }); }
+    /** what the next match is played with */
+    rules() {
+      const local = this.mode === 'bots' || this.mode === 'fighters';
+      // against the computer a shop weapon must be bought first; with a friend everything is open
+      const w = this.oneWeapon && this.mode !== 'loot' && !(local && VR.FightKit.locked('bots').includes(this.oneWeapon)) ? this.oneWeapon : null;
+      return this.firstTo || w ? { firstTo: this.firstTo || null, weapon: w } : null;
+    }
+    renderRules() {
+      const el = document.getElementById('fmRules'), m = this.mode;
+      el.hidden = !['pvp', 'bots', 'coop', 'fighters', 'loot'].includes(m);
+      if (el.hidden) return;
+      const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const locked = m === 'pvp' || m === 'coop' ? [] : VR.FightKit.locked('bots');
+      const fts = [0, 1, 2, 3, 5, 7];
+      let h = `<div class="fm-rrow"><b>${esc(VR.t('fm.rounds'))}</b>${fts.map(n => `<button class="btn small ${n === this.firstTo ? 'on' : ''}" data-ft="${n}" type="button">${n ? esc(VR.t('fm.firstToN', { n })) : esc(VR.t('fm.usual'))}</button>`).join('')}</div>`;
+      if (m !== 'loot') {
+        h += `<div class="fm-rrow"><b>${esc(VR.t('fm.kind'))}</b><button class="btn small ${!this.oneWeapon ? 'on' : ''}" data-ow="" type="button">${esc(VR.t('fm.kindBuy'))}</button>`
+          + VR.FightKit.ONE_WEAPON.map(id => `<button class="btn small ${id === this.oneWeapon ? 'on' : ''} ${locked.includes(id) ? 'locked' : ''}" data-ow="${id}" type="button" ${locked.includes(id) ? 'disabled' : ''}>${locked.includes(id) ? '🔒 ' : ''}${esc(VR.L(VR.FightKit.NAMES[id]))}</button>`).join('') + '</div>';
+      }
+      el.innerHTML = h;
+      const save = () => VR.UI.store.set('fightRules', { firstTo: this.firstTo, weapon: this.oneWeapon });
+      el.querySelectorAll('[data-ft]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.firstTo = +b.dataset.ft; save(); this.renderRules(); }));
+      el.querySelectorAll('[data-ow]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.oneWeapon = b.dataset.ow || null; save(); this.renderRules(); }));
+    }
     paint() {
       this.el.count.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === this.n));
       this.el.diff.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.d === this.diff));
@@ -101,18 +138,18 @@
     }
     goFighter() {
       if (this.game.settings.fullscreen) VR.Fullscreen.request();
-      this.close();
-      this.game.duel.startBots({ fighters: this.picks.slice(0, 3), level: this.level, playAs: this.playAs });
+      this.starting = true; this.close();
+      this.game.duel.startBots({ fighters: this.picks.slice(0, 3), level: this.level, playAs: this.playAs, rules: this.rules() });
     }
     go() {
-      const opts = { bots: this.n, diff: this.diff };
+      const opts = { bots: this.n, diff: this.diff, rules: this.rules() };
       if (this.mode === 'bots' || this.mode === 'loot') {
         if (this.mode === 'loot') opts.loot = true;
         if (this.game.settings.fullscreen) VR.Fullscreen.request();
-        this.close();
+        this.starting = true; this.close();
         this.game.duel.startBots(opts);
       } else if (this.mode === 'coop') {
-        this.close();
+        this.starting = true; this.close();
         this.game.duel.openPickerFromMenu({ type: 'coop', ...opts });
       }
     }

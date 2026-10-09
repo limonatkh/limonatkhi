@@ -947,6 +947,65 @@ eliminations take the place of cosmetic particles when the pool is full; sounds 
 **Settings → ✨ Effects** (accessibility): camera shake 0-100 %, screen flashes, speed effects,
 slow motion, damage numbers, effect quality (auto follows Graphics).
 
+## Weather, wind, the square as home, match rules (v1.33)
+
+### Weather (`js/core/weather.js`)
+- `VR.WeatherSystem` runs in the square / adventure areas and in the fight
+  arenas (not in solo training). Types: clear, cloudy, windy, rain, storm,
+  dark. Each one stays **100–200 s**, then the next is picked (weighted, never
+  the same twice). The change fades over **15 s** (sky, fog, light, rain
+  density, dust, ambient sound all blend), so it never snaps.
+- Rain is one `LineSegments` that follows the camera; windy weather adds dust
+  (`Points`); storms add lightning (sky flash + thunder). Ambient loops use
+  `VR.Audio.ambient()`.
+- Online: the host owns the weather and sends `{k:'wx'}` every 2 s; the guest
+  follows (`state()` / `follow()`), so both see and feel the same wind.
+- Debugging: `?wx=calm` holds clear weather with no wind (the automated tests
+  use it for exact physics); `?wx=storm` (any type) holds that weather.
+
+### Wind physics (`js/combat/weaponkit.js`)
+- Shots are no longer instant straight lines: each weapon has
+  `BALLISTIC[id] = [muzzle speed, drag k, gravity]`. The sideways drift of a
+  shot after distance `s` is `W·(t − (1 − e^(−kt))/k)`, `t = s/v` — it grows
+  faster than distance, so long shots drift a lot and close ones barely.
+  Fast rounds (sniper, DMR) drift little; pistol / SMG / arrows drift more;
+  arrows also drop.
+- `tracePath()` walks the curved path in segments against walls and hit
+  boxes; tracers are drawn along the same curve. To hit a far target in a
+  crosswind you aim **into** the wind.
+- Wind also pushes the player (slower walking into it, faster with it, a push
+  in the air), grenades and ability orbs.
+- Bots correct for wind by skill: normal 25 %, medium 50 %, hard 80 %,
+  impossible 95 %, impossible+ 100 %; AI fighters by level.
+- HUD: a wind arrow under the map (relative to where you look) with the
+  speed in m/s, highlighted above 7 m/s.
+
+### The square is home
+- Opening the game goes straight into the world: the first time, the start
+  area with its intro; once you have reached the square, the square
+  (`VR.ADVENTURE.HOME`). Later in the same session, CONTINUE puts you back
+  where you left (in front of a door, at the runner portal).
+  `?menu=1` still opens the old menu (tests).
+- Gates in the square (`js/adventure/hubgates.js`): **Fight** (the fight
+  menu), **Challenge a friend**, **Basketball** (portal), **Billiards**
+  (a door). The two mini-games only announce themselves for now; their rules
+  come next. Leaving any of them puts you back in front of its gate.
+- **New Game** moved into Settings (a danger row with a confirm), away from
+  the main buttons; the menu shows **PLAY / CONTINUE**.
+- Third-person view is the default in the square (camera over the right
+  shoulder, pulled in by walls); **T** toggles first / third person
+  (remembered). Combat areas stay first person.
+- Footsteps: running steps are heavier and more frequent than walking ones.
+
+### Match rules (fight menu)
+- **Rounds**: usual, or first to 1 / 2 / 3 / 5 / 7 (max rounds `2·n − 1`).
+- **Kind**: buy rounds (as before) or **one weapon** — pick the weapon before
+  the match; there is no buy screen and everybody (you, bots, fighters, the
+  friend) carries only that weapon, no knife, grenades or mines. Knife /
+  spear rounds: bots only strike in reach. Shop weapons must be owned to pick
+  them against the computer. Rules travel in invites; the loot arena keeps
+  its own weapons.
+
 ## Characters, colours, fullscreen
 
 - **Characters:** Hero (default) and **Mr. Fridge** (`character.js`). A character can define

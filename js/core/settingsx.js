@@ -21,7 +21,7 @@
     'kb.forward': 'Forward', 'kb.back': 'Back', 'kb.left': 'Left', 'kb.right': 'Right', 'kb.jump': 'Jump', 'kb.crouch': 'Crouch / slide (on/off)',
     'kb.sprint': 'Sprint', 'kb.fire': 'Fire', 'kb.aim': 'Aim / scope', 'kb.reload': 'Reload', 'kb.slot1': 'Weapon 1', 'kb.slot2': 'Weapon 2',
     'kb.slot3': 'Weapon 3', 'kb.knife': 'Knife', 'kb.slotNext': 'Next weapon', 'kb.slotPrev': 'Previous weapon', 'kb.burst': 'Lemon Burst / impulse grenade',
-    'kb.grenade': 'Grenade', 'kb.mine': 'Mine', 'kb.medkit': 'Medkit', 'kb.interact': 'Use', 'kb.journal': 'Journal / scoreboard (hold)',
+    'kb.view': 'Camera: first / third person', 'kb.grenade': 'Grenade', 'kb.mine': 'Mine', 'kb.medkit': 'Medkit', 'kb.interact': 'Use', 'kb.journal': 'Journal / scoreboard (hold)',
     'mouse.l': 'Left click', 'mouse.m': 'Middle click', 'mouse.r': 'Right click', 'mouse.4': 'Mouse 4', 'mouse.5': 'Mouse 5', 'mouse.wu': 'Wheel up', 'mouse.wd': 'Wheel down',
     'xh.title': 'Crosshair', 'xh.style': 'Style', 'xh.color': 'Colour', 'xh.size': 'Length', 'xh.gap': 'Gap', 'xh.thick': 'Thickness', 'xh.outline': 'Outline',
     'xh.real': 'Real size (as in the game)', 'xh.s.cross': 'Cross', 'xh.s.crossdot': 'Cross + dot', 'xh.s.dot': 'Dot', 'xh.s.circle': 'Circle', 'xh.s.tee': 'T',
@@ -42,7 +42,7 @@
     'kb.forward': 'للأمام', 'kb.back': 'للخلف', 'kb.left': 'يسار', 'kb.right': 'يمين', 'kb.jump': 'قفز', 'kb.crouch': 'انخفاض / انزلاق (تشغيل/إيقاف)',
     'kb.sprint': 'ركض سريع', 'kb.fire': 'إطلاق', 'kb.aim': 'تصويب / منظار', 'kb.reload': 'تلقيم', 'kb.slot1': 'السلاح 1', 'kb.slot2': 'السلاح 2',
     'kb.slot3': 'السلاح 3', 'kb.knife': 'السكّين', 'kb.slotNext': 'السلاح التالي', 'kb.slotPrev': 'السلاح السابق', 'kb.burst': 'قفزة الليمون / قنبلة الدفع',
-    'kb.grenade': 'قنبلة', 'kb.mine': 'لغم', 'kb.medkit': 'إسعاف', 'kb.interact': 'استخدام', 'kb.journal': 'الدفتر / لوحة النتائج (مطوّل)',
+    'kb.view': 'الكاميرا: من العيون / من الخلف', 'kb.grenade': 'قنبلة', 'kb.mine': 'لغم', 'kb.medkit': 'إسعاف', 'kb.interact': 'استخدام', 'kb.journal': 'الدفتر / لوحة النتائج (مطوّل)',
     'mouse.l': 'زر الماوس الأيسر', 'mouse.m': 'زر العجلة', 'mouse.r': 'زر الماوس الأيمن', 'mouse.4': 'زر الماوس 4', 'mouse.5': 'زر الماوس 5', 'mouse.wu': 'العجلة لأعلى', 'mouse.wd': 'العجلة لأسفل',
     'xh.title': 'الكروسهير', 'xh.style': 'الشكل', 'xh.color': 'اللون', 'xh.size': 'الطول', 'xh.gap': 'الفراغ', 'xh.thick': 'السماكة', 'xh.outline': 'إطار أسود',
     'xh.real': 'بالحجم الحقيقي (كما في اللعبة)', 'xh.s.cross': 'صليب', 'xh.s.crossdot': 'صليب + نقطة', 'xh.s.dot': 'نقطة', 'xh.s.circle': 'دائرة', 'xh.s.tee': 'T',
@@ -124,6 +124,7 @@
         e.preventDefault();
         const v = firstIn.value.trim(); if (!v) { firstIn.focus(); return; }
         setName(v); field.value = ch.name; first.hidden = true; VR.Audio.play('coin');
+        if (game.state === 'menu' && !/[?&]menu=1/.test(location.search)) game.goHome();      // the name is set: into the square
       });
       VR.I18N.onChange(() => { firstIn.placeholder = VR.t('name.ph'); });
     },

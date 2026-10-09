@@ -46,6 +46,42 @@
       this.replayIdx = 0; this.stepAcc = 0; this.target = null;
       this.ray = new T.Raycaster();
       this._v = new T.Vector3(); this._p = new T.Vector3();
+      // the view in the square / start area: third person by default (T switches), first person in missions
+      this.viewTpp = VR.UI.store.get('hubView', 'tpp') !== 'fpp';
+      this.tppRay = new T.Ray(); this.tppDist = 3;
+    }
+    /** third person here? (the areas you keep coming back to; never with a weapon in your hands) */
+    tppOn() { return !!(this.run && this.run.def.persistent && this.viewTpp && !(this.combat && this.combat.armed)); }
+    toggleView() {
+      this.viewTpp = !this.viewTpp; VR.UI.store.set('hubView', this.viewTpp ? 'tpp' : 'fpp');
+      VR.Audio.play('click'); this.ui.caption(VR.t('hub.view'), 1.5);
+    }
+    /** third person: my character is drawn, the camera sits behind my shoulder (pulled in by walls) */
+    applyView(dt) {
+      const ctrl = this.ctrl, cam = this.camera;
+      if (!this.tppOn()) { if (this.tppBody) this.tppBody.g.visible = false; return; }
+      if (!this.tppBody || this.tppBody.charId !== VR.CHARACTERS[this.game.charIndex].id) {
+        if (this.tppBody) this.scene.remove(this.tppBody.g);
+        const id = VR.CHARACTERS[this.game.charIndex].id, b = VR.DuelBody.build(id, 'white', 0xffe14a, null);
+        b.g.traverse(o => { if (o.geometry && o.geometry.type === 'RingGeometry') o.visible = false; });   // no ring under me
+        b.charId = id; this.scene.add(b.g); this.tppBody = b;
+      }
+      const b = this.tppBody; b.g.visible = true;
+      b.pos.copy(ctrl.pos); b.yaw = ctrl.yaw; b.pitch = ctrl.pitch * 0.35;
+      b.low = ctrl.crouching; b.slide = ctrl.slideTimer > 0; b.air = !ctrl.grounded;
+      VR.DuelBody.animate(b, dt);
+      // camera: from a point over my right shoulder, straight back along the view
+      const cp = Math.cos(ctrl.pitch), look = this._v.set(-Math.sin(ctrl.yaw) * cp, Math.sin(ctrl.pitch), -Math.cos(ctrl.yaw) * cp);
+      const right = ctrl.right();
+      const head = new T.Vector3(ctrl.pos.x, ctrl.pos.y + ctrl.eye + 0.3, ctrl.pos.z);
+      let side = 0.55;
+      const sw = VR.WeaponKit.wallDist(this.tppRay, this.solidBoxes, head, right, 0.8); side = Math.min(side, sw - 0.25);
+      const shoulder = head.clone().addScaledVector(right, Math.max(0, side));
+      const back = look.clone().negate();
+      const want = Math.max(0.6, Math.min(3.2, VR.WeaponKit.wallDist(this.tppRay, this.solidBoxes, shoulder, back, 3.5) - 0.3));
+      // pull in at once when a wall comes between, ease back out when it is gone
+      this.tppDist = want < this.tppDist ? want : this.tppDist + (want - this.tppDist) * Math.min(1, dt * 4);
+      cam.position.copy(shoulder).addScaledVector(back, this.tppDist);
     }
 
     validate() {
@@ -270,9 +306,15 @@
       sc.fog = L.ambient.fog ? new T.Fog(L.ambient.fog[0], L.ambient.fog[1], L.ambient.fog[2]) : null;
       const hemi = new T.HemisphereLight(L.ambient.sky, L.ambient.ground, L.ambient.intensity * 2.2);
       sc.add(hemi);
+      let sun = null;
       if (L.sun) {
         const s = new T.DirectionalLight(L.sun.color, L.sun.intensity * 2);
-        s.position.set(...L.sun.dir); sc.add(s);
+        s.position.set(...L.sun.dir); sc.add(s); sun = s;
+      }
+      // outdoor areas you keep coming back to (the start area / the square) have weather
+      if (def.persistent && def.weather !== false && VR.WeatherSystem) {
+        this.weather = new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera,
+          onChange: (ty) => this.ui.caption(VR.t('wx.now', { name: VR.L(VR.Weather.TYPES[ty].name) }) + ' ' + VR.Weather.TYPES[ty].icon, 3) });
       }
       this.levelLights = L.lights.map(def => {
         const l = new T.PointLight(def.color, def.intensity, def.distance, 2);
@@ -306,6 +348,7 @@
     }
     clearWorld() {
       if (this.combat) { this.combat.dispose(); this.combat = null; }
+      if (this.weather) { this.weather.dispose(); this.weather = null; } if (this.ctrl) this.ctrl.wind = null;
       const sc = this.scene;
       for (const child of [...sc.children]) {
         sc.remove(child);
@@ -315,6 +358,7 @@
         });
       }
       this.entities = []; this.interactables = []; this.levelLights = []; this.level = null; this.target = null;
+      this.tppBody = null;
     }
 
     // ------------------------------------------------------------ frame
@@ -333,6 +377,7 @@
           else if (a === 'slide') ctrl.slidePress();
           else if (a === 'burst') { if (ctrl.burst(move)) VR.Audio.play('burst'); else if (ctrl.burstCooldown > 0) this.ui.caption(VR.t('c.burstCharging'), 1); }
           else if (a === 'interact') this.interact();
+          else if (a === 'view') { if (this.run.def.persistent) this.toggleView(); }
           else if (a === 'journal') { this.openJournal(); break; }
           else if (a === 'slotNext' || a === 'slotPrev') { const n = run.inventory.length; if (n) run.select((run.selected + (a === 'slotNext' ? 1 : n - 1)) % n); }
           else if (a.startsWith('slot')) run.select(+a.slice(4) - 1);
@@ -341,6 +386,7 @@
         ctrl.look(look.x, look.y, FP().MOUSE_SENS * this.settings.sens * (cb && cb.scoped ? 0.35 : 1));
         ctrl.sprint = VR.Input.sprintHeld();
         const evs = ctrl.update(dt, L, move, VR.Input.crouchHeld());
+        this.applyView(dt);
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');
           else if (e.type === 'land' && e.speed > 7) VR.Audio.play('land');
@@ -349,8 +395,10 @@
         }
         evs.length = 0;
         if (ctrl.grounded && ctrl.speed > 2 && !ctrl.slideTimer) {
+          // footsteps: by the ground under you, quicker and heavier when running
           this.stepAcc += ctrl.speed * dt;
-          if (this.stepAcc > 2.1) { this.stepAcc = 0; VR.Audio.play('fpStep'); }
+          const running = ctrl.sprinting && ctrl.speed > ctrl.walkSpeed * 1.1;
+          if (this.stepAcc > (running ? 2.5 : 2.1)) { this.stepAcc = 0; VR.Audio.play(stepSound(L, ctrl.pos, running)); }
         }
         this.updateTarget();
         this.ui.lockHint(!VR.Input.isLocked());
@@ -365,6 +413,7 @@
         if (run.def.timeLimit && run.time >= run.def.timeLimit) this.fail();
       }
       for (const e of this.entities) e.update && e.update(dt, run);
+      if (this.weather) { this.weather.update(dt); ctrl.wind = this.weather.wind; }
       this.hands.update(dt, ctrl, look);
       this.hands.setBrightness(this.lightLevel());
       const fov = (cb && cb.scoped ? 32 : this.settings.fov) + ctrl.burstFov;
@@ -389,8 +438,9 @@
 
     updateTarget() {
       const cam = this.camera;
-      const origin = cam.getWorldPosition(this._v.set(0, 0, 0)).clone();
       const dir = new T.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+      // third person: reach is measured from my eyes, not from the camera behind me
+      const origin = this.tppOn() ? new T.Vector3(this.ctrl.pos.x, this.ctrl.pos.y + this.ctrl.eye, this.ctrl.pos.z) : cam.getWorldPosition(this._v.set(0, 0, 0)).clone();
       const ray = new T.Ray(origin, dir);
       const reach = FP().REACH;
       let best = null, bestD = reach;
@@ -419,12 +469,12 @@
       if (!this.target) return;
       this.hands.pokeReach();
       this.target.e.use(this.run);
-      this.ui.refreshObjectives(this.run);
+      if (this.run) this.ui.refreshObjectives(this.run);          // (a gate may have left the world)
     }
 
     render(renderer) {
       renderer.render(this.scene, this.camera);
-      if (this.run && this.run.state !== 'entering' && !(this.combat && this.combat.scoped)) {
+      if (this.run && this.run.state !== 'entering' && !(this.combat && this.combat.scoped) && !this.tppOn()) {
         const ac = renderer.autoClear;
         renderer.autoClear = false;
         renderer.clearDepth();
@@ -434,6 +484,12 @@
     }
   }
 
+  /** the footstep sound for the ground under you (stone / wood / metal / soft …), a heavier one when running */
+  function stepSound(L, pos, running) {
+    const sf = VR.Feedback ? VR.Feedback.groundAt(L, pos) : 'stone';
+    if (running) return sf === 'metal' ? 'fbStepMetal' : sf === 'wood' ? 'runStepWood' : 'runStep';
+    return sf === 'metal' ? 'fbStepMetal' : sf === 'wood' ? 'fbStepWood' : sf === 'dirt' || sf === 'snow' ? 'fbStepSoft' : 'fbStepStone';
+  }
   function visibleChain(o) { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; }
 
   VR.MissionManager = MissionManager;

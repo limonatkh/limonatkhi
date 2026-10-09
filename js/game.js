@@ -129,13 +129,13 @@
       UI.bind('newGameBtn', () => { if (this.modes.hasSave()) document.getElementById('newGameConfirm').hidden = false; else this.modes.newGame(); });
       UI.bind('newGameYes', () => { document.getElementById('newGameConfirm').hidden = true; this.modes.newGame(); });
       UI.bind('newGameNo', () => { document.getElementById('newGameConfirm').hidden = true; });
-      UI.bind('continueBtn', () => this.modes.continueGame());
+      UI.bind('continueBtn', () => this.modes.enterHome());
       // the result screen of a course: back into the world when it came from the portal
       UI.bind('againBtn', () => (this.courseFrom === 'adventure' ? this.modes.backFromCourse() : this.start()));
       UI.bind('charBtn', () => this.setState('character'));
       UI.bind('missionsBtn', () => this.setState('missionsList'));
       UI.bind('mlBack', () => this.setState('menu'));
-      UI.bind('duelBtn', () => { VR.Audio.unlock(); this.duel.openPickerFromMenu(); });
+      UI.bind('duelBtn', () => { VR.Audio.unlock(); this.duel.openPickerFromMenu(null, this.fightMenu.rules()); });
       UI.bind('waitBtn', () => { if (this.settings.fullscreen) VR.Fullscreen.request(); this.duel.openWaitingArena(); });
       UI.bind('charPrev', () => this.cycleChar(-1));
       UI.bind('charNext', () => this.cycleChar(1));
@@ -238,14 +238,45 @@
       this.renderer.compile(this.scene, this.camera);
       this.setState('menu');
       this.loop();
+      const hadLink = /[?&]vs=/.test(location.search);
       this.challenge.boot();                       // opened from an invite link?
+      // the square is home: the game opens there (the main menu stays one Esc away).
+      // ?menu=1 keeps the old start on the menu (tests); an invite link opens its lobby instead.
+      if (!hadLink && !/[?&]menu=1/.test(location.search) && (this.challenge.name || '').trim()) setTimeout(() => this.goHome(), 0);
+    }
+    /** into the square (CONTINUE, the start of the game, back from a gate) */
+    goHome(at = null) {
+      if (this.state !== 'menu' && this.state !== 'settings') return;
+      if (!at) this.hubReturn = null;
+      if (at) return this.modes.enterAdventure(at.area || VR.ADVENTURE.START, { location: at });
+      this.modes.enterHome();
+    }
+    /**
+     * A gate in the square (js/adventure/hubgates.js). `at`: where to stand when coming back.
+     * fight / challenge open what the menu used to; the mini-games say they are coming.
+     */
+    hubAction(action, at, name) {
+      if (action === 'billiards' || action === 'basketball') { VR.Audio.play('click'); this.missions.ui.caption(VR.t('hub.soon', { name }), 3.5); return; }
+      this.hubReturn = at;
+      this.missions.saveArea && this.missions.saveArea();
+      VR.Audio.play('portal');
+      this.toMenu();
+      if (action === 'fight') { this.fightMenu.open(); this.fightMenu.fromHub = true; }
+      else if (action === 'challenge') document.getElementById('challengeBtn').click();
+    }
+    /** done with what a gate opened: back in front of it */
+    backToHub() {
+      const at = this.hubReturn; this.hubReturn = null;
+      if (this.state !== 'menu') this.toMenu();
+      this.goHome(at);
     }
 
     /** main menu: CONTINUE only when there is an adventure to continue */
     refreshMenuButtons() {
       const has = this.modes.hasSave();
-      document.getElementById('continueBtn').hidden = !has;
-      document.getElementById('newGameBtn').classList.toggle('primary', !has);
+      // one button into the game: CONTINUE (to the square) or PLAY (a first game); NEW GAME is in Settings
+      const cb = document.getElementById('continueBtn');
+      cb.hidden = false; cb.setAttribute('data-i18n', has ? 'menu.continue' : 'menu.play'); cb.textContent = VR.t(has ? 'menu.continue' : 'menu.play');
       document.getElementById('newGameConfirm').hidden = true;
     }
     /** NEW GAME replaced the save: refresh everything that shows it */
@@ -621,7 +652,8 @@
           this.countdown = C.MISSION_RETURN_COUNTDOWN; this.countdownStar = C.MISSION_RETURN_STAR;
           this.countdownEl.hidden = false; this.countdownEl.textContent = String(Math.ceil(this.countdown));
           this.setState('countdown');
-        } else this.toMenu();
+        } else if (this.hubReturn) this.backToHub();       // the fight gate: back to the square
+        else this.toMenu();
         this.fade.target = 0;
         if (r.reward) setTimeout(() => UI.toast(VR.t('du.reward', { coins: r.reward }), 1800), 300);
       }

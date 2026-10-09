@@ -173,8 +173,9 @@
      * from the menu (the runner course has no 1v1 gates any more). After the duel
      * you come back to the menu.
      */
-    openPickerFromMenu(opts = null) {
+    openPickerFromMenu(opts = null, rules = null) {
       if (this.game.state !== 'menu' || this.match || this.pickOpen) return;
+      this.pickRules = this.cleanRules(rules || (opts && opts.rules), false);
       this.pickOpts = opts && opts.type === 'coop' ? opts : null;      // co-op: "me + a friend vs the computer"
       if (!this.game.settings.online) { this.game.settings.online = true; this.game.applySettings(); VR.UI.toast(VR.t('du.onlineOn'), 1400); }
       this.pickOpen = true; this.pickNotice = null; this.pickFromMenu = true;
@@ -200,8 +201,9 @@
       if (friend && (this.cool.get(friend.key) || 0) > now) { friend.st = 'busy'; friend.whyText = busyTxt('cooldown'); }
       // in a race only your race opponent can be challenged
       const inRace = this.game.challenge.inRace;
-      return { friend, online: inRace ? [] : online, onlineOn: VR.Online.enabled && !inRace, connected: VR.Online.connected, firstTo: this.pickOpts ? D.BOT_FIRST_TO : D.FIRST_TO,
-        mode: this.pickOpts ? VR.t('fm.coopMode') + ' · ' + this.inviteSub(this.pickOpts) : '' };
+      const pr = this.pickFromMenu ? this.pickRules : null;
+      return { friend, online: inRace ? [] : online, onlineOn: VR.Online.enabled && !inRace, connected: VR.Online.connected, firstTo: pr && pr.firstTo ? pr.firstTo : this.pickOpts ? D.BOT_FIRST_TO : D.FIRST_TO,
+        mode: (this.pickOpts ? VR.t('fm.coopMode') + ' · ' + this.inviteSub(this.pickOpts) : '') + this.rulesText(pr) };
     }
     renderPicker() {
       if (!this.pickOpen || this.pending) return;
@@ -222,9 +224,10 @@
       const chan = key.startsWith('f:') ? this.friendChan() : this.onlineChan(key.slice(2));
       if (!chan || chan.key !== key) { this.pickNotice = { text: VR.t('du.lost', { name: '' }), kind: 'bad' }; return this.renderPicker(); }
       if ((this.cool.get(key) || 0) > performance.now()) return;
-      const opts = this.pickOpts || null;
-      this.pending = { did: VR.Net.randomCode(8), chan, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts };
-      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), mode: opts ? 'coop' : 'pvp', bots: opts ? opts.bots : 0, diff: opts ? opts.diff : '' });
+      const opts = this.pickOpts || null, rules = this.pickFromMenu ? this.pickRules || null : null;
+      this.pending = { did: VR.Net.randomCode(8), chan, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules };
+      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), mode: opts ? 'coop' : 'pvp', bots: opts ? opts.bots : 0, diff: opts ? opts.diff : '',
+        ft: rules && rules.firstTo || 0, ow: rules && rules.weapon || '' });
       this.ui.showWaiting(chan.name, D.INVITE_TIME, D.INVITE_TIME, () => this.cancelInvite());
     }
     cancelInvite() {
@@ -255,11 +258,12 @@
       if (this.incoming) return chan.send({ k: 'ans', did: d.did, ok: false, why: 'busy' });
       if ((this.declinedFrom.get(chan.key) || 0) > performance.now()) return chan.send({ k: 'ans', did: d.did, ok: false, why: 'cooldown' });
       const opts = d.mode === 'coop' ? { type: 'coop', bots: Math.max(1, Math.min(3, d.bots | 0 || 1)), diff: VR.DuelBots.DIFF[d.diff] ? d.diff : 'normal' } : null;
-      this.incoming = { did: d.did, chan, name: String(d.name || chan.name).slice(0, 16), ch: d.ch, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts };
+      const rules = this.cleanRules({ firstTo: d.ft, weapon: d.ow }, false);
+      this.incoming = { did: d.did, chan, name: String(d.name || chan.name).slice(0, 16), ch: d.ch, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules };
       chan.name = this.incoming.name; chan.ch = d.ch || chan.ch;
       // waiting in the arena = waiting for exactly this: start right away
       if (this.match && this.match.solo && !opts) return this.acceptInvite();
-      this.ui.showInvite(this.incoming.name, D.INVITE_TIME, D.INVITE_TIME, () => this.acceptInvite(), () => this.declineInvite(), this.inviteSub(opts));
+      this.ui.showInvite(this.incoming.name, D.INVITE_TIME, D.INVITE_TIME, () => this.acceptInvite(), () => this.declineInvite(), this.inviteSub(opts) + this.rulesText(rules));
     }
     acceptInvite() {
       const inc = this.incoming; if (!inc) return;
@@ -268,7 +272,15 @@
       if (why) { inc.chan.send({ k: 'ans', did: inc.did, ok: false, why }); return; }
       if (this.pending && this.pending.auto) { this.pending.chan.send({ k: 'cancel', did: this.pending.did }); this.pending = null; }
       inc.chan.send({ k: 'ans', did: inc.did, ok: true, name: this.myName(), ch: this.myChar() });
-      this.startMatch('g', inc.chan, inc.did, inc.opts);
+      this.startMatch('g', inc.chan, inc.did, inc.opts, inc.rules);
+    }
+    /** " · first to 3 · sniper only" */
+    rulesText(r) {
+      if (!r) return '';
+      let t = '';
+      if (r.firstTo) t += ' · ' + VR.t('fm.firstTo', { n: r.firstTo });
+      if (r.weapon) t += ' · ' + VR.t('fm.onlyW', { w: VR.L(FK().NAMES[r.weapon]) });
+      return t;
     }
     /** the line under the invite: the 1v1 arena, or co-op against the computer */
     inviteSub(opts) {
@@ -297,7 +309,7 @@
             this.pending = null;
             if (d.name) p.chan.name = String(d.name).slice(0, 16);
             if (d.ch) p.chan.ch = d.ch;
-            this.startMatch('h', p.chan, p.did, p.opts);
+            this.startMatch('h', p.chan, p.did, p.opts, p.rules);
           } else this.endPending(d.why === 'declined' ? 'declined' : d.why === 'timeout' ? 'timeout' : 'unavailable', d.why);
           return;
         }
@@ -326,6 +338,7 @@
         case 'end': if (m.role === 'g') this.onMatchEnd(d.sc, null); break;
         case 'bye': this.onOppLeft(); break;
         case 'fell': if (m.role === 'h') this.applyFall(m.op); break;
+        case 'wx': if (m.role === 'g' && this.weather) this.weather.follow(d.s); break;
         case 'ping': this.send({ k: 'pong', ts: d.ts }); break;
         case 'pong': if (typeof d.ts === 'number') { const rtt = Math.max(0, performance.now() - d.ts); m.ping = m.ping == null ? rtt : m.ping * 0.6 + rtt * 0.4; this.ui.setPing(m.ping); } break;
       }
@@ -333,13 +346,13 @@
     send(d) { const m = this.match; if (!m) return; d.did = m.did; m.chan.send(d); }
 
     // ================================================================ match lifecycle
-    startMatch(role, chan, did, opts = null) {
+    startMatch(role, chan, did, opts = null, rules = null) {
       this.ui.hidePicker(); this.pickOpen = false; this.ui.hideInvite(); this.ui.showPrompt(false);
       if (this.incoming) this.declineInvite();
       const fromWaiting = !!(this.match && this.match.solo);
       const type = opts && opts.type === 'coop' ? 'coop' : 'pvp';
       this.match = {
-        type, opts, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: opts ? this.botTeamName(opts) : '',
+        type, opts, rules: this.cleanRules(rules, false), dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: opts ? this.botTeamName(opts) : '',
         role, chan, did, me: role, op: OTHER[role],
         names: { [role]: this.myName(), [OTHER[role]]: chan.name },
         tones: { h: 'white', g: 'grey' },          // automatic colours: inviter white, invited player grey
@@ -362,14 +375,16 @@
      */
     startBots(opts) {
       if (this.match || this.game.state !== 'menu') return false;
+      const given = opts;
       // AI fighters: one to three of them, all at one level (opts.fighter = one id, as before)
       const FS = VR.Fighters, list = (opts.fighters || (opts.fighter ? [opts.fighter] : [])).filter(id => FS && FS.FIGHTERS[id]).slice(0, 3);
       const level = FS && FS.LEVELS && FS.LEVELS[opts.level] ? opts.level : 'medium';
       const playAs = FS && FS.FIGHTERS[opts.playAs] ? opts.playAs : null;            // I play as a fighter (its ability is mine)
       opts = list.length ? { type: 'bots', bots: list.length, diff: FS.makeKey(list, level), fighter: list[0], fighters: list, level, playAs }
         : { type: 'bots', bots: Math.max(1, Math.min(3, opts.bots | 0 || 1)), diff: VR.DuelBots.DIFF[opts.diff] ? opts.diff : 'normal', loot: !!opts.loot, playAs };
+      const rules = this.cleanRules(given && given.rules, !!opts.loot);
       this.match = {
-        type: 'bots', opts, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: this.botTeamName(opts),
+        type: 'bots', opts, rules, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: this.botTeamName(opts),
         role: 'h', chan: { kind: 'none', key: '', name: '', send() {} }, did: 'bots-' + VR.uid(), me: 'h', op: 'g',
         names: { h: this.myName(), g: this.botTeamName(opts) }, tones: { h: 'white', g: 'grey' }, chars: { h: this.myChar(), g: null },
         sc: { h: 0, g: 0 }, hp: { h: D.HP, g: D.HP }, round: 0, phase: 'enter', countT: 0, timeLeft: D.BOT_ROUND_TIME, endT: 0,
@@ -379,6 +394,13 @@
       this.game.beginDuel();
       return true;
     }
+    /** rules chosen before a match: rounds to win (1-7) and an optional single weapon */
+    cleanRules(r, loot) {
+      if (!r) return null;
+      const ft = [1, 2, 3, 5, 7].includes(+r.firstTo) ? +r.firstTo : null;
+      const w = !loot && r.weapon && FK().ONE_WEAPON.includes(r.weapon) ? r.weapon : null;
+      return ft || w ? { firstTo: ft, weapon: w } : null;
+    }
     botTeamName(opts) {
       if (opts.fighters && opts.fighters.length > 1) return opts.fighters.map(id => VR.L(VR.Fighters.FIGHTERS[id].name)).join(' + ') + ' · ' + VR.t('bot.diff.' + opts.level);
       if (opts.fighter) { const F = VR.Fighters.FIGHTERS[opts.fighter]; return VR.L(F.name) + ' · ' + VR.L(F.title) + (opts.level && opts.level !== 'medium' ? ' · ' + VR.t('bot.diff.' + opts.level) : ''); }
@@ -387,8 +409,9 @@
     /** which side's score is mine (in matches against bots both players are side 'h') */
     side() { const m = this.match; return m.type === 'pvp' ? m.me : 'h'; }
     oside() { return this.side() === 'h' ? 'g' : 'h'; }
-    firstTo() { return this.match.type === 'pvp' ? D.FIRST_TO : D.BOT_FIRST_TO; }
-    maxRounds() { return this.match.type === 'pvp' ? D.MAX_ROUNDS : D.BOT_MAX_ROUNDS; }
+    /** rounds to win: chosen before the match (rules.firstTo), else the default for the mode */
+    firstTo() { const r = this.match.rules; return r && r.firstTo ? r.firstTo : this.match.type === 'pvp' ? D.FIRST_TO : D.BOT_FIRST_TO; }
+    maxRounds() { const r = this.match.rules; return r && r.firstTo ? r.firstTo * 2 - 1 : this.match.type === 'pvp' ? D.MAX_ROUNDS : D.BOT_MAX_ROUNDS; }
     roundTime() { return this.match.type === 'pvp' ? D.ROUND_TIME : D.BOT_ROUND_TIME; }
 
     // ---- the buy screen (before round 1)
@@ -398,6 +421,8 @@
       m.buyLeft = FK().BUY.TIME; m.readyMe = false;
       // the loot arena: no buying — a pistol, the knife and grenades; the rest is on the floor
       if (m.opts && m.opts.loot) { m.pick = { weapons: ['pistol'], nades: true }; this.buyReady(); return; }
+      // "one weapon" rounds: everybody gets the chosen weapon, nothing to buy
+      if (m.rules && m.rules.weapon) { m.pick = { weapons: [m.rules.weapon], nades: false }; this.buyReady(); return; }
       VR.Input.setFPEnabled(false); VR.Input.releaseLock();
       this.renderBuy();
     }
@@ -420,8 +445,9 @@
     }
     buyReady() {
       const m = this.match; if (!m || m.readyMe) return;
-      m.pick = FK().sanitize(m.pick);
-      this.lo = new (FK().Loadout)(m.pick, D.NADES);
+      const only = m.rules && m.rules.weapon;
+      if (!only) m.pick = FK().sanitize(m.pick);
+      this.lo = new (FK().Loadout)(m.pick, D.NADES, only || null);
       m.readyMe = true; m.readyT = 0;
       this.ui.closeOverlay();
       VR.Input.setFPEnabled(true); VR.Input.requestLock();
@@ -448,8 +474,8 @@
         return;
       }
       const col = VR.DuelArena.COLORS;
-      if (m.type === 'pvp') this.ui.setPlayers(m.names[m.me], m.names[m.op], col[m.me], col[m.op], D.FIRST_TO);
-      else this.ui.setPlayers(m.type === 'coop' ? VR.t('bot.youTwo') : m.names[m.me], m.botName, col.h, col.g, D.BOT_FIRST_TO);
+      if (m.type === 'pvp') this.ui.setPlayers(m.names[m.me], m.names[m.op], col[m.me], col[m.op], this.firstTo());
+      else this.ui.setPlayers(m.type === 'coop' ? VR.t('bot.youTwo') : m.names[m.me], m.botName, col.h, col.g, this.firstTo());
       if (m.type !== 'pvp') this.bots.setup(m.opts.bots, m.opts.diff);
       if (m.type === 'bots') this.powers.setup();
       this.ui.setScore(0, 0); this.ui.setHP(D.HP);
@@ -474,8 +500,12 @@
       sc.add(L.group);
       sc.background = new T.Color(L.ambient.background);
       sc.fog = L.ambient.fog ? new T.Fog(...L.ambient.fog) : null;
-      sc.add(new T.HemisphereLight(L.ambient.sky, L.ambient.ground, L.ambient.intensity * 2.2));
+      const hemi = new T.HemisphereLight(L.ambient.sky, L.ambient.ground, L.ambient.intensity * 2.2); sc.add(hemi);
       const sun = new T.DirectionalLight(L.sun.color, L.sun.intensity * 2); sun.position.set(...L.sun.dir); sc.add(sun);
+      // the weather (js/core/weather.js): the host's runs the schedule, the other player follows it
+      const wm = this.match;
+      this.weather = VR.WeatherSystem && !wm.solo ? new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera, start: wm.opts && wm.opts.weather,
+        onChange: (ty) => { this.ui.feed(VR.t('wx.now', { name: VR.L(VR.Weather.TYPES[ty].name) }) + ' ' + VR.Weather.TYPES[ty].icon); if (this.match && this.match.role === 'h') this.sendWeather(); } }) : null;
       // the effects layer (js/duel/feedback.js): pooled particles, rings, lights, the screen overlay
       this.fb = VR.FeedbackLayer ? new VR.FeedbackLayer(sc, this.camera, this.ui.el.dmg) : null;
       this.hands.setStyle(FB().profile(this.myProf()).arms);
@@ -487,6 +517,7 @@
     }
     clearWorld() {
       this.fx.clear();
+      if (this.weather) { this.weather.dispose(); this.weather = null; }
       if (this.fb) { this.fb.dispose(); this.fb = null; }
       const sc = this.scene;
       for (const child of [...sc.children]) {
@@ -563,6 +594,7 @@
       this.mines = []; this.shotMarks = [];
       if (m.solo) this.lo = new (FK().Loadout)({ weapons: ['sniper', 'pistol'], nades: true }, D.NADES);   // the waiting room: a free practice kit
       if (m.opts && m.opts.loot && m.readyMe) this.lo = new (FK().Loadout)(m.pick, D.NADES);              // loot arena: back to the pistol each round
+      if (m.rules && m.rules.weapon && m.readyMe && !this.lo.only) this.lo = new (FK().Loadout)(null, D.NADES, m.rules.weapon);
       this.hostage.release('round');
       if (m.type === 'bots') { this.powers.resetRound(); this.loot.resetRound(); }
       this.lo.refill(); this.scoped = false; this.ads = false; this.adsK = 0; this.reloadSnd = false;
@@ -743,18 +775,30 @@
     }
     /** trace every pellet; damage summed per target. → { hits: Map(ref → {dmg, head}), ends, missed } */
     traceShot(o, dirs, targets, wid, max = 200) {
-      const hits = new Map(), ends = [], missed = [];
+      const hits = new Map(), ends = [], missed = [], paths = [];
       for (const d of dirs) {
-        const r = VR.WeaponKit.traceParts(this.ray, this.solidBoxes, o, d, targets, max);
-        ends.push(r.end); missed.push(!r.ref);
+        const r = VR.WeaponKit.tracePath(this.ray, this.solidBoxes, o, d, targets, max, wid, this.windNow());
+        ends.push(r.end); missed.push(!r.ref); paths.push(r.path);
         if (r.ref) {
           const h = hits.get(r.ref) || { dmg: 0, head: false };
           h.dmg += FK().damage(wid, r.hit, r.dist); h.head = h.head || r.hit === 'head';
           hits.set(r.ref, h);
         }
       }
-      return { hits, ends, missed };
+      return { hits, ends, missed, paths };
     }
+    /** the wind now (the weather's; none in the waiting room) */
+    windNow() { return this.weather ? this.weather.wind : null; }
+    /** a tracer that follows the shot's curved path (from the muzzle) */
+    pathTracer(muzzle, path, color, width) {
+      if (!path || path.length < 3) { this.fx.tracer(muzzle, path ? path[path.length - 1] : muzzle, color, width); return; }
+      // a few pieces are enough to show the bend
+      const pts = [muzzle], step = Math.max(1, Math.floor((path.length - 1) / 4));
+      for (let i = step; i < path.length - 1; i += step) pts.push(path[i]);
+      pts.push(path[path.length - 1]);
+      for (let i = 1; i < pts.length; i++) this.fx.tracer(pts[i - 1], pts[i], color, width);
+    }
+    sendWeather() { const w = this.weather, m = this.match; if (w && m && m.type !== 'bots' && m.role === 'h') this.send({ k: 'wx', s: w.state() }); }
     fire() {
       const m = this.match;
       if (m.phase !== 'fight' && m.phase !== 'practice') return;
@@ -776,9 +820,9 @@
       const res = this.traceShot(o, dirs, this.shotTargets(), wid, w.melee ? w.range : 200);
       const muzzle = this.muzzleWorld();
       if (w.melee) this.hands.pokeReach();                 // a stab: no tracer, no flash
-      else if (w.arrow) { this.arrowFx(muzzle, res.ends[0], res.missed[0]); this.lastFireT = performance.now(); }     // a real flying arrow
+      else if (w.arrow) { this.arrowFx(muzzle, res.ends[0], res.missed[0], res.paths[0]); this.lastFireT = performance.now(); }     // a real flying arrow
       else {
-        res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : w.pellets > 1 ? 0xff9a4a : undefined, wid === 'sniper' ? 0.032 : 0.02); if (res.missed[i] && i < 3) this.impactAt(e); });
+        res.ends.forEach((e, i) => { if (i < 3) this.pathTracer(muzzle, res.paths[i], this.fb ? this.fb.tracerColor(wid) : w.pellets > 1 ? 0xff9a4a : undefined, wid === 'sniper' ? 0.032 : 0.02); if (res.missed[i] && i < 3) this.impactAt(e); });
         // my own muzzle: a small flash only, no smoke (nothing may cover the enemy)
         if (this.fb) this.fb.muzzle(muzzle, dirs[0], wid, null, { own: true, aiming: this.scoped || this.ads }); else this.fx.flash(muzzle);
         this.lastFireT = performance.now();
@@ -797,16 +841,23 @@
       } else this.send(msg);                             // co-op guest: the host decides
     }
     /** an arrow flies from the bow to where the shot ends; a miss stays stuck there for a moment */
-    arrowFx(from, to, missed) {
+    arrowFx(from, to, missed, path) {
       if (!to) return;
-      const a = VR.WeaponKit.model('arrow'), dist = from.distanceTo(to), speed = FK().WEAPONS.bow.arrowSpeed;
-      const fly = Math.max(0.05, dist / speed), stay = missed ? 1.2 : 0;
-      a.position.copy(from); a.lookAt(to); a.rotateY(Math.PI);                 // the model points along -Z
+      // the arrow flies along the shot's path (it drops and drifts in the wind), pointing where it goes
+      const pts = path && path.length > 2 ? [from].concat(path.slice(1)) : [from, to];
+      const segs = []; let total = 0;
+      for (let i = 1; i < pts.length; i++) { const l = pts[i - 1].distanceTo(pts[i]); segs.push(l); total += l; }
+      const a = VR.WeaponKit.model('arrow'), speed = FK().WEAPONS.bow.arrowSpeed;
+      const fly = Math.max(0.05, total / speed), stay = missed ? 1.2 : 0;
+      const at = (s, out) => { let i = 0; while (i < segs.length - 1 && s > segs[i]) { s -= segs[i]; i++; } return out.lerpVectors(pts[i], pts[i + 1], Math.min(1, s / (segs[i] || 1))); };
+      const p = new T.Vector3(), q = new T.Vector3();
+      a.position.copy(from);
       const t0 = { t: 0 };
       this.fx.add(a, fly + stay, (it, k, dt) => {
-        t0.t += dt; const f = Math.min(1, t0.t / fly);
-        a.position.lerpVectors(from, to, f);
-        if (f >= 1 && !missed) a.visible = false;
+        t0.t += dt; const s = Math.min(total, t0.t * speed);
+        at(s, p); at(Math.min(total, s + 0.5), q);
+        a.position.copy(p); if (q.distanceToSquared(p) > 1e-6) { a.lookAt(q); a.rotateY(Math.PI); }       // the model points along -Z
+        if (s >= total && !missed) a.visible = false;
       });
       if (missed && this.fb) setTimeout(() => this.match && this.impactAt(to), fly * 1000);
     }
@@ -851,7 +902,8 @@
       if (m.role === 'h') {
         // referee: is this shot possible? (their weapon, its fire rate, origin near the shooter)
         const now = performance.now() / 1000;
-        ok = m.phase === 'fight' && now - (m.oppLast[wid] || -9) >= def.rate * 0.7 && (!m.oppPick || m.oppPick.weapons.includes(wid)) && !(m.dead && m.dead[m.op]);
+        const allowed = m.rules && m.rules.weapon ? wid === m.rules.weapon : (!m.oppPick || m.oppPick.weapons.includes(wid) || wid === 'knife');
+        ok = m.phase === 'fight' && now - (m.oppLast[wid] || -9) >= def.rate * 0.7 && allowed && !(m.dead && m.dead[m.op]);
         const t = this.avatar && this.avatar.target;
         if (t) { const eye = new T.Vector3(t.p[0], t.p[1] + 1.3, t.p[2]); if (eye.distanceTo(o) > 3) ok = false; }
         if (ok) m.oppLast[wid] = now;
@@ -868,10 +920,10 @@
         res = this.traceShot(o, dirs, this.bots.targets(), wid, reach);
         if (ok) for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.op, wid);
       }
-      if (def.arrow) this.arrowFx(muzzle, res.ends[0], res.missed[0]);
+      if (def.arrow) this.arrowFx(muzzle, res.ends[0], res.missed[0], res.paths[0]);
       else if (!def.melee) {
         if (m.type === 'coop' && m.role === 'h' && this.avatar && !def.melee) this.bots.hear(this.avatar.pos);
-      res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : 0xffe14a, 0.022); if (res.missed[i] && i < 3) this.impactAt(e); });
+      res.ends.forEach((e, i) => { if (i < 3) this.pathTracer(muzzle, res.paths[i], this.fb ? this.fb.tracerColor(wid) : 0xffe14a, 0.022); if (res.missed[i] && i < 3) this.impactAt(e); });
         if (this.fb) this.fb.muzzle(muzzle, dirs[0] || new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle);
       }
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : def.sound);
@@ -973,7 +1025,7 @@
       if (!this.fb) { VR.Audio.play('fpStep'); return; }
       const sf = this.surfaceUnder();
       this.stepSide = -(this.stepSide || 1);
-      this.fb.stepSound(sf, this.myProf());
+      this.fb.stepSound(sf, this.myProf(), this.ctrl.sprinting && this.ctrl.speed > (this.ctrl.walkSpeed || 5) * 1.1);
       // dust where I step (a little ahead, so it shows at the bottom of the screen)
       const f = this.ctrl.forward();
       this.fb.footstep(this.ctrl.pos.clone().addScaledVector(f, 0.55), sf, this.myProf(), this.stepSide);
@@ -1119,11 +1171,11 @@
       if (this.ctrl.pos.distanceTo(mi.pos) < 8) this.shake = Math.max(this.shake, 0.35);
     }
     /** a bot's shot: tracers here, and on the co-op guest's screen */
-    botShotFx(b, ends, wid) {
+    botShotFx(b, ends, wid, paths) {
       const m = this.match;
       const muzzle = new T.Vector3(b.pos.x - Math.sin(b.yaw) * 0.5, b.pos.y + 1.45, b.pos.z - Math.cos(b.yaw) * 0.5);
       this.markShot(b.pos);
-      for (const e of ends) { this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : 0xff7a3a, 0.022); this.impactAt(e, true); }
+      ends.forEach((e, i) => { this.pathTracer(muzzle, paths && paths[i], this.fb ? this.fb.tracerColor(wid) : 0xff7a3a, 0.022); this.impactAt(e, true); });
       if (this.fb) this.fb.muzzle(muzzle, ends[0] ? ends[0].clone().sub(muzzle).normalize() : new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle, 0xffb070);
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : 'enemyShot');
       if (m.type === 'coop') this.send({ k: 'bf', i: b.i, w: wid, e: ends.map(e => e.toArray().map(r2)) });
@@ -1160,7 +1212,7 @@
       for (let i = this.nades.length - 1; i >= 0; i--) {
         const n = this.nades[i];
         n.t += dt;
-        let boom = VR.WeaponKit.stepNade(n, dt, this.solidBoxes);
+        let boom = VR.WeaponKit.stepNade(n, dt, this.solidBoxes, undefined, this.windNow());
         n.obj.position.copy(n.pos);
         nadeSpin(n, dt);
         if (!n.mine) { if (n.t > 8) { this.scene.remove(n.obj); this.nades.splice(i, 1); } continue; }
@@ -1363,6 +1415,12 @@
       this.updateNades(dt);
       this.updateMines(dt);
       this.fx.update(dt);
+      if (this.weather) {
+        this.weather.update(dt);
+        c.wind = this.weather.wind;
+        if (m.role === 'h') { m.wxT = (m.wxT || 0) - dt; if (m.wxT <= 0) { m.wxT = 2; this.sendWeather(); } }
+        this.ui.setWind(this.weather, c.yaw);
+      } else { c.wind = null; this.ui.setWind(null); }
       this.watchBodies(dt);
       this.updateView(dt, look);
       if (this.fb) {
