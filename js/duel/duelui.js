@@ -110,6 +110,8 @@
     lmg: [[0, 4, 10, 3], [10, 2, 18, 6], [14, 8, 8, 6], [3, 7, 1, 6], [6, 7, 1, 6], [28, 3, 12, 5]],
     knife: [[2, 5, 20, 3], [0, 6, 2, 1], [22, 3, 2, 7], [24, 4, 12, 5]],
     strike: [[0, 6, 22, 2], [22, 4, 2, 6], [24, 5, 10, 4], [30, 1, 2, 3], [34, 9, 3, 3]],
+    spear: [[0, 6, 6, 2], [2, 5, 3, 4], [6, 6, 34, 2]],
+    bow: [[4, 1, 2, 12], [6, 0, 3, 2], [6, 12, 3, 2], [9, 1, 1, 12], [6, 6, 30, 2], [34, 5, 4, 4]],
   };
   const ORB = (c) => `<svg viewBox="0 0 40 14" width="40" height="14"><circle cx="9" cy="7" r="5" fill="${c}"/><rect x="15" y="6" width="22" height="2" fill="${c}" opacity=".6"/></svg>`;
   function weaponIcon(id) {
@@ -424,7 +426,7 @@
     teamFlash(col) {
       const f = this.root.querySelector('.du-teamflash'); if (!f) return;
       f.style.background = `radial-gradient(circle at 50% 40%, transparent 30%, ${hex(col)}cc)`;
-      f.animate([{ opacity: 0 }, { opacity: 0.75, offset: 0.25 }, { opacity: 0 }], { duration: 650, easing: 'ease-out' });
+      f.animate([{ opacity: 0 }, { opacity: 0.45, offset: 0.25 }, { opacity: 0 }], { duration: 500, easing: 'ease-out' });
     }
     hideBig() { this.el.big.hidden = true; clearTimeout(this.bigT); }
     feed(text, cls = '') {

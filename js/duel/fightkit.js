@@ -28,6 +28,10 @@
     rifle:   { ads: 0.66, body: 17, head: 34, rate: 0.12, auto: true, mag: 25, reload: 1.8, spread: 0.014, pellets: 1, range: 70, fall: 0.6, sound: 'rifle', kick: 0.35 },
     dmr:     { body: 38, head: 85, rate: 0.38, auto: false, mag: 10, reload: 2.0, spread: 0.01, airSpread: 0.02, scopedSpread: 0.002, pellets: 1, range: 120, fall: 0.85, sound: 'dmr', kick: 0.7, scope: true },
     lmg:     { ads: 0.72, body: 13, head: 22, rate: 0.075, auto: true, mag: 60, reload: 3.2, spread: 0.035, pellets: 1, range: 50, fall: 0.55, sound: 'lmg', kick: 0.3 },
+    // a spear: melee with a long reach (3.4 m), slower than the knife
+    spear:   { body: 60, head: 110, rate: 0.75, auto: false, mag: 1, reload: 0, spread: 0, pellets: 1, range: 3.4, fall: 1, sound: 'spear', kick: 0.5, melee: true, slot: true },
+    // a bow: one arrow at a time (nocked again after each shot), a real flying arrow, hard-hitting at range
+    bow:     { ads: 0.8, body: 48, head: 115, rate: 0.3, auto: false, mag: 1, reload: 0.6, spread: 0.004, pellets: 1, range: 90, fall: 0.8, sound: 'bow', kick: 0.4, arrow: true, arrowSpeed: 70 },
     // the knife: always carried (slot 3), melee only (reach `range` metres)
     knife:   { body: 50, head: 100, rate: 0.55, auto: false, mag: 1, reload: 0, spread: 0, pellets: 1, range: 2.3, fall: 1, sound: 'knife', kick: 0.3, melee: true },
   };
@@ -37,12 +41,13 @@
     knife: { en: 'Knife', ar: 'سكّين' }, mines: { en: 'Mines ×2', ar: 'ألغام ×2' },
     revolver: { en: 'Revolver', ar: 'المسدس الدوّار' }, rifle: { en: 'Assault rifle', ar: 'البندقية الهجومية' },
     dmr: { en: 'Marksman rifle', ar: 'بندقية الرامي' }, lmg: { en: 'Heavy machine gun', ar: 'الرشّاش الثقيل' },
+    spear: { en: 'Spear', ar: 'الرمح' }, bow: { en: 'Bow', ar: 'القوس' },
   };
   const BUY = {
     BUDGET: 1000,
     TIME: 25,                       // seconds to buy before a match (then: ready with what you have)
-    PRICES: { pistol: 0, shotgun: 350, smg: 400, sniper: 550, nades: 250, mines: 200, revolver: 300, rifle: 450, dmr: 500, lmg: 500 },   // e.g. sniper + SMG fits, sniper + SMG + grenades does not
-    ORDER: ['pistol', 'shotgun', 'smg', 'sniper', 'revolver', 'rifle', 'dmr', 'lmg', 'nades', 'mines'],
+    PRICES: { pistol: 0, shotgun: 350, smg: 400, sniper: 550, nades: 250, mines: 200, revolver: 300, rifle: 450, dmr: 500, lmg: 500, spear: 250, bow: 300 },   // e.g. sniper + SMG fits, sniper + SMG + grenades does not
+    ORDER: ['pistol', 'shotgun', 'smg', 'sniper', 'revolver', 'rifle', 'dmr', 'lmg', 'spear', 'bow', 'nades', 'mines'],
     // weapons you must first buy in the Lemon Shop (js/adventure/shop.js, kind 'arena')
     LOCKED: ['revolver', 'rifle', 'dmr', 'lmg'],
     MINES: 2,                       // mines per round when bought
@@ -65,7 +70,7 @@
   }
   /** a legal pick: at most 2 weapons (dearest first), known ids, within budget; else the free pistol */
   function sanitize(pick) {
-    const ws = [...new Set((pick && pick.weapons || []).filter(id => WEAPONS[id] && !WEAPONS[id].melee))].slice(0, 2);
+    const ws = [...new Set((pick && pick.weapons || []).filter(id => WEAPONS[id] && id !== 'knife' && (!WEAPONS[id].melee || WEAPONS[id].slot)))].slice(0, 2);
     ws.sort((a, b) => BUY.PRICES[b] - BUY.PRICES[a]);              // the bought weapon in hand first, the pistol second
     const p = { weapons: ws.length ? ws : ['pistol'], nades: !!(pick && pick.nades), mines: !!(pick && pick.mines) };
     return cost(p) <= BUY.BUDGET ? p : { weapons: ['pistol'], nades: false, mines: false };

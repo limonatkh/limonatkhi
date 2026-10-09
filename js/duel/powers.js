@@ -82,6 +82,7 @@
       case 'rage': return Object.assign(base, { kind: 'rage', duration: A.duration, speed: A.status.speed, dmg: A.status.dmg, rate: A.status.rate, once: true });
       case 'decoy': return Object.assign(base, { kind: 'decoy', duration: A.duration });
       case 'strike': return Object.assign(base, { kind: 'strike', range: A.range, damage: A.damage, duration: A.duration });
+      case 'shrink': return Object.assign(base, { kind: 'shrink', passive: true, factor: A.status.factor, speedUp: A.status.speedUp, minScale: A.status.minScale, maxSpeed: 4, dmg: VR.Fighters.FIGHTERS.shrinker.dmgMul });
     }
     return null;
   }
@@ -117,6 +118,7 @@
       this.paint();
     }
     clearRound() {
+      this.shrinkK = 1; this.shrinkSpd = 1; if (this.mgr.ctrl) this.mgr.ctrl.scaleK = 1;
       this.shieldT = 0; this.over = 0; this.overT = 0; this.healT = 0; this.rageT = 0; this.burst = null;
       for (const p of this.projectiles || []) this.mgr.scene.remove(p.mesh);
       for (const z of this.zones || []) this.mgr.scene.remove(z.mesh);
@@ -138,7 +140,7 @@
     use() {
       const s = this.slot;
       if (!s || !this.can()) return false;
-      if (s.cd > 0 || (s.charges != null && s.charges <= 0) || (s.def.once && s.used)) { VR.Audio.play('buzz'); return false; }
+      if (s.def.passive || s.cd > 0 || (s.charges != null && s.charges <= 0) || (s.def.once && s.used)) { VR.Audio.play('buzz'); return false; }
       if (!this.act(s.def, s.id)) { VR.Audio.play('buzz'); return false; }
       if (s.loot) { s.charges--; if (s.charges <= 0) this.slot = null; }
       else { s.cd = s.def.cooldown || 0; if (s.max) s.charges--; s.used = true; }
@@ -226,8 +228,19 @@
       if (this.over > 0) { const a = Math.min(this.over, dmg); this.over -= a; dmg -= a; if (this.over <= 0) { this.overT = 0; VR.Audio.play('shieldBreak'); } }
       return dmg;
     }
-    speedMul() { return (this.rageT > 0 ? this.rage.speed : 1) * (this.healT > 0 && this.healRoot ? 0.35 : 1); }
-    dmgMul() { return this.rageT > 0 ? this.rage.dmg : 1; }
+    /** playing as the SHRINKER: every hit I take makes me 30 % smaller and twice as fast (my shots stay weak) */
+    onHurt() {
+      const s = this.slot; if (!s || s.def.kind !== 'shrink') return;
+      const k0 = this.shrinkK;
+      this.shrinkK = Math.max(s.def.minScale, k0 * s.def.factor);
+      this.shrinkSpd = Math.min(s.def.maxSpeed, this.shrinkSpd * s.def.speedUp);
+      this.mgr.ctrl.scaleK = this.shrinkK;
+      if (this.shrinkK !== k0 && this.mgr.fb) this.mgr.fb.ability('impact', { pos: this.mgr.ctrl.pos.clone().setY(0.5), elem: 'poison', color: s.def.color });
+      this.paint();
+    }
+    shrinking() { return this.slot && this.slot.def.kind === 'shrink'; }
+    speedMul() { return (this.rageT > 0 ? this.rage.speed : 1) * (this.healT > 0 && this.healRoot ? 0.35 : 1) * (this.shrinkSpd || 1); }
+    dmgMul() { return (this.rageT > 0 ? this.rage.dmg : 1) * (this.shrinking() ? this.slot.def.dmg : 1); }
     rateMul() { return this.rageT > 0 ? this.rage.rate : 1; }
     /** bots can be fooled by my decoy: it is one more "player" for them */
     decoyPlayer() { const d = this.decoy; return d && d.alive ? { id: 'decoy', pos: d.pos, low: false, vel: d.vel, alive: true } : null; }
@@ -316,7 +329,8 @@
     status() {
       const s = this.slot; if (!s) return null;
       let st;
-      if (s.loot) st = '×' + s.charges;
+      if (s.def.passive) st = Math.round((this.shrinkK || 1) * 100) + '%';
+      else if (s.loot) st = '×' + s.charges;
       else if (s.def.once && s.used) st = this.rageT > 0 ? '🔥' : '—';
       else if (s.max) st = `${s.charges}/${s.max}`;
       else st = s.cd > 0 ? Math.ceil(s.cd) + 's' : '✓';

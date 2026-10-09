@@ -859,6 +859,23 @@ move, limited turning, real cooldowns. It reads only what a person can see: wher
 look and whether you reload. The ordinary computer players now follow the same "no
 seeing through walls" rule. Reward for beating a fighter: 40 coins × its stars.
 
+## Spear, bow, the SHRINKER, clear view, the pixel font
+
+* **Spear** (الرمح, 250 on the buy screen): melee with a 3.4 m reach (the knife: 2.3 m), 60 / 110,
+  slower. It takes a weapon slot (the knife stays the extra one).
+* **Bow** (القوس, 300): one arrow at a time, a real arrow flies to the target (a miss sticks in
+  the wall), 48 / 115, nocks the next arrow by itself and keeps aiming while it does. The limb sits
+  left of the arrow so the middle of the screen stays free.
+* **SHRINKER** (المتقلّص, the 11th AI fighter, ★★★★): every hit makes it 30 % smaller and twice as
+  fast (70 → 49 → 34 → 24 % size, up to 5.5× speed); its hit boxes and eyes shrink with it; its
+  shots do 45 % damage. Fast movers now move in short steps, so they never pass through walls.
+  Playing as the SHRINKER does the same to you (lower eye, smaller hit box, up to 4× speed).
+* **Nothing covers the enemy**: your own gun has no smoke and only a tiny flash (none while aiming /
+  scoped); remote muzzle smoke, death smoke and dust are low and short; screen tints are light.
+* **Font**: a blocky pixel font like the reference picture, self-hosted in `fonts/` (SIL OFL):
+  Tiny5 for Latin and numbers, Handjet for Arabic; titles get a hard shadow + soft glow (and are
+  slanted in English). In-world signs still use Cairo.
+
 ## Fighter levels, teams, playing as a fighter, loot arena, hostages (`js/duel/powers.js`)
 
 **Fighter levels and teams.** The fighter screen picks **one to three** opponents (click to add,

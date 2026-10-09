@@ -58,6 +58,9 @@
       use(f, ctx) { ctx.sys.decoy(f, this, ctx); } },
     strike: { elem: 'shadow', name: { en: 'Shadow Strike', ar: 'ضربة الظل' }, cooldown: 6, duration: 0.3, range: 11, damage: 62, movement: 'burst', status: null, vfx: 'trail', sfx: 'knife',
       use(f, ctx, dir) { f.fx.strike = { dir: dir.clone().setY(0).normalize(), t: this.duration, speed: Math.max(10, (ctx.dist - 1.4) / this.duration), hit: false }; vfx(ctx.sys, 'launch', f, this, { pos: f.pos.clone().setY(0.8), dir }); VR.Audio.play('slide'); } },
+    // passive: every hit makes it 30 % smaller and twice as fast (down to a tiny, very fast fighter)
+    shrink: { elem: 'poison', name: { en: 'Shrink', ar: 'التقلّص' }, cooldown: 0, duration: 0, range: 0, damage: 0, movement: 'passive', status: { factor: 0.7, speedUp: 2, minScale: 0.24, maxSpeed: 5.5 }, vfx: 'shrink', sfx: 'pickup', color: 0x7cdc3a, passive: true,
+      use() {} },
   };
 
   /**
@@ -119,8 +122,12 @@
       hp: 100, speed: 1.15, weapons: ['rifle'], range: [8, 15], strafe: 0.9, aim: { react: 0.3, err: 0.028, turn: 8.5, fireMul: 1.05, head: 0.18 },
       desc: t('Fast, patient and balanced. Waits for your mistakes, then strikes from the shadows.', 'سريع وصبور ومتوازن. ينتظر أخطاءك ثم يضرب من الظل.'),
       strong: t('Balanced in everything', 'متوازن في كل شيء'), weak: t('No huge edge like the specialists', 'لا يملك تفوقًا كبيرًا مثل المتخصصين'), look: { band: 0x15151c, extra: 'tails' } },
+    shrinker: { name: t('SHRINKER', 'المتقلّص'), title: t('Shrinking Fighter', 'المقاتل المتقلّص'), ability: 'shrink', stars: 4, color: 0x7cdc3a, char: 0,
+      hp: 130, speed: 1.0, weapons: ['smg'], range: [3, 8], strafe: 1, dmgMul: 0.45, aim: { react: 0.34, err: 0.045, turn: 9, fireMul: 1.0, head: 0.08 },
+      desc: t('Every hit makes it 30% smaller and twice as fast — until it is tiny and very fast. Its damage is low.', 'كل ما ياكل إصابة يصغر ٣٠٪ ويصير أسرع الضعف، لحد ما يصير صغير كثير وسريع عالآخر. ضربه قليل.'),
+      strong: t('Harder to hit with every hit', 'كل ما تضربه يصير أصعب تصيبه'), weak: t('Low damage; hit it hard early', 'ضربه ضعيف؛ اضربه بقوة من البداية'), look: { band: 0x7cdc3a, extra: 'leaf' }, fx: { death: 'dust', arms: 'fast', element: 'poison' } },
   };
-  const ORDER = ['dasher', 'flash', 'tank', 'blaster', 'bomber', 'healer', 'freezer', 'berserker', 'trickster', 'ninja'];
+  const ORDER = ['dasher', 'flash', 'tank', 'blaster', 'bomber', 'healer', 'freezer', 'berserker', 'trickster', 'ninja', 'shrinker'];
 
   /**
    * LEVELS: every fighter at four levels (its numbers above are "medium").
@@ -165,6 +172,7 @@
     if (x === 'ice') { for (const s of [-1, 1]) head.add(boxMesh(0.1, 0.24, 0.1, 0xbff4ff, s * 0.38, 1.4, 0, { emissive: 0x2a6070 })); }
     if (x === 'horns') { for (const s of [-1, 1]) head.add(boxMesh(0.09, 0.26, 0.09, 0xf1e6c8, s * 0.27, 1.95, 0)); }
     if (x === 'mask') head.add(boxMesh(0.62, 0.14, 0.06, 0x1a1a1a, 0, 1.6, -0.33));
+    if (x === 'leaf') { head.add(boxMesh(0.08, 0.2, 0.08, 0x3f8a2b, 0, 2.0, 0)); head.add(boxMesh(0.22, 0.06, 0.14, 0x7cdc3a, 0.08, 2.1, 0)); }
     if (x === 'tails') head.add(boxMesh(0.08, 0.08, 0.55, 0x15151c, 0.1, 1.76, 0.42));
     // ability visuals (hidden until used)
     const bubble = new T.Mesh(new T.SphereGeometry(1.1, 14, 10), new T.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.28, depthWrite: false }));
@@ -279,6 +287,13 @@
       if (f.mem.flankT > 0) return { move: 'flank' };
       return { move: sees ? 'circle' : 'approach' };
     },
+    shrinker(s) {
+      const { f, sees, dist } = s;
+      // the smaller (and faster) it gets, the closer and more erratic it circles you
+      const k = f.shrink || 1;
+      if (sees && s.underAim && f.mem.dodgeCd <= 0) { f.mem.dodgeCd = 0.4 + k * 0.6; f.strafe *= -1; }
+      return { move: dist > 9 ? 'approach' : 'circle', range: k < 0.6 ? [1.5, 4] : [3, 8] };
+    },
     ninja(s) {
       const { f, tgt, sees, dist } = s;
       if (f.fx.strike) return { move: 'hold' };
@@ -318,7 +333,8 @@
       this.projectiles = []; this.zones = []; this.decoys = []; this.events = [];
       for (const b of this.list) {
         if (!b.f) continue;
-        b.hp = b.maxHp; b.fx = {}; b.cd = 1.5; b.charges = ABILITIES[b.f.ability].charges || 0; b.rechargeT = 0;
+        b.shrink = 1; b.spdMul = 1; if (b.body && b.body.rig) { if (b.f.hp > 150) b.body.rig.root.scale.set(1.12, 1.06, 1.12); else b.body.rig.root.scale.setScalar(1); }
+      b.hp = b.maxHp; b.fx = {}; b.cd = 1.5; b.charges = ABILITIES[b.f.ability].charges || 0; b.rechargeT = 0;
         b.mem = { hitT: 0, engageT: 0, unseenT: 9, recentDmg: 0, frozeT: 0, flankT: 0, retreatT: 0, dodgeCd: 0, seenT: 0, aimT: 0 };
         b.body.shield.visible = false; b.body.healRing.visible = false; b.body.aura.visible = false;
       }
@@ -328,6 +344,7 @@
     /** damage taken: shield, heal interrupted, memory */
     hurt(b, dmg) {
       let d = dmg;
+      if (b.f.ability === 'shrink' && b.alive && b.hp - dmg > 0) this.shrink(b);
       if (b.fx.shieldT > 0) d *= ABILITIES.shield.status.dmgTaken;
       if (b.fx.healT > 0) { b.fx.healT = 0; b.body.healRing.visible = false; this.log(b, 'healBroken'); }
       b.mem.recentDmg = (b.mem.recentDmg || 0) + d;
@@ -335,9 +352,21 @@
       return d;
     }
 
+    /** SHRINKER: smaller (hit boxes too) and faster after every hit */
+    shrink(b) {
+      const S = ABILITIES.shrink.status;
+      const k0 = b.shrink || 1;
+      b.shrink = Math.max(S.minScale, k0 * S.factor);
+      b.spdMul = Math.min(S.maxSpeed, (b.spdMul || 1) * S.speedUp);
+      if (b.shrink !== k0) {
+        b.body.rig.root.scale.setScalar(b.shrink);
+        vfx(this, 'impact', b, ABILITIES.shrink, { pos: b.pos.clone().setY(b.pos.y + 0.8 * b.shrink) });
+      }
+      this.log(b, 'shrunk', { k: +b.shrink.toFixed(2), speed: +b.spdMul.toFixed(2) });
+    }
     // ---- perception (fair): sees = line of sight AND in front of it (or very close); hears gunshots (bots.hear)
     perceive(b, players, dt) {
-      const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55, b.pos.z);
+      const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55 * (b.shrink || 1), b.pos.z);
       let best = null, bd = Infinity;
       for (const p of players) {
         if (!p.alive) continue;
@@ -377,7 +406,7 @@
         const ref = tgt || players.find(p => p.alive);
         const goal = sees ? tgt.pos : this.bots.goalFor(b);
         const dist = sees ? Math.hypot(tgt.pos.x - b.pos.x, tgt.pos.z - b.pos.z) : Math.hypot(goal.x - b.pos.x, goal.z - b.pos.z);
-        const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55, b.pos.z);
+        const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55 * (b.shrink || 1), b.pos.z);
         // where the player looks (a person can see that): is it aiming at me?
         let underAim = false;
         if (sees && tgt.yaw !== undefined) {
@@ -412,7 +441,7 @@
         const rage = fx.rageT > 0 ? ABILITIES.rage.status : null;
         if (aligned && !rooted && !fx.dash && !fx.strike) {
           const w = b.lo.shoot();
-          if (w) { b.lo.coolT *= b.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = rage ? rage.dmg : 1; this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
+          if (w) { b.lo.coolT *= b.aim.fireMul * (rage ? rage.rate : 1); b.dmgMul = (rage ? rage.dmg : 1) * (F.dmgMul || 1); this.bots.fire(b, eye, aimPt, tgt, w, players); m.hitT = 0.6; }
         }
         // movement
         this.moveFighter(b, dt, plan, sees ? tgt : null, goal, dist, rage, rooted);
@@ -469,7 +498,7 @@
       if (tgt && mv !== 'flank') side = F.strafe * b.strafe * (mv === 'circle' ? 1 : 0.6);
       if (mv === 'flank') side *= b.strafe;
       const slowK = 1;
-      const sp = WALK() * (b.spd || F.speed) * (rage ? rage.speed : 1) * slowK;
+      const sp = WALK() * (b.spd || F.speed) * (b.spdMul || 1) * (rage ? rage.speed : 1) * slowK;
       let mx = dir.x * fwd + dir.z * side, mz = dir.z * fwd - dir.x * side;
       if (b.detourT > 0) { b.detourT -= dt; mx = dir.z * b.strafe + dir.x * 0.3; mz = -dir.x * b.strafe + dir.z * 0.3; }
       const l = Math.hypot(mx, mz);
@@ -529,7 +558,7 @@
         // players (body box grown by the orb)
         for (const p of players) {
           if (!p.alive || done) continue;
-          const bx = WK().boxesAt(p.pos, p.low), box = bx.body.clone().union(bx.head).expandByScalar(0.18);
+          const bx = WK().boxesAt(p.pos, p.low, p.scale || 1), box = bx.body.clone().union(bx.head).expandByScalar(0.18);
           const ray = new T.Ray(pr.pos, dir), hit = ray.intersectBox(box, new T.Vector3());
           if (hit && hit.distanceTo(pr.pos) <= Math.min(len, wd)) {
             done = true;
@@ -617,6 +646,7 @@
       const one = (b) => {
         const A = ABILITIES[b.f.ability];
         if (!b.alive) return `${L(b.f.name)} ☠`;
+        if (A.passive) return `${L(b.f.name)} ${Math.round((b.shrink || 1) * 100)}%`;
         const st = A.charges ? `${b.charges}/${A.charges}` : b.f.ability === 'rage' && b.fx.raged ? (b.fx.rageT > 0 ? '🔥' : '—') : b.cd > 0 ? Math.ceil(b.cd) + 's' : '✓';
         return this.list.length > 1 ? `${L(b.f.name)} ${st}` : `${L(b.f.name)} · ${L(A.name)} ${st}`;
       };

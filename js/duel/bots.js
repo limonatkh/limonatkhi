@@ -100,7 +100,7 @@
     }
     /** hit boxes for shots (alive bots only) */
     targets() {
-      const out = this.list.filter(b => b.alive && !b.held).map(b => { const bx = WK().boxesAt(b.pos, false); return { parts: { head: bx.head, body: bx.body }, ref: b }; });
+      const out = this.list.filter(b => b.alive && !b.held).map(b => { const bx = WK().boxesAt(b.pos, false, b.shrink || 1); return { parts: { head: bx.head, body: bx.body }, ref: b }; });
       return this.fsys ? out.concat(this.fsys.decoyTargets()) : out;
     }
 
@@ -126,8 +126,11 @@
         x + r > s.min[0] && x - r < s.max[0] && z + r > s.min[2] && z - r < s.max[2]);
       const x0 = b.pos.x, z0 = b.pos.z;
       if (b.slowT > 0) { dx *= 0.5; dz *= 0.5; }                      // frozen by my frost / freeze
-      if (!blocked(b.pos.x + dx, b.pos.z)) b.pos.x += dx;
-      if (!blocked(b.pos.x, b.pos.z + dz)) b.pos.z += dz;
+      const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.25));     // fast movers: short steps (never through a wall)
+      for (let i = 0; i < n; i++) {
+        if (!blocked(b.pos.x + dx / n, b.pos.z)) b.pos.x += dx / n;
+        if (!blocked(b.pos.x, b.pos.z + dz / n)) b.pos.z += dz / n;
+      }
       return Math.hypot(b.pos.x - x0, b.pos.z - z0);
     }
     /**
@@ -154,7 +157,7 @@
     }
     pickTarget(b, players) {
       let best = null, bd = Infinity, seen = null, sd = Infinity;
-      const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55, b.pos.z);
+      const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55 * (b.shrink || 1), b.pos.z);
       for (const p of players) {
         if (!p.alive) continue;
         const d = b.pos.distanceTo(p.pos);
@@ -171,7 +174,7 @@
         if (!b.alive || b.held) continue;                             // a hostage does nothing
         const tgt = this.pickTarget(b, players);
         if (!tgt) continue;
-        const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55, b.pos.z);
+        const eye = new T.Vector3(b.pos.x, b.pos.y + 1.55 * (b.shrink || 1), b.pos.z);
         const chest = new T.Vector3(tgt.pos.x, tgt.pos.y + (tgt.low ? 0.6 : 1.15), tgt.pos.z);
         const sees = this.los(eye, chest);
         const dist = Math.hypot(tgt.pos.x - b.pos.x, tgt.pos.z - b.pos.z);
@@ -237,7 +240,7 @@
       const tspd = tgt.vel ? Math.hypot(tgt.vel.x, tgt.vel.z) : 0;
       const err = D.err * (1 + tspd / 4);
       const right = new T.Vector3(base.z, 0, -base.x).normalize(), up = new T.Vector3().crossVectors(right, base).normalize();
-      const targets = players.filter(p => p.alive).map(p => { const bx = WK().boxesAt(p.pos, p.low); return { parts: { head: bx.head, body: bx.body }, ref: p }; });
+      const targets = players.filter(p => p.alive).map(p => { const bx = WK().boxesAt(p.pos, p.low, p.scale || 1); return { parts: { head: bx.head, body: bx.body }, ref: p }; });
       const hits = new Map(); const ends = [];
       for (let k = 0; k < w.pellets; k++) {
         const d = base.clone().addScaledVector(right, b.aimErr.x * err + gauss() * w.spread).addScaledVector(up, b.aimErr.y * err * 0.7 + gauss() * w.spread).normalize();

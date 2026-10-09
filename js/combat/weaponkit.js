@@ -22,11 +22,12 @@
   // solids: plain Box3s (duel) or { s: levelSolid, box: Box3 } (areas, where a gate can switch its solid off)
   const off = (b) => (b.s ? b.s.enabled === false : b.enabled === false);
 
-  function boxesAt(p, low) {
-    const h = low ? FP().CROUCH_HEIGHT : FP().HEIGHT;
+  function boxesAt(p, low, k = 1) {
+    // k: body size (1 = normal; the SHRINKER gets smaller with every hit)
+    const h = (low ? FP().CROUCH_HEIGHT : FP().HEIGHT) * k, w = 0.34 * k;
     // the head box covers the whole drawn head (the hero's big voxel head reaches ~2.1 m): a hit on the visible head is a headshot
-    const head = new T.Box3(new T.Vector3(p.x - 0.34, p.y + h - 0.5, p.z - 0.34), new T.Vector3(p.x + 0.34, p.y + h + 0.4, p.z + 0.34));
-    const body = new T.Box3(new T.Vector3(p.x - 0.34, p.y, p.z - 0.34), new T.Vector3(p.x + 0.34, p.y + h - 0.5, p.z + 0.34));
+    const head = new T.Box3(new T.Vector3(p.x - w, p.y + h - 0.5 * k, p.z - w), new T.Vector3(p.x + w, p.y + h + 0.4 * k, p.z + w));
+    const body = new T.Box3(new T.Vector3(p.x - w, p.y, p.z - w), new T.Vector3(p.x + w, p.y + h - 0.5 * k, p.z + w));
     return { head, body };
   }
   function wallDist(ray, solids, o, d, max = 200) {
@@ -274,6 +275,43 @@
     for (const m of [blade, edge, guard, grip]) { m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); }
     return g;
   }
+  /** a spear: a long wooden shaft with a steel head (held low, point forward) */
+  function spear() {
+    const g = new T.Group(), M = (c) => new T.MeshLambertMaterial({ color: c });
+    const parts = [
+      [new T.BoxGeometry(0.04, 0.04, 1.5), M(0x8a5a33), [0, 0, -0.2]],                  // shaft
+      [new T.BoxGeometry(0.05, 0.05, 0.14), M(0x2a2018), [0, 0, 0.18]],                 // grip wrap
+      [new T.BoxGeometry(0.08, 0.025, 0.22), M(0xdfe6ee), [0, 0, -1.04]],               // blade
+      [new T.BoxGeometry(0.045, 0.02, 0.08), M(0xdfe6ee), [0, 0, -1.18]],               // tip
+      [new T.BoxGeometry(0.06, 0.06, 0.05), neonMat(LEMON), [0, 0, -0.92]],             // collar
+    ];
+    for (const [geo, mat, p] of parts) { const m = new T.Mesh(geo, mat); m.position.set(...p); m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); }
+    g.userData.sightY = 0.05;
+    return g;
+  }
+  /** a bow: a curved limb of blocks, a string, an arrow nocked */
+  function bow() {
+    const g = new T.Group(), M = (c) => new T.MeshLambertMaterial({ color: c });
+    const add = (geo, mat, p, rz = 0) => { const m = new T.Mesh(geo, mat); m.position.set(...p); m.rotation.z = rz; m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); return m; };
+    // the limb: blocks along an arc (vertical, in front of the hand)
+    // (the limb sits a little to the left of the arrow, so aiming leaves the middle of the screen free)
+    for (let i = -4; i <= 4; i++) { const a = i * 0.16; add(new T.BoxGeometry(0.04, 0.1, 0.04), M(i === 0 ? 0x2a2018 : 0x8a5a33), [-0.07, Math.sin(a) * 0.36, -Math.cos(a) * 0.12 + 0.02], 0); }
+    add(new T.BoxGeometry(0.01, 0.66, 0.01), M(0xf4f1e6), [-0.07, 0, 0.1]);                // string
+    const nock = new T.Group(); nock.name = 'nock'; g.add(nock);                              // the arrow ready to shoot (hidden while nocking)
+    for (const [geo, mat, p] of [[new T.BoxGeometry(0.018, 0.018, 0.62), M(0xb98a52), [0, 0.01, -0.12]], [new T.BoxGeometry(0.03, 0.03, 0.06), M(0xdfe6ee), [0, 0.01, -0.45]], [new T.BoxGeometry(0.004, 0.04, 0.06), neonMat(LEMON), [0, 0.03, 0.14]]]) {
+      const m = new T.Mesh(geo, mat); m.position.set(...p); m.material.userData.own = true; m.geometry.userData.own = true; nock.add(m);
+    }
+    g.userData.sightY = 0.01;
+    return g;
+  }
+  /** a flying arrow (for the shot effect) */
+  function arrow() {
+    const g = new T.Group(), M = (c) => new T.MeshLambertMaterial({ color: c });
+    for (const [geo, c, z] of [[new T.BoxGeometry(0.025, 0.025, 0.7), 0xb98a52, 0], [new T.BoxGeometry(0.045, 0.045, 0.08), 0xdfe6ee, -0.37], [new T.BoxGeometry(0.006, 0.06, 0.1), LEMON, 0.3]]) {
+      const m = new T.Mesh(geo, M(c)); m.position.z = z; m.material.userData.own = true; m.geometry.userData.own = true; g.add(m);
+    }
+    return g;
+  }
   /** a mine: flat disk with a blinking light */
   function mine() {
     const g = new T.Group();
@@ -295,6 +333,9 @@
     if (id === 'sniper') return VR.DuelWeapons.sniper();
     if (id === 'nade') return VR.DuelWeapons.grenade();
     if (id === 'knife') return knife();
+    if (id === 'spear') return spear();
+    if (id === 'bow') return bow();
+    if (id === 'arrow') return arrow();
     if (id === 'mine') return mine();
     return pistol();
   }
@@ -303,6 +344,8 @@
   VR.Audio.define('pistol', ({ tone, noise }) => { noise(0.1, 0.35, 4200); tone(320, 0.09, 'square', 0.12, 120); });
   VR.Audio.define('shotgun', ({ tone, noise }) => { noise(0.28, 0.55, 2400); tone(110, 0.22, 'sawtooth', 0.2, 45); });
   VR.Audio.define('smg', ({ tone, noise }) => { noise(0.05, 0.22, 5200); tone(420, 0.04, 'square', 0.06, 200); });
+  VR.Audio.define('bow', ({ tone, noise }) => { tone(220, 0.12, 'triangle', 0.14, 90); noise(0.1, 0.12, 2500); });
+  VR.Audio.define('spear', ({ tone, noise }) => { noise(0.14, 0.22, 3500); tone(300, 0.1, 'sawtooth', 0.06, 140); });
   VR.Audio.define('empty', ({ tone }) => { tone(1300, 0.03, 'square', 0.05); });
 
   VR.WeaponKit = { boxesAt, wallDist, traceParts, stepNade, impulse, LAND_DELAY, WEAPONS, NADE, model };

@@ -141,7 +141,7 @@
   function causeOf(w, head) {
     if (w === 'fall') return { kind: 'fall' };
     if (w === 'mine' || w === 'bomb' || w === 'nade') return { kind: 'explosion', elem: 'blast', w };
-    if (w === 'knife' || w === 'strike') return { kind: 'melee', w, elem: w === 'strike' ? 'shadow' : null };
+    if (w === 'knife' || w === 'strike' || w === 'spear') return { kind: 'melee', w, elem: w === 'strike' ? 'shadow' : null };
     const A = (VR.Fighters && VR.Fighters.ABILITIES && VR.Fighters.ABILITIES[w]) || (VR.Powers && VR.Powers.DEFS[w]);
     if (A && A.kind === 'bomb') return { kind: 'explosion', elem: A.elem || 'blast', w };
     if (A) return { kind: 'ability', elem: A.elem || 'energy', w, color: A.color };
@@ -474,8 +474,8 @@
       switch (style) {
         case 'core': {                                               // A. radiant core burst
           const col = cause.kind === 'ability' ? (ELEMENTS[elem] || ELEMENTS.energy).col[0] : P.colors.glow;
-          this.sprite(c, { color: 0xffffff, size: 0.4, end: 2.6 * I, life: 0.22 });
-          this.sprite(c, { color: col, size: 0.8, end: 3.4 * I, life: 0.32, alpha: 0.85 });
+          this.sprite(c, { color: 0xffffff, size: 0.35, end: 1.5 * I, life: 0.16 });
+          this.sprite(c, { color: col, size: 0.6, end: 2.0 * I, life: 0.22, alpha: 0.55 });
           this.light(c, col, 45 * I, 0.3);
           this.burst(c, { n: 26 * I, colors: [col, 0xffffff, P.colors.main], glow: true, speed: 7 * I, drag: 3.2, life: 0.55, size: 0.1, prio });
           if (cause.kind === 'ability') this.elementBurst(c, elem, 18 * I, { prio, speed: 5 });
@@ -483,7 +483,7 @@
           this.sfx('fbDieCore', 0.02); break;
         }
         case 'dust': {                                               // B. dust poof dissolve
-          this.column(base, h, { n: 34 * I, colors: [0xd8ccb0, 0xb8ad94, P.colors.main, 0xeee4cc], speed: 0.9, up: 1.2, life: 0.9, size: 0.12, end: 0.2, drag: 2.2, prio, floor });
+          this.column(base, h, { n: 26 * I, colors: [0xd8ccb0, 0xb8ad94, P.colors.main, 0xeee4cc], speed: 0.9, up: 1.2, life: 0.6, size: 0.1, end: 0.12, drag: 2.2, prio, floor });
           this.burst(new T.Vector3(base.x, base.y + 0.15, base.z), { n: 14 * I, colors: [0xd8ccb0, 0xc4b48a], speed: 3, flatY: 0.15, up: 0.3, drag: 3, life: 0.7, size: 0.1, end: 0.16, prio, floor });
           this.ring(new T.Vector3(base.x, base.y + 0.04, base.z), { color: 0xe6dcc2, radius: 1.6 * I, life: 0.45, alpha: 0.6, solid: true });
           this.sfx('fbDieDust', 0.02); break;
@@ -515,19 +515,19 @@
           } else {
             this.column(base, h, { n: 26 * I, colors: [0x2a2622, 0x4a4038, 0x6b5e52], speed: 0.6, up: 1.4, grav: -0.6, drag: 1.6, life: 1.2, size: 0.07, end: 0.04, prio });
             this.column(base, h, { n: 14 * I, colors: [P.colors.glow, 0xffffff], glow: true, speed: 0.5, up: 2.2, grav: -1, drag: 1.2, life: 0.9, size: 0.05, prio });
-            this.burst(c, { n: 10 * I, colors: [0x8a8a8a, 0xb0b0b0], speed: 1.5, up: 1, drag: 2, life: 1, size: 0.16, end: 0.32, prio });
+            this.burst(c, { n: 6 * I, colors: [0x8a8a8a, 0xb0b0b0], speed: 1.5, up: 0.6, drag: 3, life: 0.55, size: 0.1, end: 0.16, prio });
             this.sfx('fbDieAsh', 0.02);
           }
           this.light(c, P.colors.glow, 14 * I, 0.25); break;
         }
         case 'explode': {                                            // F. character-specific explosive elimination
           const E = ELEMENTS[elem] || ELEMENTS.blast;
-          this.sprite(c, { color: 0xffffff, size: 0.6, end: 3.4 * I, life: 0.18 });
-          this.sprite(c, { color: E.col[0], size: 1, end: 4 * I, life: 0.35, alpha: 0.9 });
+          this.sprite(c, { color: 0xffffff, size: 0.5, end: 2 * I, life: 0.14 });
+          this.sprite(c, { color: E.col[0], size: 0.8, end: 2.4 * I, life: 0.22, alpha: 0.6 });
           this.light(c, E.col[0], 60 * I, 0.35);
           this.ring(new T.Vector3(base.x, base.y + 0.06, base.z), { color: E.col[0], radius: 4.5 * I, life: 0.5 });
           this.elementBurst(c, elem, 30 * I, { prio, speed: 8 * I, life: 0.7 });
-          this.burst(c, { n: 14 * I, colors: [0x6a6a6a, 0x8a8a8a, 0x4a4a4a], speed: 2, up: 1.2, drag: 2, life: 1.3, size: 0.18, end: 0.42, prio });   // smoke
+          this.burst(new T.Vector3(base.x, base.y + 0.3, base.z), { n: 8 * I, colors: [0x6a6a6a, 0x8a8a8a, 0x4a4a4a], speed: 2, flatY: 0.3, up: 0.4, drag: 3, life: 0.6, size: 0.12, end: 0.2, prio });   // smoke (low, short: never a wall to hide behind)
           this.column(base, h, { n: 12, colors: cols, speed: 2, up: 2, grav: 9, life: 0.8, size: 0.1, prio, floor, spin: 8 });
           this.sfx('fbDieBlast', 0.02); this.shakeNear(c, 0.35); break;
         }
@@ -574,15 +574,21 @@
 
     // ================================================================ weapons
     tracerColor(wid) { return TRACER[wid] || 0xffe14a; }
-    muzzle(pos, dir, wid, color) {
+    muzzle(pos, dir, wid, color, o = {}) {
       const M = MUZZLE[wid] || ['small', 0.35, 0, color || 0xfff1a8];
       const [cls, size, smoke] = M, col = color || M[3];
+      if (o.own) {
+        // my own gun is right in front of my eyes: a small, very short flash and no smoke, nothing while aiming
+        if (!o.aiming) this.sprite(pos, { color: col, size: 0.1, end: 0.14, life: 0.035, alpha: 0.8 });
+        this.light(pos, col, cls === 'heavy' ? 14 : 8, 0.05);
+        return;
+      }
       if (cls === 'precise') {
         // thin and long: a streak along the barrel
         for (let i = 1; i <= 4; i++) this.sprite(this._v.copy(pos).addScaledVector(dir, i * 0.12), { color: col, size: size * (1 - i * 0.18), end: size * 0.4, life: 0.05 });
       } else this.sprite(pos, { color: col, size, end: size * (cls === 'heavy' ? 1.9 : 1.4), life: cls === 'heavy' ? 0.08 : 0.05 });
       if (cls === 'heavy') this.burst(pos, { n: 5, colors: [0xffd27a, 0xffffff], glow: true, speed: 4, dir, push: 4, drag: 4, life: 0.12, size: 0.035 });
-      if (smoke) this.burst(pos, { n: smoke, colors: [0xcfcfcf, 0xa8a8a8], speed: 0.4, dir, push: 1.2, up: 0.5, drag: 2, life: 0.7, size: 0.06, end: 0.2 });
+      if (smoke) this.burst(pos, { n: Math.ceil(smoke / 2), colors: [0xcfcfcf, 0xa8a8a8], speed: 0.4, dir, push: 1.2, up: 0.5, drag: 3, life: 0.35, size: 0.05, end: 0.1 });
       this.light(pos, col, cls === 'heavy' ? 30 : 18, 0.06);
     }
     /** a bullet hits a surface: by material */
@@ -605,7 +611,7 @@
         }
         default:                                                     // stone: chips + dust
           this.burst(pos, { n: 6, colors: [0x9a9a9a, 0x7a7a7a, 0xc4b48a], speed: 3, dir: out, push: 2.5, grav: 14, spin: 10, life: 0.5, size: 0.05 });
-          this.burst(pos, { n: 4, colors: [0xd8ccb0, 0xe6dcc2], speed: 0.6, dir: out, push: 0.8, drag: 2, life: 0.5, size: 0.06, end: 0.14 });
+          this.burst(pos, { n: 3, colors: [0xd8ccb0, 0xe6dcc2], speed: 0.6, dir: out, push: 0.8, drag: 2, life: 0.35, size: 0.05, end: 0.09 });
           this.sfx('fbImpStone', 0.04);
       }
       this.note({ type: 'impact', surface });
@@ -772,7 +778,7 @@
       if (!busy && !this.dirty) return;
       g.clearRect(0, 0, W, H); this.dirty = busy;
       const cx = W / 2, cy = H / 2, R = Math.hypot(cx, cy);
-      if (this.tintT > 0) { g.globalAlpha = 0.22 * this.tintT / this.tintMax; g.fillStyle = this.tintCol; g.fillRect(0, 0, W, H); }
+      if (this.tintT > 0) { g.globalAlpha = 0.1 * this.tintT / this.tintMax; g.fillStyle = this.tintCol; g.fillRect(0, 0, W, H); }
       if (speed > 0.02) {
         // speed lines: more, longer and brighter the faster you go
         // (a dark edge under each white streak, so they read on bright walls and sky too)

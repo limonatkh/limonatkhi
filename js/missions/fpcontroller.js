@@ -244,7 +244,7 @@
       if (this.pos.y < -8) { this.reset(this.spawn); this.events.push({ type: 'respawn' }); }
 
       // ---- camera
-      const targetEye = this.slideTimer > 0 ? fp.CROUCH_EYE - 0.08 : this.crouching ? fp.CROUCH_EYE : fp.EYE;
+      const targetEye = (this.slideTimer > 0 ? fp.CROUCH_EYE - 0.08 : this.crouching ? fp.CROUCH_EYE : fp.EYE) * (this.scaleK || 1);   // scaleK: a shrunk player
       this.eye += (targetEye - this.eye) * (1 - Math.exp(-dt * 16));
       this.landDipV += (-this.landDip * 90 - this.landDipV * 12) * dt;
       this.landDip += this.landDipV * dt;

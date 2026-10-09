@@ -776,9 +776,11 @@
       const res = this.traceShot(o, dirs, this.shotTargets(), wid, w.melee ? w.range : 200);
       const muzzle = this.muzzleWorld();
       if (w.melee) this.hands.pokeReach();                 // a stab: no tracer, no flash
+      else if (w.arrow) { this.arrowFx(muzzle, res.ends[0], res.missed[0]); this.lastFireT = performance.now(); }     // a real flying arrow
       else {
         res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : w.pellets > 1 ? 0xff9a4a : undefined, wid === 'sniper' ? 0.032 : 0.02); if (res.missed[i] && i < 3) this.impactAt(e); });
-        if (this.fb) this.fb.muzzle(muzzle, dirs[0], wid); else this.fx.flash(muzzle);
+        // my own muzzle: a small flash only, no smoke (nothing may cover the enemy)
+        if (this.fb) this.fb.muzzle(muzzle, dirs[0], wid, null, { own: true, aiming: this.scoped || this.ads }); else this.fx.flash(muzzle);
         this.lastFireT = performance.now();
       }
       this.kick = Math.min(1.4, this.kick + w.kick); this.shake = Math.max(this.shake, 0.06 * w.kick);
@@ -793,6 +795,20 @@
         for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.me, wid);
         if (m.type === 'coop') this.send(msg);           // the teammate sees the shot
       } else this.send(msg);                             // co-op guest: the host decides
+    }
+    /** an arrow flies from the bow to where the shot ends; a miss stays stuck there for a moment */
+    arrowFx(from, to, missed) {
+      if (!to) return;
+      const a = VR.WeaponKit.model('arrow'), dist = from.distanceTo(to), speed = FK().WEAPONS.bow.arrowSpeed;
+      const fly = Math.max(0.05, dist / speed), stay = missed ? 1.2 : 0;
+      a.position.copy(from); a.lookAt(to); a.rotateY(Math.PI);                 // the model points along -Z
+      const t0 = { t: 0 };
+      this.fx.add(a, fly + stay, (it, k, dt) => {
+        t0.t += dt; const f = Math.min(1, t0.t / fly);
+        a.position.lerpVectors(from, to, f);
+        if (f >= 1 && !missed) a.visible = false;
+      });
+      if (missed && this.fb) setTimeout(() => this.match && this.impactAt(to), fly * 1000);
     }
     muzzleWorld() {
       // a point slightly right/below the eye, along the aim: matches where the gun is drawn
@@ -816,6 +832,7 @@
       if (!dmg || m.phase !== 'fight' || m.dead[target]) return;
       if (target === m.me && m.type === 'bots') { dmg = this.powers.absorb(dmg); if (dmg <= 0) { this.ui.hitmarker('armor'); return; } }   // my shield / overshield
       m.hp[target] = Math.max(0, m.hp[target] - dmg);
+      if (target === m.me && m.type === 'bots' && m.hp[target] > 0) this.powers.onHurt();             // (playing as the SHRINKER)
       const dead = m.hp[target] <= 0;
       const msg = { k: 'hit', t: target, by, bi: bi == null ? -1 : bi, w: w || '', head: head ? 1 : 0, dmg: Math.round(dmg), hp: { h: Math.round(m.hp.h * 10) / 10, g: Math.round(m.hp.g * 10) / 10 }, dead: dead ? 1 : 0 };
       if (m.type !== 'bots') this.send(msg);
@@ -851,7 +868,8 @@
         res = this.traceShot(o, dirs, this.bots.targets(), wid, reach);
         if (ok) for (const [b, h] of res.hits) this.hostBotHit(b, h.dmg, h.head, m.op, wid);
       }
-      if (!def.melee) {
+      if (def.arrow) this.arrowFx(muzzle, res.ends[0], res.missed[0]);
+      else if (!def.melee) {
         if (m.type === 'coop' && m.role === 'h' && this.avatar && !def.melee) this.bots.hear(this.avatar.pos);
       res.ends.forEach((e, i) => { if (i < 3) this.fx.tracer(muzzle, e, this.fb ? this.fb.tracerColor(wid) : 0xffe14a, 0.022); if (res.missed[i] && i < 3) this.impactAt(e); });
         if (this.fb) this.fb.muzzle(muzzle, dirs[0] || new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle);
@@ -999,7 +1017,7 @@
     /** the players on the team the bots fight (with where they are now) */
     teamPlayers() {
       const m = this.match, c = this.ctrl;
-      const out = [{ id: m.me, pos: c.pos, low: c.crouching, vel: c.vel, alive: !m.dead[m.me] }];
+      const out = [{ id: m.me, pos: c.pos, low: c.crouching, vel: c.vel, alive: !m.dead[m.me], scale: c.scaleK || 1 }];
       if (m.type === 'coop' && this.avatar) out.push({ id: m.op, pos: this.avatar.pos, low: this.avatar.low, vel: new T.Vector3(), alive: !m.dead[m.op] });
       const dec = m.type === 'bots' && this.powers.decoyPlayer(); if (dec) out.push(dec);        // my decoy draws their fire
       return out;
@@ -1223,7 +1241,7 @@
       // timers
       const wasReloading = this.lo.reloadT > 0;
       this.lo.update(dt, D.NADE_RECHARGE);
-      if (!wasReloading && this.lo.reloadT > 0) { this.dropScope(); VR.Audio.play('reload'); }
+      if (!wasReloading && this.lo.reloadT > 0) { if (!this.lo.def.arrow) { this.dropScope(); VR.Audio.play('reload'); } else VR.Audio.play('click'); }   // a bow nocks the next arrow (aim stays)
 
       // actions
       let a;
@@ -1249,7 +1267,7 @@
       const wantScope = canMove && !!this.lo.def.scope && VR.Input.aimHeld() && this.lo.reloadT <= 0 && this.lo.switchT <= 0;
       if (wantScope !== this.scoped) { this.scoped = wantScope; this.ui.scope(wantScope); if (wantScope) VR.Audio.play('scope'); }
       // iron sights (rifles, SMGs, pistols…): aim down the sights, no scope picture
-      const wantAds = canMove && !!this.lo.def.ads && VR.Input.aimHeld() && this.lo.reloadT <= 0 && this.lo.switchT <= 0;
+      const wantAds = canMove && !!this.lo.def.ads && VR.Input.aimHeld() && (this.lo.reloadT <= 0 || this.lo.def.arrow) && this.lo.switchT <= 0;   // (a bow keeps aiming while nocking)
       if (wantAds && !this.ads) VR.Audio.play('scope');
       this.ads = wantAds;
       const look = VR.Input.takeLook();
@@ -1440,11 +1458,12 @@
         for (const k in this.gunModels) this.gunModels[k].visible = false;
         if (!this.gunModels[id]) {
           const g = id === 'sniper' ? VR.DuelWeapons.sniper() : VR.WeaponKit.model(id);
-          g.scale.setScalar(id === 'sniper' ? 0.62 : 0.8);
+          g.scale.setScalar(id === 'sniper' ? 0.62 : id === 'spear' ? 0.55 : id === 'bow' ? 0.55 : 0.8);
           this.gunHolder.add(g); this.gunModels[id] = g;
         }
         this.gunModels[id].visible = true; this.gunId = id;
       }
+      if (id === 'bow' && this.gunModels.bow) { const n = this.gunModels.bow.getObjectByName('nock'); if (n) n.visible = lo.slot.mag > 0; }   // no arrow while nocking
       const mm = this.match;
       this.gunHolder.visible = !(mm && mm.dead && mm.dead[mm.me]);
       const wide = Math.min(1, Math.max(0.42, this.hands.camera.aspect / 1.5));
@@ -1527,6 +1546,8 @@
     dmr:      { x: 0.17, y: -0.2, z: -0.46, sway: 0.75, lag: 0.8, run: 0.75, heavy: 1.1, rx: 0, ry: 0, rz: 0 },
     sniper:   { x: 0.17, y: -0.2, z: -0.46, sway: 0.6, lag: 0.7, run: 0.7, heavy: 1.2, rx: 0, ry: 0, rz: 0 },
     knife:    { x: 0.2, y: -0.22, z: -0.42, sway: 1.3, lag: 1.2, run: 1.2, heavy: 0.6, rx: -0.25, ry: -0.2, rz: 0.45 },
+    spear:    { x: 0.2, y: -0.24, z: -0.2, sway: 1.2, lag: 1.4, run: 1, heavy: 1.3, rx: 0.05, ry: 0.05, rz: 0.1 },
+    bow:      { x: 0.12, y: -0.12, z: -0.5, sway: 0.9, lag: 1, run: 0.9, heavy: 0.8, rx: 0, ry: 0, rz: -0.25 },
   };
   VR.DUEL_POSE = POSE;
 
@@ -1547,7 +1568,7 @@
       if (a.gun) a.gun.visible = false;
       if (!a.guns[id]) {
         const m = id === 'sniper' ? VR.DuelWeapons.sniper(a.col) : VR.WeaponKit.model(id);
-        m.scale.setScalar(id === 'sniper' ? 1.5 : 1.9);
+        m.scale.setScalar(id === 'sniper' ? 1.5 : id === 'spear' ? 1.0 : id === 'bow' ? 1.4 : 1.9);
         m.position.set(a.def.model.armR.pivot[0] * VR.CHARACTER_PX + 0.02, 1.02, -0.32);
         a.g.add(m); a.guns[id] = m;
       }
