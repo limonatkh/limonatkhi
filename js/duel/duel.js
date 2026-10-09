@@ -320,6 +320,12 @@
         if (d.k === 'st' || d.k === 'ready') chan.send({ k: 'bye', did: d.did });
         return;
       }
+      // through the match link: in order, once (it calls onMatchMsg)
+      if (m.net) { m.net.receive(d); return; }
+      this.onMatchMsg(d);
+    }
+    onMatchMsg(d) {
+      const m = this.match; if (!m) return;
       m.lastHeard = performance.now(); m.heard = true;
       switch (d.k) {
         case 'ready': m.oppReady = true; if (d.pick) m.oppPick = FK().sanitize(d.pick); if (m.role === 'h') this.hostMaybeStart(true); break;
@@ -340,10 +346,11 @@
         case 'fell': if (m.role === 'h') this.applyFall(m.op); break;
         case 'wx': if (m.role === 'g' && this.weather) this.weather.follow(d.s); break;
         case 'ping': this.send({ k: 'pong', ts: d.ts }); break;
-        case 'pong': if (typeof d.ts === 'number') { const rtt = Math.max(0, performance.now() - d.ts); m.ping = m.ping == null ? rtt : m.ping * 0.6 + rtt * 0.4; this.ui.setPing(m.ping); } break;
+        case 'pong': if (typeof d.ts === 'number') { const rtt = Math.max(0, performance.now() - d.ts); m.ping = m.ping == null ? rtt : m.ping * 0.6 + rtt * 0.4; if (m.net) m.net.setRtt(m.ping); this.ui.setPing(m.ping, m.net && m.net.via); } break;
       }
     }
-    send(d) { const m = this.match; if (!m) return; d.did = m.did; m.chan.send(d); }
+    /** to the other player: the match link (direct when it can, reliable when it matters — js/duel/matchnet.js) */
+    send(d) { const m = this.match; if (!m) return; d.did = m.did; if (m.net) m.net.send(d); else m.chan.send(d); }
 
     // ================================================================ match lifecycle
     startMatch(role, chan, did, opts = null, rules = null) {
@@ -353,7 +360,7 @@
       const type = opts && opts.type === 'coop' ? 'coop' : 'pvp';
       this.match = {
         type, opts, rules: this.cleanRules(rules, false), dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: opts ? this.botTeamName(opts) : '',
-        role, chan, did, me: role, op: OTHER[role],
+        role, chan, did, me: role, op: OTHER[role], net: null,
         names: { [role]: this.myName(), [OTHER[role]]: chan.name },
         tones: { h: 'white', g: 'grey' },          // automatic colours: inviter white, invited player grey
         chars: { [role]: this.myChar(), [OTHER[role]]: chan.ch },
@@ -361,6 +368,8 @@
         readyMe: false, oppReady: false, readyT: 0, lastHeard: performance.now(), sendT: 0,
         history: [], oppLastFire: -9, rounds: 0, over: false, result: null,
       };
+      // the link for this match: a direct connection when possible, nothing that matters ever lost
+      if (VR.MatchNet) this.match.net = new VR.MatchNet(chan, role, (d) => this.onMatchMsg(d), { did });
       if (fromWaiting) {
         // already in the arena: rebuild it with the opponent and start from round 1 (after buying)
         this.enterArena();
@@ -735,6 +744,7 @@
       this.ui.setSolo(false);
       this.ui.show(false); this.ui.resetTouch();
       VR.Input.setMode('runner');
+      if (this.match && this.match.net) this.match.net.close();
       this.match = null;
     }
     /** Hard stop (quit to menu). */
@@ -829,7 +839,7 @@
       }
       this.kick = Math.min(1.4, this.kick + w.kick); this.shake = Math.max(this.shake, 0.06 * w.kick);
       VR.Audio.play(w.sound);
-      const msg = { k: 'fire', w: wid, o: o.toArray().map(r2), ds: dirs.map(d => d.toArray().map(r4)) };
+      const msg = { k: 'fire', w: wid, o: o.toArray().map(r2), ds: dirs.map(d => d.toArray().map(r4)), ft: Math.round(performance.now()) };      // ft: my clock (fire rate is judged on it)
       if (w.melee && res.hits.size === 0) { this.send(msg); return; }
       if (m.type !== 'pvp' && m.role === 'h' && !w.melee) this.bots.hear(this.ctrl.pos);     // the bots hear the shot
       if (m.type === 'pvp') {
@@ -901,11 +911,13 @@
       let ok = false;
       if (m.role === 'h') {
         // referee: is this shot possible? (their weapon, its fire rate, origin near the shooter)
-        const now = performance.now() / 1000;
+        // fire rate on the SHOOTER's clock: shots held up on a slow link and arriving together are still fine
+        const now = typeof d.ft === 'number' ? d.ft / 1000 : performance.now() / 1000;
         const allowed = m.rules && m.rules.weapon ? wid === m.rules.weapon : (!m.oppPick || m.oppPick.weapons.includes(wid) || wid === 'knife');
         ok = m.phase === 'fight' && now - (m.oppLast[wid] || -9) >= def.rate * 0.7 && allowed && !(m.dead && m.dead[m.op]);
         const t = this.avatar && this.avatar.target;
-        if (t) { const eye = new T.Vector3(t.p[0], t.p[1] + 1.3, t.p[2]); if (eye.distanceTo(o) > 3) ok = false; }
+        // the shot must start near where I see them (more slack on a slow link: they kept moving meanwhile)
+        if (t) { const eye = new T.Vector3(t.p[0], t.p[1] + 1.3, t.p[2]); if (eye.distanceTo(o) > 3 + Math.min(4, (m.ping || 0) / 1000 * 8)) ok = false; }
         if (ok) m.oppLast[wid] = now;
       }
       let res;
@@ -913,7 +925,8 @@
       if (m.type === 'pvp') {
         // lag tolerance (host): where I was during the last ~300 ms
         const sets = [this.boxesAt(this.ctrl.pos, this.ctrl.crouching)];
-        if (m.role === 'h') { const cutoff = performance.now() - 300; for (const h of m.history) if (h.t >= cutoff) sets.push(this.boxesAt(h.p, h.low)); }
+        // the other player aimed at where I was on THEIR screen: one ping + their smoothing ago (300 ms at least, 1.2 s at most)
+        if (m.role === 'h') { const cutoff = performance.now() - this.rewindMs(); for (const h of m.history) if (h.t >= cutoff) sets.push(this.boxesAt(h.p, h.low)); }
         res = this.traceShot(o, dirs, sets.map(s => ({ parts: { head: s.head, body: s.body }, ref: 'me' })), wid, reach);
         if (ok) { const h = res.hits.get('me'); if (h) this.applyHit(m.me, h.dmg, h.head, m.op, null, wid); }
       } else {
@@ -928,6 +941,8 @@
       }
       VR.Audio.play(wid === 'sniper' ? 'sniperFar' : def.sound);
     }
+    /** how far back the host looks for my body when the other player's shot arrives */
+    rewindMs() { const m = this.match; return Math.max(300, Math.min(1200, (m && m.ping || 0) + 220)); }
     onHit(d) {
       const m = this.match; if (!m) return;
       m.hp = d.hp;
@@ -1383,6 +1398,7 @@
         if (m.autoT <= 0) this.leave();
       }
 
+      if (m.net) m.net.update(dt);                    // resend what has not arrived, acks, the direct link
       // ping: a round trip to the other player every second, shown on screen (not against the computer alone)
       if (m.type !== 'bots' && !m.solo && m.phase !== 'over') {
         m.pingT = (m.pingT || 0) - dt;
@@ -1408,7 +1424,7 @@
       }
       if (m.role === 'h') {
         m.history.push({ t: performance.now(), p: c.pos.clone(), low: c.crouching });
-        while (m.history.length && performance.now() - m.history[0].t > 400) m.history.shift();
+        while (m.history.length && performance.now() - m.history[0].t > 1300) m.history.shift();      // enough to rewind a slow link
       }
 
       this.placeAvatar(dt);

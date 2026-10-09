@@ -447,10 +447,11 @@
     }
     damage(k) { this.el.dmg.style.opacity = Math.min(0.85, k); }
     /** the round trip to the other player (ms); null hides it */
-    setPing(ms) {
+    setPing(ms, via) {
       const el = this.root.querySelector('.du-ping');
       el.hidden = ms == null; if (ms == null) return;
-      const v = Math.round(ms), t = '📶 ' + v + ' ms';
+      // ⚡ = a direct connection between the two players; 📶 = through the relay
+      const v = Math.round(ms), t = (via === 'p2p' ? '⚡ ' : '📶 ') + v + ' ms';
       if (el.textContent !== t) el.textContent = t;
       el.className = 'du-ping num ' + (v < 80 ? 'good' : v < 160 ? 'ok' : 'bad');
     }

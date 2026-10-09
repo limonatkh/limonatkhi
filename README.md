@@ -1096,6 +1096,30 @@ pause(on) / dispose()` that calls `mgr.finish(outcome, lines)`, registered with
   Space = jump, the mouse = camera. Touch: stick, SHOOT (hold), STEAL, JUMP,
   drag on the right to turn the camera.
 
+## Match connection (v1.36) — `js/duel/matchnet.js`
+
+Why 1v1 felt broken: every match message went **once** through a free public MQTT
+relay abroad. Two phones on the same router still had ~0.5 s ping, and the relay
+may drop messages (QoS 0): a lost hit / death / round start = a player who
+doesn't die or doesn't respawn. On top of that the host (who decides hits) only
+looked 300 ms back for the guest's shots, so at 0.5 s ping the guest's hits did
+not count.
+
+Now, during a match:
+- **Direct connection** (WebRTC data channel). The host offers, the guest
+  answers; the setup messages go over the relay. Same network = a few ms; over
+  the internet STUN (Google / Cloudflare) usually finds a direct path. If none
+  opens (some mobile networks), the relay carries the match as before. The ping
+  label shows ⚡ (direct) or 📶 (relay).
+- **Reliable messages**: everything but position updates / ping is numbered,
+  acknowledged, resent until it arrives, and delivered **in order, once**.
+  Position updates are fire-and-forget but never go back in time.
+- **Fair hits at high ping**: the host rewinds `ping + 220 ms` (300–1200 ms), the
+  shot-origin check grows with ping, and fire rate is checked on the shooter's
+  own clock (so resent shots that arrive together are not rejected).
+- `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
+  (tests) delays / drops messages.
+
 ## Characters, colours, fullscreen
 
 - **Characters:** Hero (default) and **Mr. Fridge** (`character.js`). A character can define
