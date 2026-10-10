@@ -49,10 +49,10 @@
     L.box(-W - T2, 0, LEN, W + T2, H, LEN + T2, wall);
     L.box(-W - T2, 0, -LEN, -W, H, LEN, wall);
     L.box(W, 0, -LEN, W + T2, H, LEN, wall);
-    L.collider(-W - 2, H, -LEN - 2, W + 2, 80, -LEN);
-    L.collider(-W - 2, H, LEN, W + 2, 80, LEN + 2);
-    L.collider(-W - 2, H, -LEN, -W, 80, LEN);
-    L.collider(W, H, -LEN, W + 2, 80, LEN);
+    L.collider(-W - 2, H, -LEN - 2, W + 2, 140, -LEN);         // (up past the sky deck: no standing on top of them)
+    L.collider(-W - 2, H, LEN, W + 2, 140, LEN + 2);
+    L.collider(-W - 2, H, -LEN, -W, 140, LEN);
+    L.collider(W, H, -LEN, W + 2, 140, LEN);
     // wall trim: lemon band on top, team colour stripe at each end
     L.box(-W - T2, H, -LEN - T2, W + T2, H + 0.4, -LEN + 0.1, 'lemon', false);
     L.box(-W - T2, H, LEN - 0.1, W + T2, H + 0.4, LEN + T2, 'lemon', false);

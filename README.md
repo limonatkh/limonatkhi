@@ -1120,6 +1120,33 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Rock routes between the sky islands · the Hiroshima grenade (v1.39)
+
+- **Sky routes** (`js/explore/skyroutes.js`): parkour paths of floating rocks
+  between the existing islands (the islands are untouched — only rocks over
+  the void are added): Ruins → Frozen Summit (*mossy steps*), Frozen Summit →
+  Desert (*ice spine*: long, small rocks, drops), Desert → Crystal Caverns
+  (*burst towers*: two rocks only the Lemon Burst reaches), Crystal Caverns →
+  Citadel (*needles*: tiny rocks, zig-zags, a burst — the hardest). Each route
+  leaves its island towards where the other island hangs in the sky; no markers.
+  Every island is its own area, so a route is two halves joined by a
+  **crossing rock**: stand on it a moment and you are on the same rock at the
+  other island (walk back onto it to cross back). The rocks are real colliders
+  (one merged mesh per island) and are **not safe ground**: a fall puts you
+  back at the route's start on the island. Every jump of every route is driven
+  by a test with the real first-person controller (sprint / walk, take off at
+  the edge or earlier, steer to the next rock, the Lemon Burst where needed).
+- **Hiroshima grenade** (`js/duel/hiroshima.js`): in a 1v1 against a friend
+  (and in the loot arena) two lie in the yard (red beams). E picks one up, G
+  throws it instead of an impulse grenade. Whoever is within 5 m when it goes
+  off (the thrower too) is blown straight up onto the **sky deck**, a flat
+  square 90 m above the yard, and stays there. From the deck's edge a sniper
+  can shoot the player below; the deck stops shots everywhere but its last
+  1.5 m to the edge, so the player below can only hit you when you are at the
+  edge looking down. Walk off the edge to fall back into the yard (no damage).
+  The inviter's game owns the pickups. The yard's invisible walls now reach
+  140 m so nothing can land on top of them.
+
 ## Friends online in the mini-games, spears & bows, basketball moves (v1.38)
 
 - **Billiards / basketball against a friend** (`js/mini/mininet.js`): the start

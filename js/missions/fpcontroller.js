@@ -247,7 +247,7 @@
         this.grounded = false; this.airTime += dt;
       }
       // safe ground (levels with edges to fall off — the islands): remember where I last stood
-      if (level.safeRespawn && this.grounded && !this.climbing) {
+      if (level.safeRespawn && this.grounded && !this.climbing && !(level.unsafeAt && level.unsafeAt(this.pos))) {   // (the sky routes' rocks are not safe ground)
         this.safeT = (this.safeT || 0) + dt;
         if (this.safeT > 0.6) { this.safeT = 0; this.safe = { pos: [this.pos.x, this.pos.y + 0.05, this.pos.z], yaw: this.yaw }; }
       }

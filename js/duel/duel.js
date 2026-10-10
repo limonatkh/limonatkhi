@@ -66,6 +66,7 @@
       this.fx = new VR.DuelFx(this.scene);
       // my ability slot (play as a fighter / loot powers), the loot arena's floor, holding a hostage (js/duel/powers.js)
       this.powers = new VR.Powers.PlayerPowers(this); this.loot = new VR.Powers.Loot(this); this.hostage = new VR.Powers.Hostage(this);
+      this.hiro = VR.Hiroshima ? new VR.Hiroshima.Hiroshima(this) : null;      // the Hiroshima loot grenade + the sky deck (js/duel/hiroshima.js)
       this.match = null; this.pending = null; this.incoming = null;
       this.cool = new Map(); this.declinedFrom = new Map();
       this.pickOpen = false; this.pickNotice = null; this.pickT = 0;
@@ -364,8 +365,9 @@
         case 'st': this.onOppState(d); break;
         case 'fire': this.onOppFire(d); break;
         case 'hit': this.onHit(d); break;
-        case 'nade': this.spawnNade(d.id, d.p, d.v, false); break;
+        case 'nade': this.spawnNade(d.id, d.p, d.v, false, !!d.h); break;
         case 'mine': if (Array.isArray(d.p) && (d.o === 'h' || d.o === 'g')) this.spawnMine(d.id, d.o, d.p); break;
+        case 'hl': case 'hp': case 'hg': case 'hq': if (this.hiro) this.hiro.onNet(d); break;
         case 'mboom': if (m.role === 'g') this.onMineBoom(d.id); break;
         case 'boom': this.onBoom(d.id, d.p); break;
         case 're': if (m.role === 'g') this.onRoundEnd(d.w, d.why, d.sc); break;
@@ -541,6 +543,7 @@
       this.clearWorld();
       const L = VR.DuelArena.build();
       this.level = L;
+      if (this.hiro) this.hiro.build(L);
       const sc = this.scene;
       sc.add(L.group);
       sc.background = new T.Color(L.ambient.background);
@@ -554,7 +557,7 @@
       // the effects layer (js/duel/feedback.js): pooled particles, rings, lights, the screen overlay
       this.fb = VR.FeedbackLayer ? new VR.FeedbackLayer(sc, this.camera, this.ui.el.dmg) : null;
       this.hands.setStyle(FB().profile(this.myProf()).arms);
-      this.solidBoxes = L.solids.map(s => new T.Box3(new T.Vector3(...s.min), new T.Vector3(...s.max)));
+      this.solidBoxes = L.solids.filter(s => !s.noShot).concat(L.extras.shotOnly || []).map(s => new T.Box3(new T.Vector3(...s.min), new T.Vector3(...s.max)));   // (the sky deck: shots pass its edges)
       if (!this.match.solo && this.match.type !== 'bots') this.buildAvatar();
       this.nades = [];
       this.camera.fov = this.baseFov(); this.camera.updateProjectionMatrix();
@@ -574,6 +577,7 @@
       }
       this.level = null; this.avatar = null; this.nades = []; this.mines = [];
       if (this.powers) { this.powers.clearRound(); this.loot.items = []; this.hostage.held = null; }
+      if (this.hiro) { this.hiro.items.clear(); this.hiro.charges = 0; this.hiro.flight = null; this.hiro.paint(); }
       this.bots.list = [];                          // their bodies went with the scene
       this.gunId = null;
     }
@@ -644,6 +648,7 @@
       if (m.rules && m.rules.weapon && m.readyMe && !this.lo.only) this.lo = new (FK().Loadout)(null, D.NADES, m.rules.weapon);
       this.hostage.release('round');
       if (m.type === 'bots') { this.powers.resetRound(); this.loot.resetRound(); }
+      if (this.hiro) this.hiro.resetRound();
       this.lo.refill(); this.scoped = false; this.ads = false; this.adsK = 0; this.reloadSnd = false;
       this.kick = 0; this.shake = 0; this.dmgFlash = 0; this.stepAcc = 0;
       this.hands.hold(null); this.gunHolder.visible = true;
@@ -853,6 +858,7 @@
       const m = this.match;
       if (m.phase !== 'fight' && m.phase !== 'practice') return;
       if (m.dead && m.dead[m.me]) return;
+      if (this.hiro && this.hiro.flight) return;                   // (blown up into the sky: no shooting on the way)
       const lo = this.lo, wid = lo.id;
       const w = lo.shoot();
       if (!w) return;
@@ -1282,6 +1288,7 @@
     throwNade() {
       const m = this.match;
       if ((m.phase !== 'fight' && m.phase !== 'practice') || (m.dead && m.dead[m.me])) return;
+      if (this.hiro && this.hiro.throwIt()) return;                 // carrying a Hiroshima: that goes first
       if (!this.lo.useNade(D.NADE_RECHARGE)) return;
       const o = this.eyePos(new T.Vector3()), d = this.aimDir(new T.Vector3());
       const p = o.addScaledVector(d, 0.5).addScaledVector(this.ctrl.right(), -0.12);
@@ -1292,10 +1299,11 @@
       this.hands.pokeReach(); this.lo.switchT = Math.max(this.lo.switchT, 0.18);
       VR.Audio.play('throw');
     }
-    spawnNade(id, p, v, mine) {
-      const obj = VR.DuelWeapons.grenade(); obj.scale.setScalar(1.6);
+    spawnNade(id, p, v, mine, hiro = false) {
+      const obj = VR.DuelWeapons.grenade(); obj.scale.setScalar(hiro ? 2.6 : 1.6);
+      if (hiro) obj.traverse(o => { if (o.isMesh && o.material) { o.material = o.material.clone(); o.material.userData.own = true; if (o.material.color) o.material.color.lerp(new T.Color(0xff3a2a), 0.65); } });
       obj.position.fromArray(p); this.scene.add(obj);
-      this.nades.push({ id, obj, pos: new T.Vector3().fromArray(p), vel: new T.Vector3().fromArray(v), t: 0, mine });
+      this.nades.push({ id, obj, pos: new T.Vector3().fromArray(p), vel: new T.Vector3().fromArray(v), t: 0, mine, hiro });
     }
     updateNades(dt) {
       for (let i = this.nades.length - 1; i >= 0; i--) {
@@ -1312,7 +1320,9 @@
     onBoom(id, pArr) {
       const p = new T.Vector3().fromArray(pArr);
       const i = this.nades.findIndex(n => n.id === id);
+      const hiro = i >= 0 && this.nades[i].hiro;
       if (i >= 0) { this.scene.remove(this.nades[i].obj); this.nades.splice(i, 1); }
+      if (hiro && this.hiro) { this.hiro.boom(p); return; }          // a Hiroshima: up to the sky deck instead of a push
       this.fx.wave(p);
       VR.Audio.play('burst');
       const m = this.match;
@@ -1399,7 +1409,7 @@
         else if (a === 'mine') this.placeMine();
         else if (a === 'ability') this.powers.use();
         else if (a === 'grab') this.hostage.toggle();
-        else if (a === 'interact') this.loot.pick();
+        else if (a === 'interact') { if (!(this.hiro && this.hiro.pick())) this.loot.pick(); }
         else if (a === 'slotNext' || a === 'slotPrev' || a === 'swap') this.switchTo((this.lo.cur + 1) % this.lo.slots.length);
       }
       // automatic weapons fire while the button is held
@@ -1420,7 +1430,7 @@
       if (m.phase !== 'end' && m.phase !== 'over' && m.phase !== 'wait') {
         c.sprint = canMove && VR.Input.sprintHeld() && !this.hostage.held;     // no running with a hostage
         this.lastPos = (this.lastPos || new T.Vector3()).copy(c.pos);
-        const evs = c.update(dt, L, move, canMove && VR.Input.crouchHeld());
+        const evs = this.hiro && this.hiro.flight && this.hiro.stepFlight(dt) ? [] : c.update(dt, L, move, canMove && VR.Input.crouchHeld());
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');
           else if (e.type === 'land') this.onLand(e.speed);
@@ -1490,8 +1500,14 @@
       // powers, loot, a hostage held in front of me (before the bots are drawn)
       if (m.type === 'bots') {
         this.hostage.update(dt); this.powers.update(dt); this.loot.update(dt);
+        if (this.hiro) this.hiro.update(dt);
         this.promptT = (this.promptT || 0) - dt;
-        if (this.promptT <= 0) { this.promptT = 0.15; const lp = this.loot.prompt(), hp = lp ? null : this.hostage.prompt(); this.ui.setPrompt(lp || hp, lp ? 'pick' : hp ? 'grab' : null); }
+        if (this.promptT <= 0) { this.promptT = 0.15; const lp = (this.hiro && this.hiro.prompt()) || this.loot.prompt(), hp = lp ? null : this.hostage.prompt(); this.ui.setPrompt(lp || hp, lp ? 'pick' : hp ? 'grab' : null); }
+      } else if (this.hiro && this.hiro.on) {
+        // 1v1 against a friend: the Hiroshima grenades on the floor
+        this.hiro.update(dt);
+        this.promptT = (this.promptT || 0) - dt;
+        if (this.promptT <= 0) { this.promptT = 0.15; const lp = this.hiro.prompt(); this.ui.setPrompt(lp, lp ? 'pick' : null); }
       }
       // the bots: my game runs them (co-op: the host's, and it streams them)
       if (m.type !== 'pvp') {

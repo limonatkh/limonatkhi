@@ -871,6 +871,8 @@
   .bb-meter { position: absolute; left: calc(50% + 70px); top: 50%; transform: translateY(-50%); width: 18px; height: 120px; background: rgba(14,17,26,.8); border: 3px solid var(--ink); }
   .bb-meter i { position: absolute; left: 0; right: 0; bottom: 0; }
   .bb-meter .bb-sweet { background: rgba(95,174,58,.75); }
+  .du-hiro { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); padding: 6px 12px; background: rgba(40,8,6,.86); border: 3px solid #ff4a2a; color: #ffd0c8; font-weight: 800; letter-spacing: .5px; pointer-events: none; animation: hiPulse 1.2s ease-in-out infinite; }
+  @keyframes hiPulse { 50% { opacity: .65; } }
   .bb-chips { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; }
   .bb-chip { font: 700 12px/1 var(--font, sans-serif); padding: 5px 9px; background: rgba(14,17,26,.82); border: 2px solid var(--ink); color: #f4f1e6; }
   .bb-chip.bb-c3 { border-color: #ffe14a; color: #ffe14a; }
@@ -1195,6 +1197,7 @@
 <script src="js/explore/islands.js"></script>
 <script src="js/explore/explore.js"></script>
 <script src="js/explore/islandworlds.js"></script>
+<script src="js/explore/skyroutes.js"></script>
 <script src="js/explore/secretcave.js"></script>
 <script src="lib/mqtt.min.js"></script>
 <script src="js/challenge/net.js"></script>
@@ -1211,6 +1214,7 @@
 <script src="js/duel/bots.js"></script>
 <script src="js/duel/fighters.js"></script>
 <script src="js/duel/powers.js"></script>
+<script src="js/duel/hiroshima.js"></script>
 <script src="js/duel/duelui.js"></script>
 <script src="js/duel/duel.js"></script>
 <script src="js/duel/fightmenu.js"></script>
