@@ -35,7 +35,7 @@
                   picks: [['sniper']], sniperOnly: true, reward: 300 },
   };
   const ORDER = ['normal', 'medium', 'hard', 'impossible', 'impossiblePlus'];
-  const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14], knife: [0.6, 1.6], spear: [1.2, 2.8], bow: [10, 20] };
+  const RANGE = { pistol: [7, 14], smg: [5, 11], shotgun: [2.5, 6], sniper: [13, 28], revolver: [8, 16], rifle: [8, 18], dmr: [12, 24], lmg: [6, 14], knife: [0.6, 1.6], spear: [5, 13], bow: [10, 20] };
   const NAMES = [{ en: 'Limo', ar: 'ليمو' }, { en: 'Sour', ar: 'حامض' }, { en: 'Peel', ar: 'قشرة' }];
   const WALK = () => VR.CONFIG.FP.SPEED_UNITS * VR.CONFIG.FP.UNIT;
 
@@ -207,10 +207,21 @@
         b.pitch += Math.max(-tr, Math.min(tr, wantPitch - b.pitch));
         const aligned = Math.abs(wrap(wantYaw - b.yaw)) < 0.12;
         // fire
-        if (sees && b.seenT >= D.react && aligned && (!b.lo.def.melee || dist <= b.lo.def.range - 0.2)) {       // a knife / spear only in reach
+        const cdef = b.lo.def;
+        if (cdef.charge) {
+          // a bow / a spear: drawn first (you can see it), shot / thrown when fully drawn
+          const can = sees && b.seenT >= D.react && aligned && b.lo.ready() && b.lo.slot.mag > 0 && dist < (cdef.thrown ? 26 : 60);
+          b.drawT = can ? (b.drawT || 0) + dt : Math.max(0, (b.drawT || 0) - dt * 3);
+          if (can && b.drawT >= cdef.charge.full * 0.85) {
+            b.drawT = 0;
+            const w = b.lo.shoot();
+            if (w) { b.lo.coolT *= D.fireMul; if (b.body) b.body.relT = 0.0001; this.fire(b, eye, aimPt, tgt, w, players, 0.95); }
+          }
+        } else if (sees && b.seenT >= D.react && aligned && (!b.lo.def.melee || dist <= b.lo.def.range - 0.2)) {       // a knife only in reach
           const w = b.lo.shoot();
           if (w) { b.lo.coolT *= D.fireMul; this.fire(b, eye, aimPt, tgt, w, players); }
         }
+        if (b.body) { b.body.draw = cdef.charge ? Math.min(1, (b.drawT || 0) / cdef.charge.full) : 0; b.body.gunHidden = !!(cdef.thrown && (b.lo.slot.mag <= 0 || b.lo.coolT > 0)); }
         // grenade at where you were last seen (hard / impossible)
         b.nadeT -= dt;
         if (D.nades && !this.only && b.nadeT <= 0 && !sees && b.lastSeen && b.unseenT > 1.5 && b.pos.distanceTo(b.lastSeen) < 20) {
@@ -241,7 +252,8 @@
       }
     }
     /** a bot fires: the shot is traced against every player (only the host does this) */
-    fire(b, eye, aimPt, tgt, w, players) {
+    fire(b, eye, aimPt, tgt, w, players, pw = null) {
+      const key = pw != null ? b.lo.id + '@' + pw : b.lo.id, dk = pw != null ? WK().drawDamage(pw) : 1;
       const D = b.aim || (b.f ? b.f.aim : this.diff), mgr = this.mgr;
       const base = aimPt.clone().sub(eye).normalize();
       // aiming error grows with the target's speed (moving makes you harder to hit)
@@ -252,18 +264,19 @@
       const hits = new Map(); const ends = []; const paths = [];
       // the wind: a bot aims against it as well as its skill allows (impossible ≈ fully, normal hardly)
       const wind = mgr.windNow ? mgr.windNow() : null;
-      if (wind) {
-        const dist = aimPt.distanceTo(eye), drift = WK().driftAt(b.lo.id, wind, dist);
+      if (wind || pw != null) {
+        // (an arrow / a spear also drops: aimed a little high, as well as the bot can judge it)
+        const dist = aimPt.distanceTo(eye), drift = WK().driftAt(key, wind, dist);
         const skill = b.windSkill != null ? b.windSkill : (this.diff.windSkill != null ? this.diff.windSkill : 0.5);
-        base.copy(aimPt).addScaledVector(drift, -skill).sub(eye).normalize();
+        base.copy(aimPt).addScaledVector(drift, -(pw != null && !wind ? 0.92 : skill)).sub(eye).normalize();
       }
       for (let k = 0; k < w.pellets; k++) {
         const d = base.clone().addScaledVector(right, b.aimErr.x * err + gauss() * w.spread).addScaledVector(up, b.aimErr.y * err * 0.7 + gauss() * w.spread).normalize();
-        const r = WK().tracePath(this.ray, mgr.solidBoxes, eye, d, targets, w.melee ? w.range + 0.4 : 200, b.lo.id, wind);
+        const r = WK().tracePath(this.ray, mgr.solidBoxes, eye, d, targets, w.melee ? w.range + 0.4 : 200, key, wind);
         if (k < 3) { ends.push(r.end); paths.push(r.path); }
         if (r.ref) {
           const h = hits.get(r.ref) || { dmg: 0, head: false };
-          h.dmg += FK().damage(b.lo.id, r.hit, r.dist) * (b.dmgMul || 1); h.head = h.head || r.hit === 'head';
+          h.dmg += FK().damage(b.lo.id, r.hit, r.dist) * (b.dmgMul || 1) * dk; h.head = h.head || r.hit === 'head';
           hits.set(r.ref, h);
         }
       }

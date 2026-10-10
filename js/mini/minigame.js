@@ -12,6 +12,13 @@
  * Game states (js/game.js): 'miniEnter' (fading out of the square),
  * 'mini' (in the world), 'miniReturn' (fading back).
  *
+ * ONLINE (v1.38): the start screen's "PLAY A FRIEND ONLINE" opens the 1v1's list of
+ * players (the friend in your challenge room, whoever is online) with a billiards /
+ * basketball invite; an accepted invite brings both players into the same world
+ * (from the square, the menu or a mini-game's start screen) and starts the match at
+ * once — js/mini/mininet.js. Pausing does not stop an online match; leaving it, or the
+ * other player leaving, ends it (the one who stays wins).
+ *
  * COINS use the shared wallet (js/core/wallet.js): one transaction id per
  * match ('mini:<game>:<matchId>'), so the result screen, a second click on
  * the return button or a reload can never pay twice; an abandoned match
@@ -47,6 +54,7 @@
     'mg.again': 'PLAY AGAIN', 'mg.return': 'RETURN TO LEMONAT', 'mg.paused': 'PAUSED', 'mg.resume': 'RESUME',
     'mg.leave': 'LEAVE MATCH', 'mg.leaveNote': 'Leaving before the end pays 0 coins.', 'mg.rewards': 'Win {w} · Lose {l}',
     'mg.rewardsD': 'Win {w} · Draw {d} · Lose {l}', 'mg.you': 'You',
+    'mg.online': '🌐 PLAY A FRIEND ONLINE', 'mg.vsComputer': 'or against the computer:', 'mg.onlineNote': 'The match goes on while this is open.',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'mg.start': 'ابدأ', 'mg.level': 'الخصم', 'mg.easy': 'سهل', 'mg.normal': 'عادي', 'mg.hard': 'صعب',
@@ -55,6 +63,7 @@
     'mg.again': 'العب مجددًا', 'mg.return': 'ارجع إلى ليمونات', 'mg.paused': 'إيقاف مؤقت', 'mg.resume': 'تابع',
     'mg.leave': 'غادر المباراة', 'mg.leaveNote': 'المغادرة قبل النهاية = 0 عملات.', 'mg.rewards': 'الفوز {w} · الخسارة {l}',
     'mg.rewardsD': 'الفوز {w} · التعادل {d} · الخسارة {l}', 'mg.you': 'أنت',
+    'mg.online': '🌐 العب ضد صديق أونلاين', 'mg.vsComputer': 'أو ضد الكمبيوتر:', 'mg.onlineNote': 'المباراة مستمرة وهذه النافذة مفتوحة.',
   });
 
   class MiniManager {
@@ -78,6 +87,37 @@
       this.bannerT = 0;
     }
     get active() { return !!this.cur; }
+    /**
+     * An accepted online invite (js/duel/duel.js → startMini): into this world, the match starts
+     * at once. From the square (back to where I stood afterwards), the menu, or a mini-game's start screen.
+     */
+    enterOnline(id, s) {
+      const g = this.game;
+      if (!CLASSES[id]) { s.close(true); return false; }
+      this.online = s;
+      if (this.cur && g.state === 'mini') {
+        if (this.id === id && this.state === 'intro') { this.startOnline(); return true; }
+        this.teardown(true); this.online = s;
+      } else if (g.state === 'adventure') {
+        const c = g.missions.ctrl, r = g.missions.run;
+        if (r && c) g.hubReturn = { area: r.def.id, pos: [+c.pos.x.toFixed(2), +c.pos.y.toFixed(2), +c.pos.z.toFixed(2)], yaw: +c.yaw.toFixed(3) };
+        g.missions.saveArea && g.missions.saveArea();
+      } else if (g.state !== 'menu') { s.close(true); this.online = null; return false; }
+      this.id = id; this.state = 'entering'; this.enterT = 0;
+      this.inputOff();
+      VR.Audio.play('portal');
+      g.setState('miniEnter');
+      g.fade.target = 1;
+      return true;
+    }
+    startOnline() {
+      if (!this.cur || !this.online) return;
+      this.closeCard();
+      this.matchId = 'net-' + this.online.did; this.paid = false; this.result = null;
+      this.state = 'play';
+      this.cur.startOnline(this.online);
+      this.cur.pause && this.cur.pause(false);
+    }
     get rewards() { return REWARDS[this.id] || { win: 0, lose: 0, draw: 0, abandon: 0 }; }
 
     // ------------------------------------------------------------ in / out
@@ -104,12 +144,13 @@
       this.root.hidden = false; this.root.dataset.game = this.id;
       g.setState('mini');
       this.resize(window.innerWidth, window.innerHeight);
-      this.showIntro();
+      if (this.online) this.startOnline(); else this.showIntro();
       g.fade.target = 0;
     }
     /** RETURN TO LEMONAT (or leaving): back in front of the gate */
     leave() {
       if (!this.cur || this.state === 'leaving') return;
+      if (this.online) { this.online.close(true); this.online = null; }
       if (this.state === 'result') this.payOnce();          // (already paid when the result was final — the txId keeps it once)
       this.state = 'leaving'; this.closeCard();
       this.inputOff();
@@ -125,8 +166,9 @@
       if (this.result && this.result.paid > 0) setTimeout(() => VR.UI.toast(tr('mg.coins', { n: this.result.paid }), 2000), 400);
     }
     /** drop everything (also when the game is forced back to the menu) */
-    teardown() {
+    teardown(keepNet) {
       this.inputOff();
+      if (this.online && !keepNet) { this.online.close(true); this.online = null; }
       if (this.cur) { try { this.cur.dispose(); } catch (e) { console.error(e); } }
       if (this.scene) disposeScene(this.scene);
       this.cur = null; this.scene = null; this.state = null;
@@ -147,6 +189,7 @@
         <div class="mg-level"><b>${esc(tr('mg.level'))}</b>${lv.map(l => `<button class="btn small ${l === this.level ? 'on' : ''}" data-lv="${l}" type="button">${esc(tr('mg.' + l))}</button>`).join('')}</div>
         <p class="mg-reward"><span class="coin-ico"></span> ${esc(rw)}</p>
         <button class="btn primary mg-go" type="button">${esc(tr('mg.start'))}</button>
+        <button class="btn mg-net" type="button">${esc(tr('mg.online'))}</button>
         <button class="btn small mg-back" type="button">${esc(tr('mg.return'))}</button>`);
       this.el.card.querySelectorAll('[data-lv]').forEach(b => b.addEventListener('click', () => {
         VR.Audio.play('click'); this.level = b.dataset.lv; VR.UI.store.set('miniLevel', this.level);
@@ -154,6 +197,7 @@
       }));
       this.el.card.querySelector('.mg-go').addEventListener('click', () => { VR.Audio.unlock(); VR.Audio.play('click'); this.startMatch(); });
       this.el.card.querySelector('.mg-back').addEventListener('click', () => { VR.Audio.play('click'); this.leave(); });
+      this.el.card.querySelector('.mg-net').addEventListener('click', () => { VR.Audio.unlock(); VR.Audio.play('click'); this.game.duel.openPickerMini(this.id); });
     }
     /** a new match: a new id, nothing paid yet */
     startMatch(level = this.level) {
@@ -167,8 +211,8 @@
     pause() {
       if (this.state !== 'play') return;
       this.state = 'paused';
-      this.cur.pause && this.cur.pause(true);
-      this.card(`<h2 class="heading">${esc(tr('mg.paused'))}</h2>
+      if (!this.online) this.cur.pause && this.cur.pause(true);           // (online: the match goes on)
+      this.card(`<h2 class="heading">${esc(tr('mg.paused'))}</h2>${this.online ? `<p class="mg-note">${esc(tr('mg.onlineNote'))}</p>` : ''}
         <button class="btn primary mg-res" type="button">${esc(tr('mg.resume'))}</button>
         <button class="btn mg-quit" type="button">${esc(tr('mg.leave'))}</button>
         <p class="mg-note">${esc(tr('mg.leaveNote'))}</p>`);
@@ -184,6 +228,7 @@
     abandon() {
       if (!this.cur) return;
       const amount = this.state === 'result' ? 0 : this.rewards.abandon || 0;
+      if (this.online) { this.online.close(true); this.online = null; }        // the other player wins
       if (this.state !== 'result' && this.matchId) {
         this.result = { outcome: 'abandon', paid: 0 };
         if (amount > 0) this.result.paid = VR.Wallet.of().credit(amount, `mini:${this.id}:${this.matchId}`, 'mini:' + this.id) ? amount : 0;
@@ -209,9 +254,11 @@
         <p class="mg-coins">${r.amount > 0 ? `<span class="coin-ico"></span> ${esc(tr('mg.coins', { n: r.amount }))}` : esc(tr('mg.noCoins'))}</p>
         <p class="mg-note">${esc(tr('mg.balance', { n: VR.Wallet.of().coins.toLocaleString('en-US') }))}</p>
         <button class="btn primary mg-home" type="button">${esc(tr('mg.return'))}</button>
-        <button class="btn mg-again" type="button">${esc(tr('mg.again'))}</button>`);
+        ${this.online ? '' : `<button class="btn mg-again" type="button">${esc(tr('mg.again'))}</button>`}`);
       this.el.card.querySelector('.mg-home').addEventListener('click', () => { VR.Audio.play('click'); this.leave(); });
-      this.el.card.querySelector('.mg-again').addEventListener('click', () => { VR.Audio.play('click'); this.startMatch(); });
+      const again = this.el.card.querySelector('.mg-again');
+      if (again) again.addEventListener('click', () => { VR.Audio.play('click'); this.startMatch(); });
+      if (this.online) { this.online.close(false); this.online = null; }          // the match is over: the link can go
     }
     /** credit this match's reward; the wallet ignores a txId it has already seen */
     payOnce() {
@@ -237,12 +284,13 @@
       const st = this.game.state;
       if (st === 'miniEnter') return this.updateEnter(dt);
       if (st === 'miniReturn') { if (this.cur) this.cur.update(dt, false); return this.updateReturn(); }
+      if (this.online) this.online.update(dt);
       if (!this.cur) return;
       if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) this.el.banner.hidden = true; }
-      this.cur.update(dt, this.state === 'play');
+      this.cur.update(dt, this.state === 'play' || (!!this.online && this.state === 'paused'));
     }
     render(renderer) {
-      if (this.game.state === 'miniEnter') return this.game.missions.render(renderer);
+      if (this.game.state === 'miniEnter') { if (this.game.missions.active) this.game.missions.render(renderer); return; }
       if (this.scene) renderer.render(this.scene, this.camera);
     }
     resize(w, h) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); if (this.cur && this.cur.resize) this.cur.resize(w, h); }

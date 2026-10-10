@@ -549,7 +549,7 @@
   .du-prompt b { font-size: 18px; } .du-prompt small { font-size: 12px; color: #c9b2ff; }
   @keyframes duPulse { to { box-shadow: 0 0 0 6px rgba(155,107,255,.15), 0 5px 0 rgba(0,0,0,.35); } }
   .du-key { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 4px; background: var(--lemon); color: var(--ink); border: 3px solid var(--ink); font-family: 'Game', 'Cairo', monospace; font-weight: 700; font-size: 15px; box-sizing: border-box; }
-  #duPick { z-index: 7; }
+  #duPick { z-index: 25; }                  /* above the square's HUD (invites from the square, v1.38) */
   #duPick .card { max-height: calc(100% - 24px); overflow-y: auto; }
   .du-sub { margin: -6px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
   .du-h { margin: 4px 0 0; font-family: var(--display); font-size: 14px; color: var(--muted); letter-spacing: .08em; }
@@ -567,7 +567,7 @@
   .du-wbar div { height: 100%; background: #9b6bff; transform-origin: left; transition: transform .2s linear; }
   [dir="rtl"] .du-wbar div { transform-origin: right; }
   .du-wnum { text-align: center; font-family: 'Game', 'Cairo', monospace; font-size: 30px; color: var(--lemon); }
-  .du-invite { position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 128px); left: 50%; transform: translateX(-50%); z-index: 8;
+  .du-invite { position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 128px); left: 50%; transform: translateX(-50%); z-index: 26;
     width: min(340px, calc(100vw - 24px)); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; border-color: #9b6bff; box-sizing: border-box; }
   .du-ititle { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 18px; }
   .du-ico { color: #c9b2ff; font-size: 20px; }
@@ -871,6 +871,14 @@
   .bb-meter { position: absolute; left: calc(50% + 70px); top: 50%; transform: translateY(-50%); width: 18px; height: 120px; background: rgba(14,17,26,.8); border: 3px solid var(--ink); }
   .bb-meter i { position: absolute; left: 0; right: 0; bottom: 0; }
   .bb-meter .bb-sweet { background: rgba(95,174,58,.75); }
+  .bb-chips { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; }
+  .bb-chip { font: 700 12px/1 var(--font, sans-serif); padding: 5px 9px; background: rgba(14,17,26,.82); border: 2px solid var(--ink); color: #f4f1e6; }
+  .bb-chip.bb-c3 { border-color: #ffe14a; color: #ffe14a; }
+  .bb-chip.bb-cd { border-color: #ff7a1a; color: #ffb070; animation: bbPulse 1s ease-in-out infinite; }
+  .bb-prompt { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(14,17,26,.88); border: 3px solid #7fe8ff; color: #fff; font-weight: 800; pointer-events: none; }
+  .bb-prompt kbd { background: #7fe8ff; color: #0e111a; padding: 2px 8px; font: 800 14px monospace; }
+  .bb-prompt.dunk { border-color: #ff7a1a; } .bb-prompt.dunk kbd { background: #ff7a1a; }
+  @keyframes bbPulse { 50% { transform: scale(1.08); } }
   .bb-meter .bb-fill { background: #ffe14a; width: 6px; left: 3px; right: auto; }
   .bb-meter.ok { border-color: #5fae3a; }
   .bb-keys { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--muted); background: rgba(14,17,26,.6); padding: 3px 10px 4px; white-space: nowrap; }
@@ -1207,6 +1215,7 @@
 <script src="js/duel/duel.js"></script>
 <script src="js/duel/fightmenu.js"></script>
 <script src="js/mini/minigame.js"></script>
+<script src="js/mini/mininet.js"></script>
 <script src="js/mini/poolsim.js"></script>
 <script src="js/mini/billiards.js"></script>
 <script src="js/mini/hoopsim.js"></script>

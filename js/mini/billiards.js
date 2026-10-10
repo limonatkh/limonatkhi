@@ -38,6 +38,8 @@
     'bl.r.eightEarly': 'The 8 went in too early', 'bl.r.eightFoul': 'The 8 went in on a foul', 'bl.r.oppEarly': 'The opponent sank the 8 too early',
     'bl.r.oppFoul': 'The opponent fouled on the 8', 'bl.left': 'Balls left — you: {a} · opponent: {b}', 'bl.place.ok': '✓ Place',
     'bl.power': 'POWER', 'bl.shots': 'Shots: {n}',
+    'bl.oppBreak': '{name} breaks', 'bl.youBreak': 'Your break! Put the cue ball behind the line, then shoot hard.', 'bl.sync': 'Setting up the table…',
+    'bl.oppAims': '{name} is aiming…', 'bl.r.left': 'Your opponent left — you win',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'bl.title': 'البلياردو — الكرة 8', 'bl.goal': 'أدخل كراتك المحددة، ثم أدخل الكرة 8 لتفوز.',
@@ -55,6 +57,8 @@
     'bl.r.eightEarly': 'دخلت الكرة 8 مبكرًا', 'bl.r.eightFoul': 'دخلت الكرة 8 مع خطأ', 'bl.r.oppEarly': 'الخصم أدخل الكرة 8 مبكرًا',
     'bl.r.oppFoul': 'الخصم ارتكب خطأ على الكرة 8', 'bl.left': 'الكرات المتبقية — أنت: {a} · الخصم: {b}', 'bl.place.ok': '✓ ضعها',
     'bl.power': 'القوة', 'bl.shots': 'الضربات: {n}',
+    'bl.oppBreak': '{name} يفتتح', 'bl.youBreak': 'الضربة الافتتاحية لك! ضع الكرة البيضاء خلف الخط ثم اضرب بقوة.', 'bl.sync': 'تجهيز الطاولة…',
+    'bl.oppAims': '{name} يصوّب…', 'bl.r.left': 'خصمك غادر — فزت',
   });
 
   // sounds: ball on ball, cushion, a pocket, the cue
@@ -279,6 +283,92 @@
       this.mgr.banner(tr('bl.break'), 'info', 2.4);
       this.beginTurn();
     }
+    /**
+     * Against a friend online (js/mini/mininet.js). The inviter's game is the referee: it racks,
+     * it judges every shot and sends the result; both games roll each shot themselves (the same
+     * strike) and the guest snaps to the referee's table when the balls stop. Side 0 is always
+     * "me" on each screen: the guest sees the referee's sides swapped.
+     */
+    startOnline(net) {
+      this.net = net; this.level = 'online';
+      this.sim = new P.PoolSim(); this.rules = new P.EightBall();
+      this.shots = [0, 0]; this.drops = []; this.planner = null; this.pj = null; this.pendingShot = null; this.stT = 0;
+      this.ballM.forEach(m => { m.visible = true; m.scale.setScalar(1); });
+      this.el.ai.querySelector('.bl-name').textContent = net.oppName.slice(0, 14);
+      if (net.host) {
+        this.sim.rack();
+        for (const b of this.sim.balls) { b.x = +b.x.toFixed(5); b.z = +b.z.toFixed(5); }       // (exactly what the guest gets)
+        net.send({ k: 'pr', b: this.sim.balls.map(b => [b.x, b.z]) });
+        this.rules.turn = 0;
+        this.syncBalls(0);
+        this.mgr.banner(tr('bl.youBreak'), 'info', 2.4);
+        this.beginTurn();
+      } else {
+        this.rules.turn = 1;                                 // the inviter breaks
+        this.phase = 'sync'; this.hint(tr('bl.sync'));
+        this.paintHud();
+      }
+      net.listen((d) => this.onNet(d));                     // (what came while the room was loading: now)
+    }
+    oppName() { return this.net ? this.net.oppName : tr('bl.opp'); }
+    /** the referee's view → mine (the guest: sides swapped) */
+    flip(s) { return this.net && !this.net.host ? 1 - s : s; }
+    onNet(d) {
+      switch (d.k) {
+        case 'pr':                                            // the rack (guest)
+          if (this.net.host || this.phase !== 'sync') return;
+          d.b.forEach(([x, z], n) => { const b = this.sim.balls[n]; if (b) { b.x = x; b.z = z; b.on = true; b.vx = b.vz = 0; } });
+          this.syncBalls(0);
+          this.mgr.banner(tr('bl.oppBreak', { name: this.oppName() }), 'info', 2);
+          this.beginTurn();
+          break;
+        case 'st':                                            // the other player aiming / placing the cue ball
+          if (this.phase !== 'opp') return;
+          this.oppAim = d;
+          break;
+        case 'ps':                                            // the other player's shot
+          if (this.phase === 'opp') this.takeOppShot(d); else this.pendingShot = d;
+          break;
+        case 'pj':                                            // the referee's judgement (guest)
+          this.pj = d;
+          if (this.phase === 'judgeWait') this.applyJudge();
+          break;
+        case 'bye':
+          if (!this.rules.over && this.phase !== 'over' && this.phase !== 'done') { this.rules.over = { winner: 0, reason: 'left' }; this.end(this.rules.over); }
+          break;
+      }
+    }
+    takeOppShot(d) {
+      this.pendingShot = null;
+      const c = this.sim.cue; c.x = d.cx; c.z = d.cz; c.on = true; c.vx = c.vz = 0;
+      this.aim = d.a; this.setPower(Math.min(1, d.s / 6.8));
+      this.strikeNow(1, d.a, d.s);
+    }
+    /** the opponent's turn: the computer thinks — or, online, the friend plays it */
+    oppTurn() {
+      if (!this.net) return this.aiTurn();
+      this.phase = 'opp'; this.oppAim = null;
+      this.hint(tr('bl.oppAims', { name: this.oppName() }));
+      if (this.pendingShot) this.takeOppShot(this.pendingShot);
+    }
+    /** the table as the referee has it */
+    snap() {
+      const r = this.rules;
+      return { b: this.sim.balls.map(b => [+b.x.toFixed(5), +b.z.toFixed(5), b.on ? 1 : 0]), turn: r.turn, groups: r.groups.slice(), isBreak: r.isBreak, inHand: r.inHand, over: r.over, potted: [...r.potted] };
+    }
+    /** guest: the referee's result for the shot that just stopped */
+    applyJudge() {
+      const { out, st } = this.pj; this.pj = null;
+      const r = this.rules;
+      st.b.forEach(([x, z, on], n) => { const b = this.sim.balls[n]; b.x = x; b.z = z; b.on = !!on; b.vx = b.vz = 0; });
+      r.turn = this.flip(st.turn); r.groups = [st.groups[1], st.groups[0]]; r.isBreak = st.isBreak; r.inHand = st.inHand;
+      r.over = st.over ? { winner: this.flip(st.over.winner), reason: st.over.reason } : null;
+      r.potted = new Set(st.potted); r.shot = null;
+      this.drops = this.drops.filter(dd => !this.sim.balls[dd.n].on);
+      for (const b of this.sim.balls) if (b.on) { this.ballM[b.n].scale.setScalar(1); }
+      const o = Object.assign({}, out); if (o.over) o.over = r.over;
+      this.showJudge(o);
+    }
     pause(on) {
       this.live = !on;
       if (!on) { VR.Input.setMode('mini'); VR.Input.setEnabled(false); }
@@ -296,9 +386,9 @@
           if (!c.on || !this.sim.freeSpot(c.x, c.z, r.inHand === 'kitchen' ? 'kitchen' : null)) { c.x = P.HEAD.x; c.z = 0; c.on = true; c.vx = c.vz = 0; if (!this.sim.freeSpot(c.x, c.z, r.inHand)) this.findFree(); }
           this.moveGhost(c.x, c.z);
           this.hint(tr(r.inHand === 'kitchen' ? 'bl.placeK' : 'bl.place'));
-        } else this.aiTurn();
+        } else this.oppTurn();
       } else if (me) { this.phase = 'aim'; this.hint(tr('bl.aimHint')); this.faceSomething(); }
-      else this.aiTurn();
+      else this.oppTurn();
       this.paintHud();
     }
     findFree() { const c = this.sim.cue; for (let k = 0; k < 300; k++) { const x = (Math.random() - 0.5) * (P.L - 0.2), z = (Math.random() - 0.5) * (P.W - 0.2); if (this.sim.freeSpot(x, z, this.rules.inHand === 'kitchen' ? 'kitchen' : null)) { c.x = x; c.z = z; return; } } }
@@ -331,7 +421,9 @@
     playerShoot(angle = this.aim, power = this.power) {
       if (!this.canShoot()) return false;
       this.aim = angle; this.setPower(power);
-      this.strikeNow(0, angle, this.speedOf(power));
+      const speed = this.speedOf(power), c = this.sim.cue;
+      if (this.net) this.net.send({ k: 'ps', a: +angle.toFixed(5), s: +speed.toFixed(4), cx: +c.x.toFixed(5), cz: +c.z.toFixed(5) });
+      this.strikeNow(0, angle, speed);
       return true;
     }
     /** both players: the cue goes forward, then the cue ball rolls */
@@ -351,8 +443,19 @@
     }
     /** the balls stopped: the rules decide what happens next */
     judge() {
-      const out = this.rules.endShot(this.sim), me = out.over ? null : this.rules.turn;
-      const was = this.shotPlan.side;
+      if (this.net && !this.net.host) { this.phase = 'judgeWait'; if (this.pj) this.applyJudge(); return; }   // the referee decides
+      const out = this.rules.endShot(this.sim);
+      if (this.net) {
+        const o = Object.assign({}, out); delete o.potted;
+        const st = this.snap();
+        st.b.forEach(([x, z], n) => { const b = this.sim.balls[n]; b.x = x; b.z = z; });   // both tables exactly the same from here
+        this.net.send({ k: 'pj', out: o, st });
+      }
+      this.showJudge(out);
+    }
+    showJudge(out) {
+      const me = out.over ? null : this.rules.turn;
+      const was = this.shotPlan ? this.shotPlan.side : 0;
       this.paintHud();
       if (out.over) return this.end(out.over);
       const msgs = [];
@@ -368,7 +471,7 @@
     end(over) {
       this.phase = 'over';
       const meWin = over.winner === 0;
-      const reason = meWin ? (over.reason === 'won8' ? 'bl.r.won8' : over.reason === 'eightEarly' ? 'bl.r.oppEarly' : 'bl.r.oppFoul')
+      const reason = over.reason === 'left' ? 'bl.r.left' : meWin ? (over.reason === 'won8' ? 'bl.r.won8' : over.reason === 'eightEarly' ? 'bl.r.oppEarly' : 'bl.r.oppFoul')
         : (over.reason === 'won8' ? 'bl.r.lostWon8' : over.reason === 'eightEarly' ? 'bl.r.eightEarly' : 'bl.r.eightFoul');
       const lines = [tr(reason), tr('bl.left', { a: this.rules.left(0, this.sim), b: this.rules.left(1, this.sim) }), tr('bl.shots', { n: this.shots[0] })];
       this.overT = 1.0; this.overOut = meWin ? 'win' : 'lose'; this.overLines = lines;
@@ -417,6 +520,16 @@
           if (this.keys.has('ArrowRight') || this.keys.has('KeyD')) this.aim -= dt * 0.9 * fine;
           if (this.keys.has('ArrowUp') || this.keys.has('KeyW')) this.setPower(this.power - dt * 0.6);
           if (this.keys.has('ArrowDown') || this.keys.has('KeyS')) this.setPower(this.power + dt * 0.6);
+        }
+        if (this.net && (this.phase === 'aim' || this.phase === 'place') && this.rules.turn === 0) {
+          this.stT -= dt;
+          if (this.stT <= 0) { this.stT = 0.1; const c = this.sim.cue; this.net.send({ k: 'st', a: +this.aim.toFixed(4), p: +this.power.toFixed(3), ph: this.phase, cx: +c.x.toFixed(4), cz: +c.z.toFixed(4) }); }
+        }
+        if (this.phase === 'opp' && this.oppAim) {
+          const o = this.oppAim, c = this.sim.cue;
+          let d = o.a - this.aim; d = Math.atan2(Math.sin(d), Math.cos(d)); this.aim += d * Math.min(1, dt * 12);
+          this.setPower(this.power + (o.p - this.power) * Math.min(1, dt * 12));
+          if (o.ph === 'place' || this.rules.inHand) { c.x = o.cx; c.z = o.cz; c.on = true; }
         }
         if (this.phase === 'ai') this.updateAi(dt);
         else if (this.phase === 'strike') {
@@ -477,7 +590,7 @@
       }
     }
     updateCue(dt) {
-      const c = this.sim.cue, show = c.on && ['aim', 'strike', 'ai', 'place'].includes(this.phase) && !(this.phase === 'ai' && this.aiStep === 'think') && this.phase !== 'place';
+      const c = this.sim.cue, show = c.on && ['aim', 'strike', 'ai', 'place', 'opp'].includes(this.phase) && !(this.phase === 'ai' && this.aiStep === 'think') && this.phase !== 'place';
       this.cue.visible = show;
       if (!show) return;
       let pull = 0.02 + this.power * 0.28;
@@ -510,7 +623,7 @@
     }
     /** the players walk around the table: the shooter behind the cue ball, the other one waits */
     updateBodies(dt) {
-      const c = this.sim.cue, shooting = ['aim', 'strike', 'ai', 'place'].includes(this.phase) || this.phase === 'roll' && this.rollT < 0.6;
+      const c = this.sim.cue, shooting = ['aim', 'strike', 'ai', 'place', 'opp'].includes(this.phase) || this.phase === 'roll' && this.rollT < 0.6;
       const side = this.phase === 'roll' || this.phase === 'strike' ? (this.shotPlan ? this.shotPlan.side : this.rules.turn) : this.rules.turn;
       this.bodies.forEach((b, i) => {
         let wx = this.idle[i].x, wz = this.idle[i].z, yaw = Math.atan2(-(0 - wx), -(0 - wz));
@@ -547,7 +660,7 @@
         pos.set(c.x - dx * this.camDist * Math.cos(el), Y + P.R + this.camDist * Math.sin(el), c.z - dz * this.camDist * Math.cos(el));
         look.set(c.x + dx * 0.55, Y, c.z + dz * 0.55);
         cam.up.set(0, 1, 0);
-      } else if (c.on && (this.phase === 'ai' && (this.aiStep === 'aim' || this.aiStep === 'pull') || this.phase === 'strike' && this.shotPlan && this.shotPlan.side === 1)) {
+      } else if (c.on && (this.phase === 'opp' || this.phase === 'ai' && (this.aiStep === 'aim' || this.aiStep === 'pull') || this.phase === 'strike' && this.shotPlan && this.shotPlan.side === 1)) {
         // the opponent lines up its shot: seen from across the table, facing it
         const dx = Math.cos(this.aim), dz = Math.sin(this.aim), far = aspect < 1 ? 1.5 : 1;
         pos.set(c.x + dx * 2.1 * far, Y + 1.35 * far, c.z + dz * 2.1 * far);
@@ -590,7 +703,7 @@
           cx.textAlign = 'right'; cx.fillText(r.groups[i] ? (r.groups[i] === 'solid' ? '● ' : '◐ ') + r.left(i, sim) : '—', w - 24, y);
           if (r.turn === i && !r.over) { cx.fillStyle = '#ffe14a'; cx.fillText('▶', w - 120, y); }
         };
-        row(50, 'YOU', '#ffe14a', 0); row(110, 'BOT', '#9b6bff', 1);
+        row(50, 'YOU', '#ffe14a', 0); row(110, this.net ? this.oppName().slice(0, 9).toUpperCase() : 'BOT', '#9b6bff', 1);
       });
     }
     resize() {}

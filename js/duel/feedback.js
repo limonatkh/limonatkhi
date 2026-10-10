@@ -141,7 +141,7 @@
   function causeOf(w, head) {
     if (w === 'fall') return { kind: 'fall' };
     if (w === 'mine' || w === 'bomb' || w === 'nade') return { kind: 'explosion', elem: 'blast', w };
-    if (w === 'knife' || w === 'strike' || w === 'spear') return { kind: 'melee', w, elem: w === 'strike' ? 'shadow' : null };
+    if (w === 'knife' || w === 'strike') return { kind: 'melee', w, elem: w === 'strike' ? 'shadow' : null };
     const A = (VR.Fighters && VR.Fighters.ABILITIES && VR.Fighters.ABILITIES[w]) || (VR.Powers && VR.Powers.DEFS[w]);
     if (A && A.kind === 'bomb') return { kind: 'explosion', elem: A.elem || 'blast', w };
     if (A) return { kind: 'ability', elem: A.elem || 'energy', w, color: A.color };

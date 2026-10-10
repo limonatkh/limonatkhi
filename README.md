@@ -1120,6 +1120,42 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Friends online in the mini-games, spears & bows, basketball moves (v1.38)
+
+- **Billiards / basketball against a friend** (`js/mini/mininet.js`): the start
+  screen's *PLAY A FRIEND ONLINE* opens the 1v1's list of players (the friend in
+  your challenge room, whoever is online — players walking around the square or
+  sitting at a mini-game's start screen count as free for it) and sends a
+  billiards / basketball invite. Accepted: both players are taken into the same
+  world (from the square, the menu or a start screen) and the match starts at
+  once. The link is the match link of v1.36 (direct WebRTC when it opens,
+  reliable in-order messages). The inviter's game is the referee: in billiards it
+  racks and judges every shot (both games roll each shot, the guest snaps to the
+  referee's table when it stops; side 0 is always "me", the guest sees the sides
+  swapped); in basketball it runs the match and sends it 20× a second, while the
+  guest moves its own player at once (its picture is the host's turned round).
+  Pausing does not stop an online match; leaving it — or the other player
+  leaving / going silent for 15 s — gives the win to the one who stays.
+- **Basketball**: STEAL is offered (a prompt) only right in front of the ball
+  handler, facing him — press E then and the ball is yours (a player who just got
+  the ball is safe for a moment; a steal has a cool-down; the computer and your
+  friend can do it too). BLOCK: jump in front of a shooter as he lets go (or get a
+  hand on the ball right after). Beyond the arc = 3 points (a chip shows when you
+  are there). **DUNK**: three baskets in a row unlock one dunk, every three more
+  another; with a dunk ready and the ball close to the hoop, SHOOT dunks (2
+  points, cannot be blocked). A miss or a blocked shot ends the streak.
+- **Spear** (arena): now a thrown weapon, a bit longer. Four per round and no
+  more; the spear itself flies (in an arc); the next one is in the hand 0.8 s
+  after a throw; when all four are gone you switch to your next weapon (in a
+  spear-only round they come back after 3 s). **Spear and bow** both work like a
+  bow: hold the button to draw / wind up (a drawing / wind-up animation, held while
+  the button is), let go to shoot / throw (a release animation). The longer the
+  draw (up to 0.8–0.9 s), the faster, flatter and harder the shot. Bots draw too
+  (you can see it) and aim for the drop.
+- **Keys**: C / Ctrl toggles crouch; Shift (running) stands you up.
+- **Mouse**: a single huge jump in captured-mouse movement (a browser glitch when
+  moving fast or in circles) is dropped.
+
 ## Exploration mode & the five sky islands (v1.37) — `js/explore/`
 
 **The runner is untouched** (a seeded course with a fixed input script gives the

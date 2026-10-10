@@ -28,6 +28,10 @@
     'bb.stolen': 'Stolen!', 'bb.block': 'Blocked!', 'bb.blocked': 'Your shot was blocked', 'bb.reb': 'Rebound', 'bb.oppReb': 'Bot rebound', 'bb.buzzer': 'Buzzer!',
     'bb.perfect': 'Perfect release', 'bb.early': 'Too early', 'bb.late': 'Too late', 'bb.final': 'You {a} – {b} Bot', 'bb.stats': 'Made {m}/{s} · steals {st} · rebounds {r}',
     'bb.keys': 'WASD move · Shift sprint · hold LEFT CLICK to shoot · E steal · Space jump', 'bb.youBall': 'your ball', 'bb.botBall': 'bot\'s ball',
+    'bb.stealNow': 'STEAL', 'bb.dunkNow': 'DUNK!', 'bb.dunkReady': 'DUNK unlocked! Get close to the hoop and shoot', 'bb.oppDunkReady': '{name} unlocked a dunk',
+    'bb.dunk': 'DUNK! +2', 'bb.oppDunk': '{name} dunks! +2', 'bb.three3': '3-POINT ZONE', 'bb.streak': '{n} in a row', 'bb.dunks': 'DUNK ×{n}',
+    'bb.kStealN': 'E when STEAL shows (in front of him)', 'bb.goal2': 'Beyond the arc = 3 points. Three baskets in a row unlock a DUNK.',
+    'bb.left': 'Your opponent left — you win', 'bb.oppMade': '{name} +{n}',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'bb.title': 'كرة السلة — واحد ضد واحد', 'bb.goal': 'سجّل في السلة الصفراء وامنع الروبوت من التسجيل في البنفسجية. صاحب النقاط الأكثر بعد 90 ثانية يفوز.',
@@ -38,6 +42,10 @@
     'bb.stolen': 'خُطفت منك!', 'bb.block': 'صددتها!', 'bb.blocked': 'صُدّت تسديدتك', 'bb.reb': 'متابعة', 'bb.oppReb': 'متابعة للروبوت', 'bb.buzzer': 'انتهى الوقت!',
     'bb.perfect': 'تسديدة مثالية', 'bb.early': 'مبكرًا جدًا', 'bb.late': 'متأخرًا جدًا', 'bb.final': 'أنت {a} – {b} الروبوت', 'bb.stats': 'سجّلت {m}/{s} · خطف {st} · متابعات {r}',
     'bb.keys': 'WASD حركة · Shift ركض · اضغط مطوّلًا بالأيسر للتسديد · E خطف · مسافة قفز', 'bb.youBall': 'الكرة معك', 'bb.botBall': 'الكرة مع الروبوت',
+    'bb.stealNow': 'اخطف', 'bb.dunkNow': 'دنك!', 'bb.dunkReady': 'فُتح الدنك! اقترب من السلة وسدّد', 'bb.oppDunkReady': '{name} فتح دنك',
+    'bb.dunk': 'دنك! +2', 'bb.oppDunk': '{name} دنك! +2', 'bb.three3': 'منطقة الثلاث نقاط', 'bb.streak': '{n} متتالية', 'bb.dunks': 'دنك ×{n}',
+    'bb.kStealN': 'E لما يظهر «اخطف» (وأنت قدّامه)', 'bb.goal2': 'من وراء القوس = 3 نقاط. ثلاث سلات متتالية تفتح الدنك.',
+    'bb.left': 'خصمك غادر — فزت', 'bb.oppMade': '{name} +{n}',
   });
   VR.Audio.define('hoopBounce', ({ tone, noise }) => { tone(95, 0.09, 'sine', 0.2, 60); noise(0.03, 0.06, 500); });
   VR.Audio.define('hoopRim', ({ tone }) => { tone(880, 0.12, 'triangle', 0.1, 700); tone(1320, 0.08, 'sine', 0.05, 1100); });
@@ -64,8 +72,8 @@
       this.place(true, 0);
     }
     intro() {
-      return { title: tr('bb.title'), goal: tr('bb.goal'),
-        controls: [[tr('bb.kMove'), tr('bb.kMoveW')], [tr('bb.kShoot'), tr('bb.kShootW')], [tr('bb.kSteal'), tr('bb.kStealW')], [tr('bb.kJump'), tr('bb.kJumpW')], [tr('bb.kCam'), tr('bb.kCamW')]] };
+      return { title: tr('bb.title'), goal: tr('bb.goal') + ' ' + tr('bb.goal2'),
+        controls: [[tr('bb.kMove'), tr('bb.kMoveW')], [tr('bb.kShoot'), tr('bb.kShootW')], [tr('bb.kStealN'), tr('bb.kStealW')], [tr('bb.kJump'), tr('bb.kJumpW')], [tr('bb.kCam'), tr('bb.kCamW')]] };
     }
 
     // ------------------------------------------------------------ the arena
@@ -162,11 +170,15 @@
         </div>
         <div class="bb-attack">${tr('bb.attack')}</div>
         <div class="bb-meter" hidden><i class="bb-sweet"></i><i class="bb-fill"></i></div>
+        <div class="bb-chips"><span class="bb-chip bb-c3" hidden></span><span class="bb-chip bb-cs" hidden></span><span class="bb-chip bb-cd" hidden></span></div>
+        <div class="bb-prompt" hidden><kbd></kbd><b></b></div>
         <div class="bb-keys">${tr('bb.keys')}</div>`;
       touch.innerHTML = isTouch() ? `<div class="mi-stick bb-stick"><div class="mi-knob"></div></div><div class="bb-look"></div>
         <div class="bb-tbtns"><button class="mi-tbtn bb-tshoot" type="button">${tr('bb.shoot')}</button><button class="mi-tbtn" data-a="steal" type="button">${tr('bb.steal')}</button><button class="mi-tbtn" data-a="jump" type="button">${tr('bb.jump')}</button></div>` : '';
       const q = (sel) => this.mgr.root.querySelector(sel);
-      this.el = { me: q('.bb-me'), ai: q('.bb-ai'), clock: q('.bb-clock'), meter: q('.bb-meter'), fill: q('.bb-fill'), sweet: q('.bb-sweet') };
+      this.el = { me: q('.bb-me'), ai: q('.bb-ai'), clock: q('.bb-clock'), meter: q('.bb-meter'), fill: q('.bb-fill'), sweet: q('.bb-sweet'),
+        c3: q('.bb-c3'), cs: q('.bb-cs'), cd: q('.bb-cd'), prompt: q('.bb-prompt') };
+      this.el.c3.textContent = tr('bb.three3');
       this.el.me.querySelector('.bb-n').textContent = (VR.Profiles.player().name || tr('mg.you')).slice(0, 12);
       this.el.ai.querySelector('.bb-n').textContent = tr('bb.opp');
       // the green part of the meter
@@ -205,6 +217,95 @@
       VR.Audio.play('whistle');
       this.paintHud(true);
     }
+    /**
+     * Against a friend online (js/mini/mininet.js). The inviter's game runs the match (it is the
+     * HoopMatch); the guest sends what it does (its moves, where it is, steal / jump presses) and
+     * gets the match 20 times a second plus every event. Each screen shows itself as team 0
+     * attacking the yellow hoop: the guest's picture is the host's turned round (x, z → −x, −z).
+     */
+    startOnline(net) {
+      this.net = net; this.level = 'online'; this.finished = false; this.endT = 0;
+      this.m = new H.HoopMatch({ time: 90 }); this.brain = null;
+      this.camYaw = -Math.PI / 2; this.camPitch = 0;
+      this.cnt = { stl: 0, jmp: 0 }; this.seen = { stl: 0, jmp: 0 }; this.remote = null; this.snapT = 0; this.sendT = 0;
+      this.el.ai.querySelector('.bb-n').textContent = net.oppName.slice(0, 12);
+      net.listen((d) => this.onNet(d));
+      this.mgr.banner('3', 'big', 1);
+      VR.Audio.play('whistle');
+      this.paintHud(true);
+    }
+    onNet(d) {
+      const m = this.m, host = this.net.host;
+      if (d.k === 'bye') { if (!m.over) { m.phase = 'over'; m.result = 'win'; this.leftWin = true; this.finished = true; this.endT = 0.6; this.mgr.banner(tr('bb.left'), 'good', 2); } return; }
+      if (host && d.k === 'st') this.remote = d;
+      else if (!host && d.k === 'bs') this.applySnap(d.s);
+      else if (!host && d.k === 'be') this.onEvents(d.ev.map(e => (e.team === 0 || e.team === 1 ? Object.assign({}, e, { team: 1 - e.team }) : e)));
+    }
+    /** host: the guest's wishes this frame (its directions turned round to mine; presses = counters) */
+    remoteIntent() {
+      const r = this.remote; if (!r) return {};
+      const it = { mx: -(r.mx || 0), mz: -(r.mz || 0), sprint: !!r.sp, shoot: !!r.sh, steal: r.stl > this.seen.stl, jump: r.jmp > this.seen.jmp };
+      this.seen.stl = Math.max(this.seen.stl, r.stl || 0); this.seen.jmp = Math.max(this.seen.jmp, r.jmp || 0);
+      const p = this.m.players[1];
+      // where the guest says it is (it moves itself at once on its screen)
+      if (this.m.phase === 'play' && !p.dunk && typeof r.x === 'number') { p.x = -r.x; p.z = -r.z; p.vx = -r.vx; p.vz = -r.vz; }
+      return it;
+    }
+    /** host → guest: the whole match, small */
+    snapshot() {
+      const m = this.m, f = (v) => Math.round(v * 1000) / 1000;
+      return { p: m.players.map(p => [f(p.x), f(p.z), f(p.y), f(p.vx), f(p.vz), f(p.yaw), p.charge === null ? -1 : f(p.charge), f(p.stun), p.dunk ? 1 : 0, p.streak, p.dunks, f(p.safeT), f(p.stealCD), f(p.vy)]),
+        b: [f(m.ball.x), f(m.ball.y), f(m.ball.z), f(m.ball.vx), f(m.ball.vy), f(m.ball.vz), m.ball.holder, f(m.ball.phase)],
+        sc: m.score.slice(), t: f(m.time), ph: m.phase, c: f(m.count), st: m.stats };
+    }
+    /** guest: the host's match, turned round; my own position stays mine unless it is far off */
+    applySnap(s) {
+      const m = this.m, flipP = (a, p, mine) => {
+        const x = -a[0], z = -a[1];
+        if (!mine || a[8] || m.phase !== 'play' || s.ph !== 'play' || Math.hypot(x - p.x, z - p.z) > 2.2) { p.x = x; p.z = z; p.vx = -a[3]; p.vz = -a[4]; p.yaw = a[5] + Math.PI; }
+        p.y = a[2]; p.vy = a[13] || 0; p.charge = a[6] < 0 ? null : a[6]; p.stun = a[7]; p.dunk = a[8] ? (p.dunk || { t: 0 }) : null;
+        p.streak = a[9]; p.dunks = a[10]; p.safeT = a[11]; p.stealCD = a[12];
+      };
+      flipP(s.p[1], m.players[0], true); flipP(s.p[0], m.players[1], false);
+      const B = m.ball, b = s.b;
+      B.holder = b[6] < 0 ? -1 : 1 - b[6];
+      if (B.holder !== 0) { B.x = -b[0]; B.y = b[1]; B.z = -b[2]; B.vx = -b[3]; B.vy = b[4]; B.vz = -b[5]; }
+      B.phase = b[7];
+      m.score = [s.sc[1], s.sc[0]]; m.time = s.t; m.count = s.c;
+      if (s.st) m.stats = { shots: [s.st.shots[1], s.st.shots[0]], made: [s.st.made[1], s.st.made[0]], steals: [s.st.steals[1], s.st.steals[0]], blocks: [s.st.blocks[1], s.st.blocks[0]], rebounds: [s.st.rebounds[1], s.st.rebounds[0]] };
+      if (s.ph === 'over' && m.phase !== 'over') { m.phase = 'over'; m.result = m.score[0] > m.score[1] ? 'win' : m.score[0] < m.score[1] ? 'lose' : 'draw'; }
+      else if (m.phase !== 'over') m.phase = s.ph;
+      this.snapSeen = true;
+    }
+    /** online frame (host or guest) */
+    updateOnline(dt) {
+      const m = this.m, net = this.net, look = VR.Input.takeLook();
+      this.camYaw -= look.x * 0.0026; this.camPitch = Math.max(-0.35, Math.min(0.5, this.camPitch + look.y * 0.0018));
+      const it = this.myIntent();
+      if (net.host) {
+        const ev = m.over ? [] : m.step(dt, [it, this.remoteIntent()]);
+        this.onEvents(ev);
+        const keep = ev.filter(e => !['bounce', 'load', 'jump'].includes(e.t));
+        if (keep.length) net.send({ k: 'be', ev: keep });
+        this.snapT -= dt;
+        if (this.snapT <= 0 || m.over) { this.snapT = 0.05; net.send({ k: 'bs', s: this.snapshot() }); }
+      } else {
+        // my own player moves at once here; the host is told where I am
+        if (it.steal) this.cnt.stl++;
+        if (it.jump) this.cnt.jmp++;
+        const p = m.players[0];
+        if (m.phase === 'play' && !p.dunk) m.movePlayer(p, { mx: it.mx, mz: it.mz, sprint: it.sprint }, dt, false);
+        if (m.ball.holder === 0) m.syncHeld(dt);
+        else if (m.ball.holder < 0 && this.snapSeen) { m.ball.x += m.ball.vx * dt; m.ball.z += m.ball.vz * dt; }
+        this.sendT -= dt;
+        if (this.sendT <= 0 || it.steal || it.jump) {
+          this.sendT = 1 / 30;
+          const f = (v) => Math.round(v * 1000) / 1000;
+          net.send({ k: 'st', mx: f(it.mx), mz: f(it.mz), sp: it.sprint ? 1 : 0, sh: it.shoot ? 1 : 0, stl: this.cnt.stl, jmp: this.cnt.jmp, x: f(p.x), z: f(p.z), vx: f(p.vx), vz: f(p.vz), yaw: f(p.yaw) });
+        }
+      }
+      if (m.over && !this.finished) { this.finished = true; this.endT = 1.2; }
+    }
     pause(on) {
       this.live = !on;
       if (!on) { VR.Input.setMode('fp'); VR.Input.setFPEnabled(true); VR.Input.requestLock(); }
@@ -224,7 +325,8 @@
     update(dt, live) {
       this.live = live;
       const m = this.m;
-      if (live && !m.over) {
+      if (this.net) { if (live) this.updateOnline(dt); }
+      else if (live && !m.over) {
         const look = VR.Input.takeLook();
         this.camYaw -= look.x * 0.0026; this.camPitch = Math.max(-0.35, Math.min(0.5, this.camPitch + look.y * 0.0018));
         const intents = [this.myIntent(), this.brain ? this.brain.think(dt) : {}];
@@ -239,7 +341,8 @@
     }
     finishMatch() {
       const m = this.m, st = m.stats;
-      this.mgr.finish(m.result, [tr('bb.final', { a: m.score[0], b: m.score[1] }), tr('bb.stats', { m: st.made[0], s: st.shots[0], st: st.steals[0], r: st.rebounds[0] })]);
+      const final = this.net ? `${tr('mg.you')} ${m.score[0]} – ${m.score[1]} ${this.net.oppName}` : tr('bb.final', { a: m.score[0], b: m.score[1] });
+      this.mgr.finish(m.result, (this.leftWin ? [tr('bb.left')] : []).concat([final, tr('bb.stats', { m: st.made[0], s: st.shots[0], st: st.steals[0], r: st.rebounds[0] })]));
     }
     onEvents(ev) {
       const B = (t, cls, s) => this.mgr.banner(t, cls, s);
@@ -247,7 +350,10 @@
         switch (e.t) {
           case 'count': B(String(e.n), 'big', 0.9); VR.Audio.play('tick'); break;
           case 'go': B(tr('bb.go'), 'big good', 0.9); VR.Audio.play('whistle'); break;
-          case 'score': B(e.team === 0 ? tr(e.value === 3 ? 'bb.three' : 'bb.two') : tr(e.value === 3 ? 'bb.oppThree' : 'bb.oppTwo'), e.team === 0 ? 'big good' : 'bad', 1.4);
+          case 'dunkReady': B(e.team === 0 ? tr('bb.dunkReady') : tr('bb.oppDunkReady', { name: this.oppName() }), e.team === 0 ? 'good' : '', 2.2); VR.Audio.play(e.team === 0 ? 'gem' : 'tick'); break;
+          case 'dunkGo': VR.Audio.play('jump'); break;
+          case 'score': if (e.dunk) { B(e.team === 0 ? tr('bb.dunk') : tr('bb.oppDunk', { name: this.oppName() }), e.team === 0 ? 'big good' : 'bad', 1.6); VR.Audio.play('hoopRim'); }
+            else B(e.team === 0 ? tr(e.value === 3 ? 'bb.three' : 'bb.two') : this.net ? tr('bb.oppMade', { name: this.oppName(), n: e.value }) : tr(e.value === 3 ? 'bb.oppThree' : 'bb.oppTwo'), e.team === 0 ? 'big good' : 'bad', 1.4);
             VR.Audio.play('swish'); if (e.team === 0) VR.Audio.play('coin'); this.netHit(e.team === 0 ? 1 : -1); this.paintHud(true); break;
           case 'miss': if (e.team === 0) B(tr('bb.miss'), '', 0.9); break;
           case 'steal': B(e.team === 0 ? tr('bb.steal!') : tr('bb.stolen'), e.team === 0 ? 'good' : 'bad', 1.1); VR.Audio.play(e.team === 0 ? 'pickup' : 'buzz'); break;
@@ -264,6 +370,7 @@
       }
     }
     netHit(sx) { const n = this.nets.find(n => n.sx === sx); if (n) n.k = 1; }
+    oppName() { return this.net ? this.net.oppName : tr('bb.opp'); }
 
     // ------------------------------------------------------------ drawing
     syncBall(dt) {
@@ -285,7 +392,8 @@
         b.pos.set(p.x, p.y, p.z); b.yaw = p.yaw; b.pitch = 0; b.air = p.y > 0.05;
         VR.DuelBody.animate(b, dt);
         const r = b.rig.parts;
-        if (p.charge !== null) { r.armL.rotation.x = -2.9; r.armR.rotation.x = -3.0; }               // ball up for the shot
+        if (p.dunk) { r.armR.rotation.x = -3.1; r.armL.rotation.x = -2.6; }                          // up to the rim
+        else if (p.charge !== null) { r.armL.rotation.x = -2.9; r.armR.rotation.x = -3.0; }          // ball up for the shot
         else if (B.holder === i) { r.armR.rotation.x = -0.9 - Math.abs(Math.sin(B.phase)) * 0.5; r.armL.rotation.x = -0.4; }   // dribbling
         else if (p.y > 0.1) { r.armL.rotation.x = -3.0; r.armR.rotation.x = -3.0; }                   // hands up
         else if (B.holder >= 0 && B.holder !== i) { r.armL.rotation.x = -1.2; r.armR.rotation.x = -1.6; }   // defending
@@ -318,6 +426,16 @@
       const me = m.players[0], meter = me.charge !== null ? Math.min(1.3, me.charge / H.CHARGE) : null;
       this.el.meter.hidden = meter === null;
       if (meter !== null) { this.el.fill.style.height = (meter / 1.3 * 100) + '%'; this.el.meter.classList.toggle('ok', Math.abs(meter - H.SWEET) <= H.SWEET_W); }
+      // what I can do right now: STEAL (in front of him) / DUNK (ready and close); my 3-point zone, streak, dunks
+      const P = H, mp = m.players[0];
+      const act = m.stealable && m.stealable(0) ? ['E', tr('bb.stealNow')] : m.canDunk && m.canDunk(mp) ? [VR.Input.keyFor ? VR.Input.keyFor('fire') || '🖱' : '🖱', tr('bb.dunkNow')] : null;
+      const key = act ? act.join('|') : '';
+      if (this.promptWas !== key) { this.promptWas = key; this.el.prompt.hidden = !act; if (act) { this.el.prompt.querySelector('kbd').textContent = act[0]; this.el.prompt.querySelector('b').textContent = act[1]; this.el.prompt.classList.toggle('dunk', act[1] === tr('bb.dunkNow')); } }
+      const out3 = m.ball.holder === 0 && Math.hypot(P.hoopX(0) - mp.x, mp.z) > P.THREE_R;
+      if (this.el.c3.hidden === out3) this.el.c3.hidden = !out3;
+      const st = mp.streak > 0 ? tr('bb.streak', { n: mp.streak }) : '', dk = mp.dunks > 0 ? tr('bb.dunks', { n: mp.dunks }) : '';
+      if (this.el.cs.textContent !== st) { this.el.cs.textContent = st; this.el.cs.hidden = !st; }
+      if (this.el.cd.textContent !== dk) { this.el.cd.textContent = dk; this.el.cd.hidden = !dk; }
       const pos = m.ball.holder;
       if (this.posWas !== pos) { this.posWas = pos; this.el.me.classList.toggle('ball', pos === 0); this.el.ai.classList.toggle('ball', pos === 1); }
       if (!full) return;

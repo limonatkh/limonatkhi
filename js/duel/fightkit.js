@@ -28,10 +28,13 @@
     rifle:   { ads: 0.66, body: 17, head: 34, rate: 0.12, auto: true, mag: 25, reload: 1.8, spread: 0.014, pellets: 1, range: 70, fall: 0.6, sound: 'rifle', kick: 0.35 },
     dmr:     { body: 38, head: 85, rate: 0.38, auto: false, mag: 10, reload: 2.0, spread: 0.01, airSpread: 0.02, scopedSpread: 0.002, pellets: 1, range: 120, fall: 0.85, sound: 'dmr', kick: 0.7, scope: true },
     lmg:     { ads: 0.72, body: 13, head: 22, rate: 0.075, auto: true, mag: 60, reload: 3.2, spread: 0.035, pellets: 1, range: 50, fall: 0.55, sound: 'lmg', kick: 0.3 },
-    // a spear: melee with a long reach (3.4 m), slower than the knife
-    spear:   { body: 60, head: 110, rate: 0.75, auto: false, mag: 1, reload: 0, spread: 0, pellets: 1, range: 3.4, fall: 1, sound: 'spear', kick: 0.5, melee: true, slot: true },
-    // a bow: one arrow at a time (nocked again after each shot), a real flying arrow, hard-hitting at range
-    bow:     { ads: 0.8, body: 48, head: 115, rate: 0.3, auto: false, mag: 1, reload: 0.6, spread: 0.004, pellets: 1, range: 90, fall: 0.8, sound: 'bow', kick: 0.4, arrow: true, arrowSpeed: 70 },
+    // a spear: THROWN — the spear itself flies (in an arc). Four of them and no more (no reload);
+    // the next one is in the hand 0.8 s after a throw. Hold the button to wind up, let go to throw:
+    // the longer the wind-up (up to `charge.full` s), the faster and harder it flies.
+    spear:   { body: 65, head: 130, rate: 0.8, auto: false, mag: 4, reload: 3, noReload: true, spread: 0.004, pellets: 1, range: 70, fall: 0.9, sound: 'spear', kick: 0.6, thrown: true, arrowSpeed: 34, charge: { full: 0.9 } },
+    // a bow: one arrow at a time (nocked again after each shot), a real flying arrow, hard-hitting at range.
+    // Hold to draw (the string comes back), let go to shoot: a full draw (0.8 s) flies fastest and hits hardest.
+    bow:     { ads: 0.8, body: 48, head: 115, rate: 0.3, auto: false, mag: 1, reload: 0.6, spread: 0.004, pellets: 1, range: 90, fall: 0.8, sound: 'bow', kick: 0.4, arrow: true, arrowSpeed: 70, charge: { full: 0.8 } },
     // the knife: always carried (slot 3), melee only (reach `range` metres)
     knife:   { body: 50, head: 100, rate: 0.55, auto: false, mag: 1, reload: 0, spread: 0, pellets: 1, range: 2.3, fall: 1, sound: 'knife', kick: 0.3, melee: true },
   };
@@ -102,7 +105,7 @@
     }
     next() { return this.switchTo((this.cur + 1) % this.slots.length); }
     startReload() {
-      if (this.def.melee || this.reloadT > 0 || this.slot.mag >= this.def.mag) return false;
+      if (this.def.melee || this.def.noReload || this.reloadT > 0 || this.slot.mag >= this.def.mag) return false;
       this.reloadT = this.def.reload;
       return true;
     }
@@ -119,8 +122,15 @@
       this.coolT = Math.max(0, this.coolT - dt);
       this.switchT = Math.max(0, this.switchT - dt);
       if (this.reloadT > 0) { this.reloadT -= dt; if (this.reloadT <= 0) { this.reloadT = 0; this.slot.mag = this.def.mag; } }
-      // an empty magazine reloads by itself
-      if (this.slot.mag <= 0 && this.reloadT <= 0 && this.coolT <= 0 && this.switchT <= 0) this.startReload();
+      // an empty magazine reloads by itself (thrown weapons: all thrown → the next weapon)
+      if (this.slot.mag <= 0 && this.reloadT <= 0 && this.coolT <= 0 && this.switchT <= 0) {
+        if (this.def.noReload) {
+          const i = this.slots.findIndex((s, k) => k !== this.cur && (WEAPONS[s.id].melee || s.mag > 0));
+          if (i >= 0) this.switchTo(i);
+          else if (this.only) this.reloadT = this.def.reload;   // "one weapon" rounds: nothing else to fight with — the spears come back after 3 s
+        }
+        else this.startReload();
+      }
       const n = this.nades;
       if (n.has && n.charges < n.max) { n.rechargeT -= dt; if (n.rechargeT <= 0) { n.charges++; n.rechargeT = n.charges < n.max ? recharge : 0; } }
     }

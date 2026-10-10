@@ -75,9 +75,20 @@
     lmg: [240, 5, 0], shotgun: [150, 7, 0], railgun: [600, 1.5, 0], plasma: [280, 4, 0], minigun: [230, 5, 0], goldfang: [220, 5, 0], thunder: [160, 7, 0],
     bow: [70, 1.6, 9.8],
   };
+  // drawn / thrown weapons always fly in an arc (also with the weather off); "id@power" = drawn that far (0..1)
+  const ARCS = { bow: [70, 1.6, 9.8], spear: [34, 1.2, 9.8] };
   const drift = (k, t) => t - (1 - Math.exp(-k * t)) / k;
   // with the weather switched off (js/core/weather.js) every shot is a straight line again
-  const ballistic = (wid) => (VR.WEATHER_ON ? BALLISTIC[wid] : null);
+  const ballistic = (wid) => {
+    if (!wid) return null;
+    const at = wid.indexOf('@');
+    if (at > 0) { const B = ARCS[wid.slice(0, at)]; if (!B) return null; const p = Math.max(0, Math.min(1, +wid.slice(at + 1) || 0)); return [B[0] * (0.4 + 0.6 * p), B[1], B[2]]; }
+    if (ARCS[wid]) return ARCS[wid];
+    return VR.WEATHER_ON ? BALLISTIC[wid] : null;
+  };
+  /** the speed a drawn / thrown shot leaves at, and its damage factor, for a draw `p` (0..1) */
+  const drawSpeed = (wid, p) => { const B = ARCS[wid]; return B ? B[0] * (0.4 + 0.6 * p) : 0; };
+  const drawDamage = (p) => 0.45 + 0.55 * Math.max(0, Math.min(1, p));
   /** where a shot fired from o along d is after `s` metres (wind: a Vector3, may be null) */
   function pathPoint(o, d, wid, wind, s, out = new T.Vector3()) {
     const B = ballistic(wid); out.copy(o).addScaledVector(d, s);
@@ -346,11 +357,11 @@
   function spear() {
     const g = new T.Group(), M = (c) => new T.MeshLambertMaterial({ color: c });
     const parts = [
-      [new T.BoxGeometry(0.04, 0.04, 1.5), M(0x8a5a33), [0, 0, -0.2]],                  // shaft
+      [new T.BoxGeometry(0.04, 0.04, 1.9), M(0x8a5a33), [0, 0, -0.3]],                  // shaft (a long throwing spear)
       [new T.BoxGeometry(0.05, 0.05, 0.14), M(0x2a2018), [0, 0, 0.18]],                 // grip wrap
-      [new T.BoxGeometry(0.08, 0.025, 0.22), M(0xdfe6ee), [0, 0, -1.04]],               // blade
-      [new T.BoxGeometry(0.045, 0.02, 0.08), M(0xdfe6ee), [0, 0, -1.18]],               // tip
-      [new T.BoxGeometry(0.06, 0.06, 0.05), neonMat(LEMON), [0, 0, -0.92]],             // collar
+      [new T.BoxGeometry(0.08, 0.025, 0.24), M(0xdfe6ee), [0, 0, -1.34]],               // blade
+      [new T.BoxGeometry(0.045, 0.02, 0.08), M(0xdfe6ee), [0, 0, -1.5]],                // tip
+      [new T.BoxGeometry(0.06, 0.06, 0.05), neonMat(LEMON), [0, 0, -1.2]],              // collar
     ];
     for (const [geo, mat, p] of parts) { const m = new T.Mesh(geo, mat); m.position.set(...p); m.material.userData.own = true; m.geometry.userData.own = true; g.add(m); }
     g.userData.sightY = 0.05;
@@ -363,7 +374,7 @@
     // the limb: blocks along an arc (vertical, in front of the hand)
     // (the limb sits a little to the left of the arrow, so aiming leaves the middle of the screen free)
     for (let i = -4; i <= 4; i++) { const a = i * 0.16; add(new T.BoxGeometry(0.04, 0.1, 0.04), M(i === 0 ? 0x2a2018 : 0x8a5a33), [-0.07, Math.sin(a) * 0.36, -Math.cos(a) * 0.12 + 0.02], 0); }
-    add(new T.BoxGeometry(0.01, 0.66, 0.01), M(0xf4f1e6), [-0.07, 0, 0.1]);                // string
+    add(new T.BoxGeometry(0.01, 0.66, 0.01), M(0xf4f1e6), [-0.07, 0, 0.1]).name = 'string';  // string (pulled back while drawing)
     const nock = new T.Group(); nock.name = 'nock'; g.add(nock);                              // the arrow ready to shoot (hidden while nocking)
     for (const [geo, mat, p] of [[new T.BoxGeometry(0.018, 0.018, 0.62), M(0xb98a52), [0, 0.01, -0.12]], [new T.BoxGeometry(0.03, 0.03, 0.06), M(0xdfe6ee), [0, 0.01, -0.45]], [new T.BoxGeometry(0.004, 0.04, 0.06), neonMat(LEMON), [0, 0.03, 0.14]]]) {
       const m = new T.Mesh(geo, mat); m.position.set(...p); m.material.userData.own = true; m.geometry.userData.own = true; nock.add(m);
@@ -412,8 +423,10 @@
   VR.Audio.define('shotgun', ({ tone, noise }) => { noise(0.28, 0.55, 2400); tone(110, 0.22, 'sawtooth', 0.2, 45); });
   VR.Audio.define('smg', ({ tone, noise }) => { noise(0.05, 0.22, 5200); tone(420, 0.04, 'square', 0.06, 200); });
   VR.Audio.define('bow', ({ tone, noise }) => { tone(220, 0.12, 'triangle', 0.14, 90); noise(0.1, 0.12, 2500); });
+  VR.Audio.define('bowDraw', ({ tone }) => { tone(140, 0.35, 'triangle', 0.05, 240); });
+  VR.Audio.define('spearWind', ({ noise }) => { noise(0.2, 0.05, 900); });
   VR.Audio.define('spear', ({ tone, noise }) => { noise(0.14, 0.22, 3500); tone(300, 0.1, 'sawtooth', 0.06, 140); });
   VR.Audio.define('empty', ({ tone }) => { tone(1300, 0.03, 'square', 0.05); });
 
-  VR.WeaponKit = { boxesAt, wallDist, traceParts, tracePath, pathPoint, driftAt, BALLISTIC, stepNade, impulse, LAND_DELAY, WEAPONS, NADE, model };
+  VR.WeaponKit = { boxesAt, wallDist, traceParts, tracePath, pathPoint, driftAt, BALLISTIC, ARCS, ballistic, drawSpeed, drawDamage, stepNade, impulse, LAND_DELAY, WEAPONS, NADE, model };
 })();

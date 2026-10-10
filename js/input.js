@@ -78,6 +78,7 @@
       if (k === 'toggle') { if (!repeat) { crouchOn = !crouchOn; if (crouchOn) fpQueue.push('slide'); } }
       else if (k === 'press') { if (!repeat) { if (a === 'jump') crouchOn = false; fpQueue.push(a); } }
       else if (a === 'fire' && !repeat) fpQueue.push('fire');
+      else if (a === 'sprint' && !repeat) crouchOn = false;       // Shift: up and running (a crouch toggled on ends)
     }
     return true;
   }
@@ -105,9 +106,28 @@
 
   // ---- mouse look --------------------------------------------------------
   const locked = () => document.pointerLockElement === surface();
+  /**
+   * Captured-mouse movement. Some browsers (Chrome on Windows above all) now and then
+   * deliver ONE event with a huge jump — often backwards — while the mouse moves fast
+   * or in circles: the view "skips". Such an event is dropped: far bigger than any real
+   * movement in one event, or a sudden reversal many times bigger than the last one.
+   */
+  let lastDX = 0, lastDY = 0;
+  const SPIKE = 260;
+  function lookDelta(dx, dy) {
+    dx = dx || 0; dy = dy || 0;
+    const jump = Math.abs(dx) > SPIKE || Math.abs(dy) > SPIKE;
+    const flipX = Math.abs(dx) > 70 && Math.abs(lastDX) > 3 && Math.sign(dx) !== Math.sign(lastDX) && Math.abs(dx) > 8 * Math.abs(lastDX);
+    const flipY = Math.abs(dy) > 70 && Math.abs(lastDY) > 3 && Math.sign(dy) !== Math.sign(lastDY) && Math.abs(dy) > 8 * Math.abs(lastDY);
+    if (jump || flipX || flipY) { if (VR.Input) VR.Input.spikes = (VR.Input.spikes || 0) + 1; return; }
+    lastDX = dx; lastDY = dy;
+    look.x += dx; look.y += dy;
+  }
+  /** capture the mouse (the plain request: asking for raw movement fails on some systems and would lose the click that allowed it) */
+  function lockPointer(el) { return el.requestPointerLock(); }
   window.addEventListener('mousemove', (e) => {
     if (mode !== 'fp' || !fpEnabled) return;
-    if (locked()) { look.x += e.movementX; look.y += e.movementY; }
+    if (locked()) lookDelta(e.movementX, e.movementY);
     else if (dragLook) { look.x += e.clientX - lastMX; look.y += e.clientY - lastMY; lastMX = e.clientX; lastMY = e.clientY; }
   });
   // mouse buttons and the wheel go through the same bindings (left button: only while the mouse is captured)
@@ -161,7 +181,7 @@
         if (!locked()) {
           wantLock = true;
           let p;
-          try { p = el.requestPointerLock(); } catch (err) { wantLock = false; }
+          try { p = lockPointer(el); } catch (err) { wantLock = false; }
           if (p && p.catch) p.catch(() => { wantLock = false; });
           dragLook = true; lastMX = e.clientX; lastMY = e.clientY;
         }
@@ -197,7 +217,7 @@
       const el = surface();
       if (!el || locked() || touchFirst()) return;
       wantLock = true;
-      try { const p = el.requestPointerLock(); if (p && p.catch) p.catch(() => { wantLock = false; }); } catch (e) { wantLock = false; }
+      try { const p = lockPointer(el); if (p && p.catch) p.catch(() => { wantLock = false; }); } catch (e) { wantLock = false; }
     },
     releaseLock() { wantLock = false; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { /* ignore */ } } },
     isLocked: locked,
@@ -219,7 +239,7 @@
     fireHeld() { return touchHold.has('fire') || isHeld('fire'); },
     /** sprint: its binding (Shift) held, or the touch stick pushed all the way */
     sprintHeld() { return isHeld('sprint') || Math.hypot(touchMove.x, touchMove.y) > 0.95; },
-    crouchHeld() { return crouchOn || touchHold.has('crouch'); },
+    crouchHeld() { if (crouchOn && Math.hypot(touchMove.x, touchMove.y) > 0.95) crouchOn = false; return crouchOn || touchHold.has('crouch'); },
     /** stand up (e.g. after dying or a new round) */
     resetCrouch() { crouchOn = false; },
     takeLook() { const r = { x: look.x, y: look.y }; look.x = look.y = 0; return r; },
@@ -267,5 +287,7 @@
     keyFor(action) { const b = binds[action]; return this.label((b && (b[0] || b[1])) || ''); },
     setTouchMove(x, y) { touchMove.x = x; touchMove.y = y; },
     addLook(dx, dy) { if (fpEnabled) { look.x += dx; look.y += dy; } },
+    /** (tests) a captured-mouse movement as the browser would deliver it */
+    _mouseMove(dx, dy) { lookDelta(dx, dy); },
   };
 })();

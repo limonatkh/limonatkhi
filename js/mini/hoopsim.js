@@ -21,8 +21,18 @@
  *       the hoop that team attacks — once per shot.
  *     - after a basket the other team gets the ball under that basket.
  *     - a missed shot is a loose ball: whoever gets to it first has it
- *       (only players actually near it can take it). Steals: close to the
- *       ball handler, a chance (not every time), with a short cool-down.
+ *       (only players actually near it can take it).
+ *     - STEAL: right in front of the ball handler (close, facing him) the
+ *       steal is offered (stealable()); pressing it then takes the ball. A
+ *       player who just got the ball is safe for a moment, and a steal has a
+ *       cool-down (no ping-pong). Pressing it from anywhere else does nothing
+ *       but cost a short stumble.
+ *     - BLOCK: jump in front of a shooter as he lets go (or get a hand on the
+ *       ball just after) — the closer, the surer.
+ *     - DUNK: three baskets in a row earn one dunk; every three more, another.
+ *       With a dunk ready and the ball close to the hoop, SHOOT dunks: up to
+ *       the rim, 2 points, it cannot be blocked. A miss / a blocked shot ends
+ *       the streak.
  *     - when the clock runs out, a shot already in the air still counts.
  * ===================================================================== */
 (function () {
@@ -122,7 +132,7 @@
   class HoopMatch {
     constructor(o = {}) {
       this.len = o.time || 90; this.rand = o.rand || Math.random;
-      this.players = [0, 1].map(team => ({ team, x: 0, z: 0, y: 0, vy: 0, vx: 0, vz: 0, yaw: 0, stun: 0, stealCD: 0, charge: null, holdT: 0, jumpCD: 0, skill: 1 }));
+      this.players = [0, 1].map(team => ({ team, x: 0, z: 0, y: 0, vy: 0, vx: 0, vz: 0, yaw: 0, stun: 0, stealCD: 0, charge: null, holdT: 0, jumpCD: 0, skill: 1, safeT: 0, streak: 0, dunks: 0, dunk: null }));
       this.ball = { x: 0, y: 1, z: 0, vx: 0, vy: 0, vz: 0, holder: -1, shot: null, touched: false, floor: false, last: -1, phase: 0 };
       this.score = [0, 0]; this.time = this.len; this.phase = 'countdown'; this.count = 3; this.deadT = 0; this.next = 0;
       this.events = []; this.stats = { shots: [0, 0], made: [0, 0], steals: [0, 0], blocks: [0, 0], rebounds: [0, 0] };
@@ -139,7 +149,8 @@
         me.x = end; me.z = (this.rand() - 0.5) * 2;
         other.x = end * 0.25; other.z = 0;
       }
-      for (const p of this.players) { p.vx = p.vz = p.vy = 0; p.y = 0; p.charge = null; p.stun = 0; p.holdT = 0; p.yaw = Math.atan2(-(hoopX(p.team) - p.x), 0); }
+      for (const p of this.players) { p.vx = p.vz = p.vy = 0; p.y = 0; p.charge = null; p.stun = 0; p.holdT = 0; p.dunk = null; p.yaw = Math.atan2(-(hoopX(p.team) - p.x), 0); }
+      this.players[team].safeT = 0.8;
       B.holder = team; B.shot = null; B.vx = B.vy = B.vz = 0; B.touched = false; B.floor = false; B.last = team;
       this.syncHeld(0);
     }
@@ -184,8 +195,11 @@
     /** one player: move, jump, shoot (hold / let go), steal */
     control(p, it, dt) {
       const B = this.ball, has = B.holder === p.team, opp = this.players[1 - p.team];
-      p.stun = Math.max(0, p.stun - dt); p.stealCD = Math.max(0, p.stealCD - dt); p.jumpCD = Math.max(0, p.jumpCD - dt);
+      p.stun = Math.max(0, p.stun - dt); p.stealCD = Math.max(0, p.stealCD - dt); p.jumpCD = Math.max(0, p.jumpCD - dt); p.safeT = Math.max(0, p.safeT - dt);
       if (has) p.holdT += dt; else p.holdT = 0;
+      if (p.dunk) return this.stepDunk(p, dt);
+      // a dunk ready, the ball, close to the hoop: SHOOT dunks
+      if (has && it.shoot && p.charge === null && this.canDunk(p) && this.time > 0) return this.startDunk(p);
       // jump (a block, a rebound — or the jump of a jump shot)
       if (it.jump && p.y <= 0 && p.jumpCD <= 0 && p.stun <= 0) { p.vy = 3.6; p.jumpCD = 0.5; this.ev('jump', { team: p.team }); }
       // shooting: hold to load the meter, let go to shoot
@@ -201,7 +215,7 @@
           if (!it.shoot || m >= 1.3) this.release(p, m);
         }
       }
-      // steal
+      // steal (offered right in front of the ball handler)
       if (it.steal && !has && B.holder === opp.team && p.stealCD <= 0 && p.stun <= 0) this.trySteal(p, opp);
       this.movePlayer(p, it, dt, false);
       // grab a loose ball (only if really there)
@@ -239,25 +253,65 @@
     }
     take(p, why) {
       const B = this.ball, sh = B.shot;
-      if (sh && !sh.done) { sh.done = true; if (!sh.scored) this.ev('miss', { team: sh.team }); }
-      B.holder = p.team; B.shot = null; B.last = p.team; p.holdT = 0;
+      if (sh && !sh.done) { sh.done = true; if (!sh.scored) { this.ev('miss', { team: sh.team }); this.streakEnd(sh.team); } }
+      B.holder = p.team; B.shot = null; B.last = p.team; p.holdT = 0; p.safeT = 0.5;
       if (why === 'rebound') this.stats.rebounds[p.team]++;
       this.ev(why, { team: p.team });
     }
-    trySteal(p, h) {
-      p.stealCD = 0.9;
+    /**
+     * Can `team` steal right now? Only right in front of the ball handler: close, facing him,
+     * on the side he is going (not from behind), he is not just after getting it, no cool-down.
+     */
+    stealable(team) {
+      const B = this.ball, p = this.players[team], h = this.players[1 - team];
+      if (this.phase !== 'play' || B.holder !== h.team || p.stealCD > 0 || p.stun > 0 || h.safeT > 0 || h.dunk) return false;
       const dx = h.x - p.x, dz = h.z - p.z, d = Math.hypot(dx, dz);
-      if (d > 1.35) { this.ev('reach', { team: p.team }); return; }
-      // facing the handler, and the ball on my side of him = easier
-      const fwx = -Math.sin(p.yaw), fwz = -Math.cos(p.yaw), facing = (fwx * dx + fwz * dz) / d;
-      const B = this.ball, ballSide = Math.hypot(B.x - p.x, B.z - p.z) < d ? 0.12 : -0.05;
-      const chance = clamp((p.stealSkill || 0.3) * (0.55 + 0.45 * facing) + ballSide - (h.charge !== null ? 0 : 0.0), 0.05, 0.6);
-      if (this.rand() < chance) {
-        B.holder = p.team; B.last = p.team; h.charge = null; h.stun = 0.5; p.holdT = 0;
-        this.stats.steals[p.team]++;
-        this.ev('steal', { team: p.team });
-      } else { p.stun = 0.35; this.ev('stealMiss', { team: p.team }); }
+      if (d > 1.3 || d < 1e-3) return false;
+      const facing = (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / d;               // I look at him
+      const front = (-Math.sin(h.yaw) * -dx - Math.cos(h.yaw) * -dz) / d;              // I am in front of him
+      return facing > 0.45 && front > 0.15;
     }
+    trySteal(p, h) {
+      const B = this.ball;
+      if (!this.stealable(p.team)) { p.stealCD = 0.45; p.stun = 0.25; this.ev('stealMiss', { team: p.team }); return; }
+      p.stealCD = 1.4;
+      B.holder = p.team; B.last = p.team; h.charge = null; h.stun = 0.5; p.holdT = 0; p.safeT = 1.0;
+      this.stats.steals[p.team]++;
+      this.ev('steal', { team: p.team });
+    }
+    // ---- dunks
+    canDunk(p) { return p.dunks > 0 && !p.dunk && p.y <= 0.05 && p.stun <= 0 && Math.hypot(hoopX(p.team) - p.x, p.z) < 2.7 && this.ball.holder === p.team; }
+    startDunk(p) {
+      const tx = hoopX(p.team);
+      p.dunks--; p.charge = null;
+      p.dunk = { t: 0, x0: p.x, z0: p.z, x1: tx - Math.sign(tx) * 0.5, z1: 0 };
+      this.ev('dunkGo', { team: p.team });
+    }
+    stepDunk(p, dt) {
+      const d = p.dunk, B = this.ball, tx = hoopX(p.team);
+      d.t += dt;
+      const k = Math.min(1, d.t / 0.45), e = k * k * (3 - 2 * k);
+      p.x = d.x0 + (d.x1 - d.x0) * e; p.z = d.z0 + (d.z1 - d.z0) * e; p.vx = p.vz = 0;
+      p.y = Math.sin(Math.min(1, d.t / 0.55) * Math.PI * 0.5) * 1.25; p.vy = 0;
+      p.yaw = Math.atan2(-(tx - p.x), -(0 - p.z) || 1e-6);
+      B.x = p.x + (tx - p.x) * e * 0.9; B.z = p.z * (1 - e); B.y = 2.2 + p.y + e * 0.4;
+      if (d.t >= 0.55) {
+        // through the rim: 2 points, no block possible
+        B.holder = -1; B.x = tx; B.z = 0; B.y = RIM_Y - 0.15; B.vx = 0; B.vz = 0; B.vy = -3.5; B.touched = true; B.floor = false; B.last = p.team;
+        B.shot = { team: p.team, target: Math.sign(tx), value: 2, done: true, scored: true, dunk: true };
+        this.score[p.team] += 2; this.stats.made[p.team]++; this.stats.shots[p.team]++;
+        this.stats.dunks = this.stats.dunks || [0, 0]; this.stats.dunks[p.team]++;
+        this.ev('score', { team: p.team, value: 2, dunk: true });
+        p.dunk = null; p.vy = -0.5;
+        this.phase = 'dead'; this.deadT = 1.5; this.next = 1 - p.team;
+      }
+    }
+    /** a basket: the streak grows (every 3 in a row: a dunk); a miss / block ends it */
+    streakScore(team) {
+      const p = this.players[team]; p.streak++;
+      if (p.streak % 3 === 0) { p.dunks++; this.ev('dunkReady', { team, dunks: p.dunks }); }
+    }
+    streakEnd(team) { this.players[team].streak = 0; }
     /** let go of a loaded shot */
     release(p, meter) {
       const B = this.ball, opp = this.players[1 - p.team], tx = hoopX(p.team);
@@ -275,11 +329,12 @@
       const contest = front > 0.35 ? clamp((1.9 - od) / 1.9, 0, 1) * (opp.y > 0.2 ? 1.4 : 1) : 0;
       this.stats.shots[p.team]++;
       B.holder = -1; B.x = ox; B.y = oy; B.z = oz; B.touched = false; B.floor = false; B.last = p.team; B.fromBelow = 0;
-      B.shot = { team: p.team, target: Math.sign(tx), value, done: false, scored: false, meter, dist };
+      B.shot = { team: p.team, target: Math.sign(tx), value, done: false, scored: false, meter, dist, t: 0 };
       // a block: the defender in the air, right there
-      if (opp.y > 0.25 && od < 1.25 && front > 0.4 && this.rand() < 0.15 + 0.55 * (1 - od / 1.25) * (opp.blockSkill || 1)) {
+      const air = opp.y > 0.25, standing = !air && od < 0.85 && front > 0.6;
+      if ((air && od < 1.3 && front > 0.35 && this.rand() < clamp(0.3 + 0.55 * (1 - od / 1.3) * (opp.blockSkill || 1), 0, 0.9)) || (standing && this.rand() < 0.18 * (opp.blockSkill || 1))) {
         B.vx = -fwx * (1 + this.rand() * 1.5); B.vy = -0.5 - this.rand(); B.vz = (this.rand() - 0.5) * 3; B.touched = true;
-        B.shot.done = true; this.stats.blocks[opp.team]++;
+        B.shot.done = true; this.stats.blocks[opp.team]++; this.streakEnd(p.team);
         this.ev('block', { team: opp.team });
         return;
       }
@@ -297,12 +352,22 @@
           sh.scored = true; sh.done = true;
           this.score[sh.team] += sh.value; this.stats.made[sh.team]++;
           this.ev('score', { team: sh.team, value: sh.value });
+          this.streakScore(sh.team);
           this.phase = 'dead'; this.deadT = 1.5; this.next = 1 - sh.team;
         }
       });
       for (const e of ev) this.events.push(e);
       const sh = B.shot;
-      if (sh && !sh.done && B.floor) { sh.done = true; this.ev('miss', { team: sh.team }); }
+      if (sh && !sh.done && B.floor) { sh.done = true; this.ev('miss', { team: sh.team }); this.streakEnd(sh.team); }
+      // a hand on the ball just after it left (a block in the air)
+      if (sh && !sh.done && !sh.dunk && (sh.t = (sh.t || 0) + dt) < 0.4 && !B.touched) {
+        const o = this.players[1 - sh.team];
+        if (o.y > 0.2 && Math.hypot(B.x - o.x, B.z - o.z) < 0.55 && Math.abs(B.y - (2.3 + o.y)) < 0.5) {
+          B.vx = -B.vx * 0.3 + (this.rand() - 0.5) * 2; B.vy = -1 - this.rand(); B.vz = (this.rand() - 0.5) * 3; B.touched = true;
+          sh.done = true; this.stats.blocks[o.team]++; this.streakEnd(sh.team);
+          this.ev('block', { team: o.team });
+        }
+      }
       // a ball resting on the rim / the board: knock it off
       if (B.y > 2.5 && Math.hypot(B.vx, B.vy, B.vz) < 0.4) { B.still = (B.still || 0) + dt; if (B.still > 0.8) { B.vx += (this.rand() - 0.5) * 2; B.vz += (this.rand() - 0.5) * 2; B.vy = 0.5; B.still = 0; } } else B.still = 0;
     }
@@ -310,6 +375,7 @@
     syncHeld(dt) {
       const B = this.ball; if (B.holder < 0) return;
       const p = this.players[B.holder];
+      if (p.dunk) return;
       B.phase += dt * (6 + Math.hypot(p.vx, p.vz) * 0.9);
       const fwx = -Math.sin(p.yaw), fwz = -Math.cos(p.yaw), rx = -fwz, rz = fwx;
       if (p.charge !== null) { B.x = p.x + fwx * 0.3; B.z = p.z + fwz * 0.3; B.y = 2.0 + p.y + Math.min(1, p.charge / CHARGE) * 0.15; }
@@ -363,6 +429,8 @@
         const chance = makeChance(d, contest) / L.skill;
         const three = d > THREE_R + 0.2 && d < THREE_R + 1.6 && !between && this.rand() < L.three;
         const late = p.holdT > 7 || (m.time < 3 && m.time > 0);
+        if (m.canDunk(p)) { it.shoot = true; it.mx = it.mz = 0; return it; }          // a dunk ready and close: dunk it
+        if (p.dunks > 0 && d < 6 && !late) { go(myHoop - Math.sign(myHoop) * 1.6, 0, true); return it; }   // a dunk ready: drive in for it
         if (d < 1.9 || three || late || (d < THREE_R && chance > L.pick && !between) || (d < 3.2 && this.rand() < 0.35)) {
           it.shoot = true; this.releaseAt = SWEET + gauss(this.rand) * L.timing; it.mx = it.mz = 0;
           return it;
@@ -380,8 +448,8 @@
         const gx = o.x + (oppHoop - o.x) / Math.max(0.1, Math.hypot(oppHoop - o.x, o.z)) * 1.25, gz = o.z + (-o.z) / Math.max(0.1, Math.hypot(oppHoop - o.x, o.z)) * 1.25;
         go(gx, gz, Math.hypot(gx - p.x, gz - p.z) > 3);
         const od = Math.hypot(o.x - p.x, o.z - p.z);
-        if (od < 1.3 && p.stealCD <= 0 && this.rand() < L.steals * this.t) it.steal = true;
-        if (o.charge !== null && od < 2.0 && this.jumpT < 0 && this.rand() < 0.4 + 0.5 * L.block) this.jumpT = 0.05 + this.rand() * L.react;
+        if (m.stealable(this.team) && this.rand() < 0.25 + 0.6 * L.steals) it.steal = true;
+        if (o.charge !== null && od < 2.0 && this.jumpT < 0 && this.rand() < 0.2 + 0.3 * L.block) this.jumpT = 0.05 + this.rand() * L.react;
       } else {
         // LOOSE BALL / a shot in the air: go where it comes down (or back on defence)
         const sh = B.shot, mine = sh && !sh.done && sh.team === this.team;

@@ -53,6 +53,8 @@
     'du.lobbyOnline': '{n} online now', 'du.lobbyConnecting': 'Connecting…', 'du.found': '{name} joined! The duel begins',
     'du.leave': 'LEAVE THE ARENA', 'du.pauseSolo': 'Waiting room', 'du.pauseSoloNote': 'You can leave any time; nobody is playing against you yet.',
     'du.why.wait': 'waiting in the arena', 'du.onlineOn': 'Online challenges turned on',
+    'du.why.hub': 'in the square', 'du.why.minii': 'at a mini-game', 'du.why.mini': 'playing a mini-game',
+    'mg.onlineSub': '{game} · 1 on 1 online', 'mg.bbName': 'Basketball', 'mg.blName': 'Billiards',
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'settings.online': 'التحديات الأونلاين',
@@ -61,6 +63,7 @@
     'du.none': 'لا يوجد أحد متاح الآن. ادعُ صديقًا من «تحدَّ صديقًا» أو حاول لاحقًا.',
     'du.offline': 'التحديات الأونلاين مطفأة من الإعدادات.', 'du.connecting': 'نتصل…',
     'du.challenge': 'تحدَّ', 'du.close': 'العودة إلى الطريق', 'du.free': 'متاح',
+    'du.why.hub': 'في الساحة', 'du.why.minii': 'عند لعبة مصغّرة', 'du.why.mini': 'يلعب لعبة مصغّرة', 'mg.onlineSub': '{game} · واحد ضد واحد أونلاين', 'mg.bbName': 'كرة السلة', 'mg.blName': 'البلياردو',
     'du.why.mission': 'في مهمة', 'du.why.duel': 'في تحدٍّ آخر', 'du.why.race': 'في سباق', 'du.why.busy': 'مشغول', 'du.why.cooldown': 'انتظر قليلًا قبل دعوته مجددًا', 'du.why.offline': 'غير متصل',
     'du.waitTitle': 'بانتظار القبول…', 'du.cancel': 'إلغاء', 'du.exit': 'خروج',
     'du.declined': '{name} رفض التحدي.', 'du.timeout': 'لم يردّ {name}.', 'du.unavailable': '{name} لا يستطيع اللعب الآن ({why}).', 'du.lost': 'انقطع الاتصال بـ{name}.',
@@ -253,7 +256,7 @@
       } else if (!data.friend) body += `<p class="du-note">${T('du.offline')}</p>`;
       card.innerHTML = `
         <h2 class="heading">${T('du.pickTitle')}</h2>
-        <p class="du-sub">${esc(data.mode || T('du.mode'))} · ${T('du.firstTo', { n: data.firstTo })}</p>
+        <p class="du-sub">${esc(data.mode || T('du.mode'))}${data.firstTo ? ' · ' + T('du.firstTo', { n: data.firstTo }) : ''}</p>
         ${body}
         <p class="ch-status ${data.noticeKind || ''}" id="duNotice">${esc(data.notice || '')}</p>
         <button class="btn" id="duPickClose">${T('du.close')}</button>`;
@@ -268,7 +271,7 @@
           <div class="du-wait">
             <h2 class="heading">${T('du.waitTitle')}</h2>
             <div class="ch-vs"><b>${esc(this.mgr.myName())}</b><span>${T('ch.vs')}</span><b>${esc(name)}</b></div>
-            <p class="du-sub">${T('du.mode')}</p>
+            <p class="du-sub">${esc(this.mgr.waitSub ? this.mgr.waitSub() : T('du.mode'))}</p>
             <div class="du-wbar"><div></div></div>
             <div class="du-wnum num"></div>
             <button class="btn" id="duWaitCancel">${T('du.cancel')}</button>
