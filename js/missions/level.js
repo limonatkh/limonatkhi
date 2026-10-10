@@ -36,7 +36,7 @@
     // axis-aligned box given by its min/max corners
     box(x0, y0, z0, x1, y1, z1, mat, solid = true) {
       this.vb.addBox((x0 + x1) / 2, y0, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, mat);
-      if (solid) { const s = this.collider(x0, y0, z0, x1, y1, z1); s.mat = mat; return s; }   // mat: for surface effects
+      if (solid) { const s = this.collider(x0, y0, z0, x1, y1, z1); s.mat = typeof mat === 'string' ? mat : mat.top || mat.side; return s; }   // mat: for surface effects (a block with its own top: the top)
       return null;
     }
     collider(x0, y0, z0, x1, y1, z1) {
@@ -75,7 +75,34 @@
       this.group.add(g);
       return this;
     }
+    /**
+     * Big levels (the exploration world, the islands: thousands of terrain boxes): a grid of
+     * colliders so a collision test only looks at what is near. Small levels never use it
+     * (fewer than GRID_MIN solids: the plain list, exactly as before). Rebuilt by itself when
+     * solids are added later (doors, crates placed by components).
+     */
+    near(x, z) {
+      const S = this.solids;
+      if (S.length < GRID_MIN) return null;
+      if (!this.grid || this.grid.n !== S.length) this.buildGrid();
+      const g = this.grid, k = Math.floor(x / GRID) + ',' + Math.floor(z / GRID);
+      return g.cells.get(k) || g.empty;
+    }
+    buildGrid() {
+      const cells = new Map(), big = [];
+      for (const s of this.solids) {
+        const x0 = Math.floor((s.min[0] - 1) / GRID), x1 = Math.floor((s.max[0] + 1) / GRID);
+        const z0 = Math.floor((s.min[2] - 1) / GRID), z1 = Math.floor((s.max[2] + 1) / GRID);
+        if ((x1 - x0 + 1) * (z1 - z0 + 1) > 400) { big.push(s); continue; }       // huge (invisible boundary walls): always checked
+        for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+          const k = x + ',' + z; let c = cells.get(k); if (!c) { c = []; cells.set(k, c); } c.push(s);
+        }
+      }
+      if (big.length) { for (const c of cells.values()) c.push(...big); }
+      this.grid = { cells, n: this.solids.length, empty: big };
+    }
   }
+  const GRID = 4, GRID_MIN = 400;
 
   // ---- shared helpers -----------------------------------------------------
   function room(L, x0, z0, x1, z1, h, mats, t = 0.4) {

@@ -62,7 +62,7 @@
       this.fx = new VR.DuelFx(mgr.scene);
       this.enemies = new VR.EnemySystem(mgr.scene, mgr.level, this.fx, () => mgr.solidBoxes || []);
       const up = (id) => (VR.Shop ? VR.Shop.level(id) : 0);                // shop upgrades (js/adventure/shop.js)
-      this.health = new VR.Health(100 + 20 * up('hp'), up('regen') ? { regenDelay: 2.5, regen: 18 } : { regenDelay: 4, regen: 12 });
+      this.health = new VR.Health(100 + 20 * up('hp') + (VR.Loot ? VR.Loot.armorBonus() : 0), up('regen') ? { regenDelay: 2.5, regen: 18 } : { regenDelay: 4, regen: 12 });
       this.health.onChange((hp, d) => this.hud && this.setHP());
       this.ray = new T.Ray();
       const inv = VR.Profiles.player().inventory;
@@ -87,7 +87,7 @@
     /** shop upgrades bought while in the world: apply them now */
     applyUpgrades() {
       const up = (id) => (VR.Shop ? VR.Shop.level(id) : 0);
-      const max = 100 + 20 * up('hp');
+      const max = 100 + 20 * up('hp') + (VR.Loot ? VR.Loot.armorBonus() : 0);      // + armour plates found exploring
       if (max !== this.health.max) { const add = max - this.health.max; this.health.max = max; this.health.hp = Math.min(max, this.health.hp + Math.max(0, add)); }
       if (up('regen')) { this.health.regenDelay = 2.5; this.health.regen = 18; }
       this.setHP(); this.setAmmo();

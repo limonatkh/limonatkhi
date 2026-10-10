@@ -1120,6 +1120,59 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Exploration mode & the five sky islands (v1.37) — `js/explore/`
+
+**The runner is untouched** (a seeded course with a fixed input script gives the
+exact same chunks, obstacles, coins and positions as before). Everything below
+is a separate mode that only uses the runner world's look.
+
+- **The secret cave** (`secretcave.js`): once per *solo* run, somewhere in
+  sections 9–18, a rock outcrop stands on a pedestal *beside* the route (the
+  spots the old 1v1 gates used, never on it). Run in the lane next to it and a
+  small **E** appears; E (or a tap) ends the run (its coins are kept) and takes
+  you in. Placed with `Math.random`, never the course's seeded random; never in
+  races / challenges.
+- **Exploration** (`explore.js`, `voxterrain.js`): the runner's mountain world as
+  solid voxel ground (the winding ridge route, meadow, forest, lemon village, red
+  desert, snow peak, sea of clouds and far peaks), walked in **first person** (T:
+  third person, remembered separately as `exploreView`). Caves and a room under
+  the village, a terraced snow summit, a mesa with a cave, a climbable tree, a
+  ledge under the ridge… Falling off the world puts you back where you last
+  stood. The glow in the arrival cave leads home (the square, in front of the
+  runner portal).
+- **Five sky islands** (`islands.js`): far voxel silhouettes (one merged mesh
+  each, no fog, following the camera like the sky) in the menu / runner sky, the
+  square's sky, the exploration sky and every island's sky (except itself).
+  Each always hangs in the same direction.
+- **The islands themselves** (`islandworlds.js`), each built only when you go:
+  1. *Overgrown Ruins* — a temple podium with a room behind vines, a plank bridge
+     to an islet with a broken tower (the crystal key on top).
+  2. *Frozen Summit* — a terraced snow cone, an ice cave, a one-block causeway
+     over the drop to a lonely knob (sniper rifle, a hut).
+  3. *Desert Fortress* — walls, towers, a keep; a stair house down to a chamber
+     under the courtyard.
+  4. *Crystal Caverns* — a stair tunnel down into a 7 m crystal chamber, an
+     alcove behind a curtain of crystals.
+  5. *Broken Citadel* — three rocks, broken bridges to jump, a tower with a stair
+     around it; three sigils (behind a false wall, on the climbing stones, in the
+     far rock's back) open the crown chest at the top: the unique reward.
+- **The secret ways, in the square** (each found by exploring; opened for good):
+  vines in the nook behind the courtyard's low gap (pull them aside) · a cold
+  stone behind the fountain (the frost shard from the snow summit) · a wall of
+  sand in the south wall (its panel: the symbols carved in the mesa cave) · a
+  crystal stone in the hidden garden (the crystal key from island 1) · a
+  pedestal with four sockets in the courtyard (the four island relics). Each
+  island's way home puts you back in front of the way you came in.
+- **Loot** (`loot.js`): chests (chest / urn / crate / cache / crystal, some
+  locked), single finds, weapon pickups and ammo crates of the adventure combat
+  (pistol, shotgun, SMG, sniper, impulse grenades), medkits, materials, rare
+  resources, keys / artifacts, collectibles, relics, the unique crown. Kept in
+  the player's inventory (`inventory.loot`), every chest / find opens **once per
+  player** (coins credited once by transaction id), listed in the journal.
+  **Armour** = plates that each add +10 max health in adventure fights.
+- Portals between areas: `modes.travel(area, at)` (fade, save, arrive with a
+  short title, no intro screen).
+
 ## Characters, colours, fullscreen
 
 - **Characters:** Hero (default) and **Mr. Fridge** (`character.js`). A character can define

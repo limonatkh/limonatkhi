@@ -257,6 +257,7 @@
             ${sec.length ? `<h3>${T('mi.j.bonus')}</h3><ul class="mi-checks">${sec.map(s => `<li class="${s.done ? 'done' : ''}"><span class="mi-box ${s.done ? 'done' : ''}"></span>${esc(L(s.text))}${s.type === 'collect' ? ` (${s.detail})` : ''}</li>`).join('')}</ul>` : ''}
             <h3>${T('mi.j.items')}</h3>
             <p class="mi-small">${run.inventory.length ? run.inventory.map(i => esc(L(i.name))).join(VR.isRTL() ? '، ' : ', ') : T('mi.j.noItems')}</p>
+            ${VR.Loot && run.def.persistent ? VR.Loot.journalHtml() : ''}
             <h3>${T('mi.j.hints')}</h3>
             <ol class="mi-hints">${hints.slice(0, run.hintsUsed).map(h => `<li>${esc(L(h))}</li>`).join('')}</ol>
             ${run.hintsUsed < hints.length ? `<button class="btn small" id="mi-hint">${T('mi.j.showHint', { n: hints.length - run.hintsUsed })}</button>` : ''}

@@ -97,6 +97,26 @@
       const loc = VR.Profiles.player().location;
       this.enterAdventure(loc && VR.ADVENTURE.areas[loc.area] ? loc.area : VR.ADVENTURE.START, { location: loc, fadeIn: true });
     }
+    /**
+     * Area to area through a portal (exploration, the sky islands, their ways home):
+     * fade out, save this area, then the other one — at `at` ({pos, yaw}) or its own spawn.
+     */
+    travel(areaId, at = null) {
+      const g = this.game;
+      if (this.pending || g.state !== 'adventure' || !VR.ADVENTURE.areas[areaId]) return false;
+      this.pending = { travel: { area: areaId, at } };
+      g.missions.freeze(true);
+      g.fade.target = 1;
+      VR.Audio.play('portal');
+      return true;
+    }
+    /** into an area with a short title (no intro screen): arriving through a portal */
+    arrive(areaId, at = null) {
+      const def = VR.ADVENTURE.areas[areaId]; if (!def) return;
+      this.enterAdventure(areaId, { location: at ? Object.assign({ area: areaId }, at) : null, fadeIn: true });
+      const g = this.game;
+      setTimeout(() => { if (g.missions.run && g.missions.run.def.id === areaId) g.missions.ui.caption(VR.L(def.name), 3); }, 350);
+    }
     enterMission(missionId, returnTo) {
       const g = this.game, def = g.missions.byId(missionId);
       if (!def || this.pending || g.state !== 'adventure') return false;
@@ -111,6 +131,7 @@
       const g = this.game, pd = this.pending;
       if (!pd || g.fade.value < 0.99) return;
       this.pending = null;
+      if (pd.travel) { g.missions.abort(); this.arrive(pd.travel.area, pd.travel.at); return; }
       g.missions.abort();                              // saves the area…
       const p = VR.Profiles.player();                  // …then: come back in front of the door
       p.location = Object.assign({ t: Date.now() }, pd.returnTo);

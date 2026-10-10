@@ -52,8 +52,11 @@
     }
     /** third person here? (the areas you keep coming back to; never with a weapon in your hands) */
     tppOn() { return !!(this.run && this.run.def.persistent && this.viewTpp && !(this.combat && this.combat.armed)); }
+    /** the view each place remembers: the square (third person by default) · exploration / islands (def.viewKey, first person by default) */
+    viewKey() { const d = this.run && this.run.def; return (d && d.viewKey) || 'hubView'; }
+    loadView() { const d = this.run && this.run.def; this.viewTpp = VR.UI.store.get(this.viewKey(), (d && d.view) || 'tpp') !== 'fpp'; }
     toggleView() {
-      this.viewTpp = !this.viewTpp; VR.UI.store.set('hubView', this.viewTpp ? 'tpp' : 'fpp');
+      this.viewTpp = !this.viewTpp; VR.UI.store.set(this.viewKey(), this.viewTpp ? 'tpp' : 'fpp');
       VR.Audio.play('click'); this.ui.caption(VR.t('hub.view'), 1.5);
     }
     /** third person: my character is drawn, the camera sits behind my shoulder (pulled in by walls) */
@@ -336,7 +339,9 @@
       }
       for (const e of this.entities) e.sync && e.sync(this.run);
       this.solidBoxes = L.solids.map(s => ({ s, box: new T.Box3(new T.Vector3(...s.min), new T.Vector3(...s.max)) }));
-      this.ctrl.reset(L.spawn);
+      if (L.extras.build) L.extras.build(sc, this);           // a world's own extras (the cloud sea, sky islands…)
+      this.loadView();
+      this.ctrl.reset(L.spawn); this.ctrl.safe = null;
       if (location && location.pos) {               // CONTINUE: back where you were (the spawn stays the respawn point)
         this.ctrl.reset({ pos: location.pos, yaw: location.yaw || 0 });
         this.ctrl.spawn = L.spawn;
@@ -347,6 +352,7 @@
       this.game.renderer.compile(sc, this.camera);
     }
     clearWorld() {
+      if (this.level && this.level.extras.dispose) { try { this.level.extras.dispose(); } catch (e) { console.error(e); } }
       if (this.combat) { this.combat.dispose(); this.combat = null; }
       if (this.weather) { this.weather.dispose(); this.weather = null; } if (this.ctrl) this.ctrl.wind = null;
       const sc = this.scene;
@@ -413,6 +419,7 @@
         if (run.def.timeLimit && run.time >= run.def.timeLimit) this.fail();
       }
       for (const e of this.entities) e.update && e.update(dt, run);
+      if (L.extras.update) L.extras.update(dt, this);
       if (this.weather) { this.weather.update(dt); ctrl.wind = this.weather.wind; }
       this.hands.update(dt, ctrl, look);
       this.hands.setBrightness(this.lightLevel());

@@ -880,6 +880,12 @@
   .bb-tbtns { position: absolute; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(2, 76px); gap: 8px; }
   .bb-tbtns .bb-tshoot { grid-column: 1 / -1; height: 74px; background: rgba(224,112,42,.9); font-size: 18px; }
   @media (max-width: 640px) { .bb-n { display: none; } .bb-attack { font-size: 11px; } }
+
+  /* the runner's secret cave prompt (js/explore/secretcave.js) */
+  #secretPrompt { position: fixed; left: 50%; bottom: 22%; transform: translateX(-50%); z-index: 6; display: flex; gap: 8px; align-items: center; font-family: var(--body); font-size: 15px;
+    color: #cfefff; background: rgba(10,14,22,.62); border: 2px solid rgba(127,232,255,.5); padding: 6px 12px; cursor: pointer; }
+  #secretPrompt b { font-family: var(--display); background: rgba(127,232,255,.85); color: var(--ink); padding: 1px 7px; }
+  .lt-chip { display: inline-block; margin: 2px; padding: 1px 6px; border: 2px solid var(--c); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -1176,6 +1182,12 @@
 <script src="js/adventure/portal.js"></script>
 <script src="js/adventure/hub.js"></script>
 <script src="js/adventure/hubgates.js"></script>
+<script src="js/explore/voxterrain.js"></script>
+<script src="js/explore/loot.js"></script>
+<script src="js/explore/islands.js"></script>
+<script src="js/explore/explore.js"></script>
+<script src="js/explore/islandworlds.js"></script>
+<script src="js/explore/secretcave.js"></script>
 <script src="lib/mqtt.min.js"></script>
 <script src="js/challenge/net.js"></script>
 <script src="js/challenge/challenge.js"></script>

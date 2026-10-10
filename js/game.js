@@ -50,6 +50,7 @@
       const back = VR.Profiles.recoverFromBackup();
       if (back > 0) setTimeout(() => { UI.toast(VR.t('save.recovered', { n: back }), 3200); UI.menuStats(this.best, this.bank); }, 1200);
       this.fightMenu = new VR.FightMenu(this);       // main menu → Fight (1v1, vs the computer, co-op)
+      if (VR.SecretCave) VR.SecretCave.setup(this);   // the hidden cave beside the runner route (js/explore/secretcave.js)
       this.applySettings();
 
       this.clock = new THREE.Clock();
@@ -77,6 +78,8 @@
       this.camera = new THREE.PerspectiveCamera(C.CAMERA_FOV, 1, 0.3, 330);
       // clouds below, the valley far down, peaks on the horizon
       this.backdrop = new VR.Backdrop(this.scene);
+      // five floating islands high in the sky (visual only here — js/explore/islands.js)
+      this.skyIslands = VR.SkyIslands ? new VR.SkyIslands(this.scene, { haze: 0xb8e4ff }) : null;
       this.camTarget = new THREE.Vector3();
       this.camLook = new THREE.Vector3();
       // the runner camera works in path space (like the player) and is put into the
@@ -787,6 +790,7 @@
       else if (st === 'duel' || st === 'duelReturn') this.updateDuelMode(dt);
       else if (st === 'duelPick') this.world.animateGates(dt);
       else if (st === 'mini' || st === 'miniEnter' || st === 'miniReturn') this.mini.update(dt);
+      else if (st === 'secretEnter') VR.SecretCave.updateEnter(this, dt);
       this.challenge.update(dt);
       this.duel.tick(dt);
       this.updateFade(dt);
@@ -796,6 +800,7 @@
       else {
         this.collect.fx.mesh.visible = true;
         this.backdrop.update(dt, this.camera.position);
+        if (this.skyIslands) this.skyIslands.update(this.camera.position, dt);
         this.renderer.render(this.scene, this.camera);
       }
 
@@ -817,7 +822,7 @@
       if (this.bankT > 3) { this.bankT = 0; this.bankRun(); }
       let a;
       if (this.finishing) { while (VR.Input.next()); }      // past the line: no more steering
-      else while ((a = VR.Input.next())) { if (a === 'interact') this.duel.onRunnerInteract(); else p.action(a, this); }
+      else while ((a = VR.Input.next())) { if (a === 'interact') { if (!(VR.SecretCave && VR.SecretCave.interact(this))) this.duel.onRunnerInteract(); } else p.action(a, this); }
 
       this.powerups.update(dt);
       const boost = this.powerups.active('boost');
@@ -844,6 +849,7 @@
       this.world.update(dt, p, this.speed, diff, this);
       this.world.animateGates(dt);
       this.duel.roadUpdate(p);
+      if (VR.SecretCave) VR.SecretCave.roadUpdate(this);
       if (this.checkGates()) return;
       if (this.hitCooldown > 0) this.hitCooldown -= dt;
       if (!this.finishing) this.resolveCollisions();

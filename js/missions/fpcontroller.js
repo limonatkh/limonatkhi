@@ -76,7 +76,8 @@
     // ---- collision helpers -----------------------------------------------
     overlap(level, x, y, z, h) {
       const r = F().RADIUS;
-      for (const s of level.solids) {
+      const list = (level.near && level.near(x, z)) || level.solids;      // big levels: only the colliders nearby
+      for (const s of list) {
         if (!s.enabled) continue;
         if (x + r > s.min[0] && x - r < s.max[0] && y + h > s.min[1] && y < s.max[1] && z + r > s.min[2] && z - r < s.max[2]) return s;
       }
@@ -245,7 +246,16 @@
         if (wasGrounded && this.vel.y <= 0) this.coyote = 0.1;
         this.grounded = false; this.airTime += dt;
       }
-      if (this.pos.y < -8) { this.reset(this.spawn); this.events.push({ type: 'respawn' }); }
+      // safe ground (levels with edges to fall off — the islands): remember where I last stood
+      if (level.safeRespawn && this.grounded && !this.climbing) {
+        this.safeT = (this.safeT || 0) + dt;
+        if (this.safeT > 0.6) { this.safeT = 0; this.safe = { pos: [this.pos.x, this.pos.y + 0.05, this.pos.z], yaw: this.yaw }; }
+      }
+      if (this.pos.y < (level.killY !== undefined ? level.killY : -8)) {
+        const keep = this.spawn;
+        this.reset(level.safeRespawn && this.safe ? this.safe : this.spawn); this.spawn = keep;
+        this.events.push({ type: 'respawn' });
+      }
 
       // ---- camera
       const targetEye = (this.slideTimer > 0 ? fp.CROUCH_EYE - 0.08 : this.crouching ? fp.CROUCH_EYE : fp.EYE) * (this.scaleK || 1);   // scaleK: a shrunk player
