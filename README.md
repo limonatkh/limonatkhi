@@ -1130,10 +1130,18 @@ Now, during a match:
   Citadel (*needles*: tiny rocks, zig-zags, a burst — the hardest). Each route
   leaves its island towards where the other island hangs in the sky; no markers.
   Every island is its own area, so a route is two halves joined by a
-  **crossing rock**: stand on it a moment and you are on the same rock at the
-  other island (walk back onto it to cross back). The rocks are real colliders
-  (one merged mesh per island) and are **not safe ground**: a fall puts you
-  back at the route's start on the island. Every jump of every route is driven
+  **crossing rock** — crossed with **no loading screen** (v1.40, the trick games
+  use with tunnels): the island a route leads to is built *before* you get
+  there (behind the arrival fade, or as soon as you stand still on solid ground;
+  its shaders compiled too; only the neighbours are kept); around the crossing
+  rock you walk into a cloud (thick fog, the far sky hidden), and landing on it
+  swaps the islands at once — you are on the same rock at the other island,
+  still moving, looking the same way along the route, and come out of the cloud
+  there (`missions.swapArea`). Walk back onto it to cross back. The rocks are
+  real colliders (one merged mesh per island) and are **not safe ground**: a
+  fall before the crossing puts you back at the route's start on your island, a
+  fall after it back on the crossing rock. The same pieces (build ahead + hide
+  the seam + swap without a fade) are what a bigger streamed world would use. Every jump of every route is driven
   by a test with the real first-person controller (sprint / walk, take off at
   the edge or earlier, steer to the next rock, the Lemon Burst where needed).
 - **Hiroshima grenade** (`js/duel/hiroshima.js`): in a 1v1 against a friend

@@ -122,13 +122,25 @@
       this.hands.hold(null);
       this.hands.setCharacter(VR.CHARACTERS[this.game.charIndex]);
       this.hands.setTone('white');
-      this.buildWorld(def, opts.location);
-      VR.Input.setMode('fp'); VR.Input.setFPEnabled(false);
+      this.buildWorld(def, opts.location, opts.prebuilt || null);
+      VR.Input.setMode('fp'); if (!opts.seamless) VR.Input.setFPEnabled(false);
       this.ui.show(true);
       this.ui.setMission(def, this.run, this.defs.length);
       if (def.persistent) { this.onInventory(this.run); this.saveArea(); }
       if (opts.intro === false) this.startActive();
       else this.ui.showIntro(def, this.defs.length, () => this.startActive());
+    }
+    /**
+     * Seamless: from this area straight into another one, no fade, no screen in between (the sky
+     * routes' crossing rock, js/explore/skyroutes.js). `L` may be the other area's level built
+     * beforehand; the player keeps moving (velocity, look) — `carry(ctrl)` places him.
+     */
+    swapArea(def, L, carry) {
+      const c = this.ctrl, keep = { vel: c.vel.clone(), pitch: c.pitch, grounded: c.grounded, crouching: c.crouching };
+      if (this.run) { if (this.run.def.persistent) this.saveArea(); this.run = null; }
+      this.enter(def, { intro: false, prebuilt: L, seamless: true });
+      c.vel.copy(keep.vel); c.pitch = keep.pitch;
+      if (carry) carry(c, keep);
     }
     /** Enter a saved area of the adventure world (see the header). */
     enterArea(def, { location = null, intro = false } = {}) { this.enter(def, { location, intro }); }
@@ -299,9 +311,9 @@
     itemModel(name) { const M = VR.MissionModels; return M[name] ? M[name]() : M.smallLemon(); }
 
     // ------------------------------------------------------------ world
-    buildWorld(def, location = null) {
+    buildWorld(def, location = null, prebuilt = null) {
       this.clearWorld();
-      const L = VR.MissionEnvironments[def.environment]();
+      const L = prebuilt || VR.MissionEnvironments[def.environment]();
       this.level = L;
       const sc = this.scene;
       sc.add(L.group);
@@ -397,7 +409,7 @@
           if (e.type === 'jump') VR.Audio.play('jump');
           else if (e.type === 'land' && e.speed > 7) VR.Audio.play('land');
           else if (e.type === 'slide') VR.Audio.play('slide');
-          else if (e.type === 'respawn') this.ui.caption(VR.t('c.fell'), 2);
+          else if (e.type === 'respawn') this.ui.caption(VR.t(L.safeRespawn && ctrl.safe ? 'c.fellSafe' : 'c.fell'), 2);
         }
         evs.length = 0;
         if (ctrl.grounded && ctrl.speed > 2 && !ctrl.slideTimer) {

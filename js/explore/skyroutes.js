@@ -152,6 +152,16 @@
   }
   function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 
+  /** inside the cloud (k 0..1): thick fog, the fog-free far sky (islands, peaks) hidden */
+  function cloud(fx, k) {
+    const sc = fx.scene; if (!sc || !sc.fog || !fx.fog0) return;
+    if (Math.abs(k - fx.k) < 0.002 && fx.hidden) return;
+    fx.k = k;
+    sc.fog.near = fx.fog0[0] + (0.5 - fx.fog0[0]) * k; sc.fog.far = fx.fog0[1] + (12 - fx.fog0[1]) * k;
+    if (fx.bg0 && sc.background && sc.background.isColor) sc.background.copy(fx.bg0).lerp(sc.fog.color, k);
+    if (!fx.hidden) { fx.hidden = []; sc.traverse(o => { if (o.isMesh && o.material && o.material.fog === false) fx.hidden.push(o); }); }
+    for (const o of fx.hidden) o.visible = k < 0.55;
+  }
   function attach(id) {
     const env = VR.MissionEnvironments[id]; if (!env || env.skyRoutes) return;
     const wrapped = function () {
@@ -168,23 +178,45 @@
       if (halves.length) L.group.add(vb.build());
       // the rocks are not safe ground: a fall puts you back where you last stood on the island
       L.unsafeAt = (p) => boxes.some(b => p.x > b.x0 - 0.35 && p.x < b.x1 + 0.35 && p.z > b.z0 - 0.35 && p.z < b.z1 + 0.35 && Math.abs(p.y - b.y) < 0.5);
-      // the crossing: stand on it a moment → the other island, on the same rock
-      const up0 = L.extras.update;
-      let onT = 0, armed = false;                           // (armed once you are off every crossing rock: arriving on one does not send you back)
-      L.extras.update = function (dt, mgr) {
+      // ---- the crossing, with no loading screen (like the tunnels games use to swap one map for the next):
+      //  · the other island is built BEFORE you get there (on arrival behind the fade, or as soon as you
+      //    stand still on solid ground) and its shaders are compiled then;
+      //  · around the crossing rock you walk into a cloud (thick fog, the far sky hidden), so at the
+      //    moment the islands are swapped neither can be seen;
+      //  · you land on the crossing rock and you are on the same rock at the other island, still moving,
+      //    looking the same way along the route; you come out of the cloud there.
+      //  · a fall after the crossing puts you back on the crossing rock (before it: on your island).
+      const fx = { k: 0, hidden: null, fog0: null, bg0: null };
+      const ex = L.extras, up0 = ex.update, b0 = ex.build;
+      let onT = 0, armed = false, lastPos = null, stillT = 0;
+      ex.build = function (scene, mgr) {
+        if (b0) b0.call(this, scene, mgr);
+        fx.fog0 = scene.fog ? [scene.fog.near, scene.fog.far] : null; fx.bg0 = scene.background ? scene.background.clone() : null;
+        fx.scene = scene; fx.hidden = null;
+        // behind the arrival fade: build the islands this one's routes lead to
+        if (!SR.seamlessNow) SR.preloadFor(id, mgr);
+        SR.seamlessNow = false;
+      };
+      ex.update = function (dt, mgr) {
         if (up0) up0.call(this, dt, mgr);
-        const c = mgr.ctrl; if (!c || !L.extras.routes) return;
+        const c = mgr.ctrl; if (!c || !ex.routes) return;
+        // a respawn (a jump in position) must not count as stepping onto the crossing rock
+        if (lastPos && c.pos.distanceTo(lastPos) > 4 && c.safe && Math.hypot(c.pos.x - c.safe.pos[0], c.pos.z - c.safe.pos[2]) < 0.3) armed = false;
+        lastPos = (lastPos || c.pos.clone()).copy(c.pos);
+        // the cloud around the crossing rocks
+        let k = 0;
+        for (const r of ex.routes) { const b = r.cross; if (!b) continue; const d = Math.hypot(c.pos.x - (b.x0 + b.x1) / 2, c.pos.z - (b.z0 + b.z1) / 2); k = Math.max(k, Math.min(1, Math.max(0, 1 - (d - 2.5) / 11))); }
+        cloud(fx, k * k * (3 - 2 * k));
+        // standing still on the island (not on a rock): a good moment to build what the routes lead to
+        if (c.grounded && !L.unsafeAt(c.pos) && Math.hypot(c.vel.x, c.vel.z) < 0.5) { stillT += dt; if (stillT > 0.8) { stillT = -999; SR.preloadFor(id, mgr); } } else if (stillT > 0) stillT = 0;
         let on = null;
-        for (const r of L.extras.routes) { const b = r.cross; if (b && c.grounded && c.pos.x > b.x0 - 0.2 && c.pos.x < b.x1 + 0.2 && c.pos.z > b.z0 - 0.2 && c.pos.z < b.z1 + 0.2 && Math.abs(c.pos.y - b.y) < 0.3) on = r; }
+        for (const r of ex.routes) { const b = r.cross; if (b && c.grounded && c.pos.x > b.x0 - 0.2 && c.pos.x < b.x1 + 0.2 && c.pos.z > b.z0 - 0.2 && c.pos.z < b.z1 + 0.2 && Math.abs(c.pos.y - b.y) < 0.3) on = r; }
         if (!on) { onT = 0; armed = true; return; }
         if (!armed) return;
         onT += dt;
-        if (onT > 0.25 && mgr.game && mgr.game.modes) {
-          armed = false;
-          const at = VR.SkyRoutes.arrivalAt(on.to, on.route);
-          if (at) mgr.game.modes.travel(on.to, at);
-        }
+        if (onT > 0.05 && mgr.game && mgr.game.modes && !mgr.game.modes.pending) { armed = false; SR.cross(mgr, id, on); }
       };
+      ex.arriveOnCross = () => { armed = false; };
       return L;
     };
     wrapped.skyRoutes = true;
@@ -207,5 +239,58 @@
     return cache[key];
   }
 
-  VR.SkyRoutes = Object.assign(API, { arrivalAt, MAT });
+  // ---- building the next island ahead of time, and the swap itself
+  const SR = { preloaded: {}, seamlessNow: false };
+  /** build the islands `id`'s routes lead to (not yet in the scene) and compile their shaders */
+  SR.preloadFor = function (id, mgr) {
+    // keep only what this island's routes lead to (free the rest)
+    const want = new Set(ROUTES.filter(R => R.from === id || R.to === id).map(R => (R.from === id ? R.to : R.from)));
+    for (const k of Object.keys(SR.preloaded)) if (!want.has(k)) { SR.preloaded[k].group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); delete SR.preloaded[k]; }
+    for (const R of ROUTES) {
+      const other = R.from === id ? R.to : R.to === id ? R.from : null;
+      if (!other || SR.preloaded[other]) continue;
+      try {
+        const L = VR.MissionEnvironments[other]();
+        SR.preloaded[other] = L;
+        // (the same kind of scene it will be in — fog, its lights — so the compiled shaders are the ones used)
+        const tmp = new T.Scene(); tmp.add(L.group); tmp.add(new T.HemisphereLight(0xffffff, 0x444444, 1)); if (L.sun) tmp.add(new T.DirectionalLight(0xffffff, 1));
+        if (L.ambient.fog) tmp.fog = new T.Fog(L.ambient.fog[0], L.ambient.fog[1], L.ambient.fog[2]);
+        for (const ld of L.lights) { const pl = new T.PointLight(ld.color, ld.intensity, ld.distance, 2); pl.position.set(...ld.pos); tmp.add(pl); }
+        if (mgr && mgr.game && mgr.game.renderer) mgr.game.renderer.compile(tmp, mgr.camera);
+        tmp.remove(L.group);
+      } catch (e) { console.error(e); }
+    }
+  };
+  /** the yaw of a direction (the controller looks along (−sin yaw, −cos yaw)) */
+  const yawOf = (x, z) => Math.atan2(-x, -z);
+  /** on the crossing rock of `route` in `id`: into the other island, on the same rock, moving on */
+  SR.cross = function (mgr, id, route) {
+    const g = mgr.game, other = route.to, def = VR.ADVENTURE.areas[other];
+    if (!def) return;
+    const c = mgr.ctrl, b = route.cross, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+    const rel = { x: c.pos.x - cx, y: c.pos.y - b.y, z: c.pos.z - cz }, yaw = c.yaw;
+    let L = SR.preloaded[other]; delete SR.preloaded[other];
+    if (!L) L = VR.MissionEnvironments[other]();             // (not built yet: build it now, inside the cloud)
+    const there = (L.extras.routes || []).find(r => r.route === route.route && r.cross);
+    if (!there) { const at = VR.SkyRoutes.arrivalAt(other, route.route); if (at) g.modes.travel(other, at); return; }
+    // the route frames: here you walked OUT along this island's direction, there you walk IN
+    const th = yawOf(-there.dir[0], -there.dir[1]) - yawOf(route.dir[0], route.dir[1]);
+    const cs = Math.cos(th), sn = Math.sin(th), rot = (x, z) => ({ x: x * cs + z * sn, z: -x * sn + z * cs });
+    const tb = there.cross, tx = (tb.x0 + tb.x1) / 2, tz = (tb.z0 + tb.z1) / 2, r = rot(rel.x, rel.z);
+    SR.seamlessNow = true;
+    // (the other island's area keeps its saved state; this one is saved on the way out)
+    mgr.swapArea(def, L, (ctrl, keep) => {
+      ctrl.reset({ pos: [tx + r.x, tb.y + rel.y, tz + r.z], yaw: yaw + th });
+      const v = rot(keep.vel.x, keep.vel.z);
+      ctrl.vel.set(v.x, keep.vel.y, v.z); ctrl.pitch = keep.pitch; ctrl.grounded = keep.grounded;
+      ctrl.safe = { pos: [tx, tb.y + 0.05, tz], yaw: yaw + th };     // a fall from here on: back on this crossing rock
+      ctrl.spawn = L.spawn;
+      if (L.extras.arriveOnCross) L.extras.arriveOnCross();
+    });
+    // inside the cloud right away (it thins out as you walk on)
+    const p = VR.Profiles.player(); p.location = { area: other, pos: [+mgr.ctrl.pos.x.toFixed(2), +mgr.ctrl.pos.y.toFixed(2), +mgr.ctrl.pos.z.toFixed(2)], yaw: +mgr.ctrl.yaw.toFixed(3), t: Date.now() }; VR.Profiles.save();
+    setTimeout(() => { if (mgr.run && mgr.run.def.id === other) mgr.ui.caption(VR.L(def.name), 3); }, 600);
+    // and from the island you are on now, build the next ones when you stand still somewhere
+  };
+  VR.SkyRoutes = Object.assign(API, { arrivalAt, MAT }, SR);
 })();

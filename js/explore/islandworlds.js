@@ -250,7 +250,7 @@
     L.extras.build = (scene, mgr) => {
       bd = new VR.Backdrop(scene); sky = VR.SkyIslands ? new VR.SkyIslands(scene, { haze: LOOK[id].ambient.fog[0], skip: id }) : null;
       far0 = mgr.camera.far; mgr.camera.far = 520; mgr.camera.updateProjectionMatrix();
-      L.extras.mgr = mgr;
+      L.extras.mgr = mgr; L.extras.sky = sky; L.extras.backdrop = bd;
     };
     L.extras.update = (dt, mgr) => { const c = mgr.camera.position; if (bd) bd.update(dt, c); if (sky) sky.update(c, dt); };
     L.extras.dispose = () => { if (sky) sky.dispose(); sky = null; bd = null; const m = L.extras.mgr; if (m && far0) { m.camera.far = far0; m.camera.updateProjectionMatrix(); } };
