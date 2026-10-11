@@ -40,6 +40,7 @@
           <div class="mi-topright">
             <div class="mi-timer panel" id="mi-timer" hidden></div>
             <div class="mi-coins panel" id="mi-coins" hidden><span class="coin-ico"></span><span id="mi-coins-n">0</span></div>
+            <button class="btn small mi-iconbtn mi-viewbtn" id="mi-view-btn" hidden><span class="mi-key">T</span><span class="mi-vlabel"></span></button>
             <button class="btn small mi-iconbtn" id="mi-journal-btn" data-i18n-aria="mi.journal" aria-label="${T('mi.journal')}"><span class="mi-key">J</span><span class="mi-jlabel" data-i18n="mi.journal">${T('mi.journal')}</span></button>
             <button class="btn small mi-iconbtn mi-fsbtn" id="mi-fs-btn" data-i18n-aria="fs.enter" aria-label="${T('fs.enter')}"><i class="fs-ico"></i></button>
             <button class="btn small mi-iconbtn" id="mi-pause-btn" data-i18n-aria="mi.k.pause" aria-label="${T('mi.k.pause')}"><i class="mi-pausei"></i></button>
@@ -75,6 +76,8 @@
       VR.Wallet.onChange((c) => { this.el.coinsN.textContent = c.toLocaleString('en-US'); });
       $('#mi-journal-btn').addEventListener('click', () => { VR.Audio.play('click'); this.mgr.openJournal(); });
       $('#mi-pause-btn').addEventListener('click', () => { VR.Audio.play('click'); this.mgr.pause(); });
+      // first / third person, whenever you like (the areas you keep coming back to: the square, the islands, the planet…)
+      $('#mi-view-btn').addEventListener('click', (e) => { e.stopPropagation(); const m = this.mgr; if (m.run && m.run.def.persistent) { m.toggleView(); this.syncView(); } });
       $('#mi-fs-btn').addEventListener('click', (e) => { e.stopPropagation(); VR.Audio.play('click'); VR.Fullscreen.toggle(); });
       window.addEventListener('keydown', (e) => this.onKey(e));
       this.buildTouch();
@@ -85,7 +88,17 @@
     // ------------------------------------------------------------ HUD
     /** the small line above a title: "Mission 2 of 5", or the area's own label */
     eyebrow(def, total) { return def.persistent ? L(def.eyebrow || def.name) : T('mi.missionOf', { n: def.order, total }); }
+    /** the view button: shown in the areas with a choice of view; its label says what you see now */
+    syncView() {
+      const b = $('#mi-view-btn'); if (!b) return;
+      const m = this.mgr, on = !!(m.run && m.run.def.persistent);
+      b.hidden = !on; if (!on) return;
+      const tpp = !!m.viewTpp;
+      b.querySelector('.mi-vlabel').textContent = tpp ? VR.t('mi.viewTpp') : VR.t('mi.viewFpp');
+      b.title = VR.t('hub.view'); b.setAttribute('aria-label', VR.t('hub.view'));
+    }
     setMission(def, run, total) {
+      setTimeout(() => this.syncView(), 0);
       this.el.mname.textContent = def.persistent ? L(def.name) : `${T('mi.missionOf', { n: def.order, total })} · ${L(def.name)}`;
       this.el.coins.hidden = !def.persistent;
       this.el.coinsN.textContent = VR.Wallet.of().coins.toLocaleString('en-US');
@@ -283,7 +296,8 @@
         <button class="btn primary" id="mi-resume" data-focus>${T('mi.p.resume')}</button>
         <div class="mi-setting"><label for="mi-sens">${T('mi.p.sens')}</label><input type="range" id="mi-sens" min="0.2" max="3" step="0.1" value="${settings.sens}"><output id="mi-sens-v">${settings.sens.toFixed(1)}</output></div>
         <div class="mi-setting"><label for="mi-fov">${T('mi.p.fov')}</label><input type="range" id="mi-fov" min="90" max="105" step="1" value="${settings.fov}"><output id="mi-fov-v">${settings.fov}°</output></div>
-        ${handlers.persistent ? `<p class="mi-small">${T('adv.savedNote')}</p>
+        ${handlers.persistent ? `<div class="mi-setting mi-viewset"><label>${T('hub.view')}</label><div class="mi-row"><button class="btn small" id="mi-v-tpp">${T('mi.viewTpp')}</button><button class="btn small" id="mi-v-fpp">${T('mi.viewFpp')}</button></div></div>
+        <p class="mi-small">${T('adv.savedNote')}</p>
         <button class="btn" id="mi-quit">${T('adv.toMenu')}</button>` : `<div class="mi-row">
           <button class="btn" id="mi-restart">${T('mi.p.restart')}</button>
           <button class="btn" id="mi-leave">${T('mi.p.leave')}</button>
@@ -297,6 +311,12 @@
             card.querySelector('#mi-leave').addEventListener('click', () => { VR.Audio.play('click'); handlers.leave(); });
           }
           card.querySelector('#mi-quit').addEventListener('click', () => { VR.Audio.play('click'); handlers.quit(); });
+          if (handlers.persistent) {                       // the view: third / first person, any time
+            const m = this.mgr, paint = () => { card.querySelector('#mi-v-tpp').classList.toggle('lemon', !!m.viewTpp); card.querySelector('#mi-v-fpp').classList.toggle('lemon', !m.viewTpp); };
+            card.querySelector('#mi-v-tpp').addEventListener('click', () => { if (!m.viewTpp) m.toggleView(); paint(); });
+            card.querySelector('#mi-v-fpp').addEventListener('click', () => { if (m.viewTpp) m.toggleView(); paint(); });
+            paint();
+          }
           const sens = card.querySelector('#mi-sens'), fov = card.querySelector('#mi-fov');
           sens.addEventListener('input', () => { card.querySelector('#mi-sens-v').textContent = (+sens.value).toFixed(1); handlers.setting('sens', +sens.value); });
           fov.addEventListener('input', () => { card.querySelector('#mi-fov-v').textContent = fov.value + '°'; handlers.setting('fov', +fov.value); });

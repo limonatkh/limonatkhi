@@ -57,10 +57,10 @@
     tppOn() { return !!(this.run && this.run.def.persistent && (this.viewTpp || (VR.Admin && VR.Admin.freecam)) && !(this.combat && this.combat.scoped && !(VR.Admin && VR.Admin.freecam))); }
     /** the view each place remembers: the square (third person by default) · exploration / islands (def.viewKey, first person by default) */
     viewKey() { const d = this.run && this.run.def; return (d && d.viewKey) || 'hubView2'; }      // (v1.41: a new key — the square starts in third person again)
-    loadView() { const d = this.run && this.run.def; this.viewTpp = VR.UI.store.get(this.viewKey(), (d && d.view) || 'tpp') !== 'fpp'; }
+    loadView() { const d = this.run && this.run.def; this.viewTpp = VR.UI.store.get(this.viewKey(), (d && d.view) || 'tpp') !== 'fpp'; if (this.ui && this.ui.syncView) this.ui.syncView(); }
     toggleView() {
       this.viewTpp = !this.viewTpp; VR.UI.store.set(this.viewKey(), this.viewTpp ? 'tpp' : 'fpp');
-      VR.Audio.play('click'); this.ui.caption(VR.t('hub.view'), 1.5);
+      VR.Audio.play('click'); this.ui.caption(VR.t(this.viewTpp ? 'mi.viewTpp' : 'mi.viewFpp'), 1.5); this.ui.syncView && this.ui.syncView();
     }
     /** third person: my character is drawn, the camera sits behind my shoulder (pulled in by walls) */
     applyView(dt) {
@@ -468,12 +468,16 @@
     updateTarget() {
       const cam = this.camera;
       const dir = new T.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-      // third person: reach is measured from my eyes, not from the camera behind me
-      const origin = this.tppOn() ? (this.ctrl.eyeWorld ? this.ctrl.eyeWorld() : new T.Vector3(this.ctrl.pos.x, this.ctrl.pos.y + this.ctrl.eye, this.ctrl.pos.z)) : cam.getWorldPosition(this._v.set(0, 0, 0)).clone();
+      const camPos = cam.getWorldPosition(this._v.set(0, 0, 0)).clone();
+      // third person: what the crosshair is on — the ray from the camera (behind my shoulder) — but
+      // reach is measured from my eyes, so the camera's distance does not make things farther away
+      const tpp = this.tppOn();
+      const eye = tpp ? (this.ctrl.eyeWorld ? this.ctrl.eyeWorld() : new T.Vector3(this.ctrl.pos.x, this.ctrl.pos.y + this.ctrl.eye, this.ctrl.pos.z)) : camPos;
+      const origin = camPos;
       const ray = new T.Ray(origin, dir);
-      const reach = FP().REACH;
+      const reach = FP().REACH + (tpp ? camPos.distanceTo(eye) : 0);
       let best = null, bestD = reach;
-      const pt = new T.Vector3();
+      const pt = new T.Vector3(), hits = [], cen = new T.Vector3(), sz = new T.Vector3();
       for (const e of this.interactables) {
         if (!e.hit || !e.kind) continue;
         if (e.obj && !visibleChain(e.obj)) continue;
@@ -481,7 +485,19 @@
         if (!p) continue;
         if (!ray.intersectBox(e.hit, pt)) continue;
         const d = pt.distanceTo(origin);
-        if (d < bestD) { bestD = d; best = { e, p }; }
+        if (d >= reach) continue;
+        if (tpp && pt.distanceTo(eye) > FP().REACH) continue;     // (within reach of my hands, not of the camera)
+        if (tpp && (e.hit.containsPoint(origin) || pt.clone().sub(eye).dot(dir) < -0.2)) continue;   // (around the camera / behind me: not what I look at)
+        // how close to the crosshair its middle is (for size: a big door vs a small button)
+        e.hit.getCenter(cen); e.hit.getSize(sz);
+        hits.push({ e, p, d, k: ray.distanceToPoint(cen) / Math.max(0.05, sz.length() / 2) });
+      }
+      if (hits.length) {
+        // things side by side (the buttons of a panel: their boxes touch): the one the crosshair is on,
+        // not just the box the ray enters first (a slanted look — third person — enters a neighbour first)
+        const d0 = Math.min(...hits.map(h => h.d));
+        const near = hits.filter(h => h.d <= d0 + 0.6).sort((a, b) => a.k - b.k)[0];
+        best = { e: near.e, p: near.p }; bestD = near.d;
       }
       if (best) {
         const owner = best.e.parent ? best.e.parent.id : best.e.id;

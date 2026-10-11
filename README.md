@@ -1120,6 +1120,17 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Third person: the crosshair works on symbols and doors · choose the view (v1.44)
+
+- In third person what you use is what the **crosshair** is on: the ray from the camera
+  (behind the shoulder), with reach measured from the character's eyes. Before, the ray
+  started at the eyes, parallel to the view and 0.55 m to the side, so small things
+  (the symbol buttons that open doors, dials) were missed or the neighbour was picked.
+  Things side by side: the one whose middle is nearest the crosshair wins.
+- Choose the view any time: a **view button** in the HUD of the areas you keep coming
+  back to (the square, exploration, the islands, the planet), two buttons in the pause
+  menu, or T. The choice is remembered per place.
+
 ## Mouse: no stutter on fast movement (v1.43)
 
 The filter for the browser's one-off mouse glitches (`js/input.js lookDelta`) no longer

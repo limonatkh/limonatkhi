@@ -40,7 +40,7 @@
       'biome.grassland': 'Alpine Meadows', 'biome.forest': 'Pine Heights', 'biome.desert': 'Red Canyons', 'biome.snow': 'Snowy Summits', 'biome.village': 'Lemon Terraces', 'biome.mountains': 'Rocky Peaks',
       'gate.sign': 'MISSION {n}',
       // ---- missions: HUD
-      'mi.missionOf': 'Mission {n} of {total}', 'mi.journal': 'Journal', 'mi.burst': 'Lemon Burst', 'mi.lookHint': 'Click to look around',
+      'mi.missionOf': 'Mission {n} of {total}', 'mi.journal': 'Journal', 'mi.viewTpp': '3rd person', 'mi.viewFpp': '1st person', 'mi.burst': 'Lemon Burst', 'mi.lookHint': 'Click to look around',
       'mi.objectiveDone': 'Objective complete', 'mi.useKey': 'Use',
       'mi.k.move': 'Move', 'mi.k.look': 'Look', 'mi.k.jump': 'Jump', 'mi.k.crouch': 'Crouch / slide', 'mi.k.interact': 'Interact',
       'mi.k.burst': 'Lemon Burst', 'mi.k.journal': 'Journal', 'mi.k.pause': 'Pause',
@@ -99,7 +99,7 @@
       'pu.magnet': 'مغناطيس', 'pu.shield': 'درع', 'pu.boost': 'تسارع', 'pu.double': 'عملات ×2', 'pu.invincible': 'نجمة',
       'biome.grassland': 'المراعي العالية', 'biome.forest': 'مرتفعات الصنوبر', 'biome.desert': 'الأخاديد الحمراء', 'biome.snow': 'القمم الثلجية', 'biome.village': 'مدرّجات الليمون', 'biome.mountains': 'القمم الصخرية',
       'gate.sign': 'مهمة {n}',
-      'mi.missionOf': 'المهمة {n} من {total}', 'mi.journal': 'المفكّرة', 'mi.burst': 'قفزة الليمون', 'mi.lookHint': 'انقر لتنظر حولك',
+      'mi.missionOf': 'المهمة {n} من {total}', 'mi.journal': 'المفكّرة', 'mi.viewTpp': 'من الخلف', 'mi.viewFpp': 'من العيون', 'mi.burst': 'قفزة الليمون', 'mi.lookHint': 'انقر لتنظر حولك',
       'mi.objectiveDone': 'اكتمل الهدف', 'mi.useKey': 'استخدم',
       'mi.k.move': 'الحركة', 'mi.k.look': 'النظر', 'mi.k.jump': 'قفز', 'mi.k.crouch': 'انحناء / انزلاق', 'mi.k.interact': 'تفاعل',
       'mi.k.burst': 'قفزة الليمون', 'mi.k.journal': 'المفكّرة', 'mi.k.pause': 'إيقاف مؤقت',
