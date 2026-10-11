@@ -110,18 +110,25 @@
   /**
    * Captured-mouse movement. Some browsers (Chrome on Windows above all) now and then
    * deliver ONE event with a huge jump — often backwards — while the mouse moves fast
-   * or in circles: the view "skips". Such an event is dropped: far bigger than any real
-   * movement in one event, or a sudden reversal many times bigger than the last one.
+   * or in circles: the view "skips". Only such a glitch is dropped: far bigger than the
+   * mouse has been moving lately AND against the way it is going (or absurdly big).
+   * A fast real movement — big events, more so when the frame rate dips and the browser
+   * packs more motion into each event — always counts in full (v1.43: the older, fixed
+   * limit dropped those and the view stuttered when moving the mouse fast).
    */
-  let lastDX = 0, lastDY = 0;
-  const SPIKE = 260;
+  let lastDX = 0, lastDY = 0, lastT = 0, speed = 0;     // speed: recent size of one event (px), smoothed
   function lookDelta(dx, dy) {
     dx = dx || 0; dy = dy || 0;
-    const jump = Math.abs(dx) > SPIKE || Math.abs(dy) > SPIKE;
-    const flipX = Math.abs(dx) > 70 && Math.abs(lastDX) > 3 && Math.sign(dx) !== Math.sign(lastDX) && Math.abs(dx) > 8 * Math.abs(lastDX);
-    const flipY = Math.abs(dy) > 70 && Math.abs(lastDY) > 3 && Math.sign(dy) !== Math.sign(lastDY) && Math.abs(dy) > 8 * Math.abs(lastDY);
-    if (jump || flipX || flipY) { if (VR.Input) VR.Input.spikes = (VR.Input.spikes || 0) + 1; return; }
-    lastDX = dx; lastDY = dy;
+    const now = performance.now(), mag = Math.hypot(dx, dy);
+    const recent = now - lastT < 120;                   // still the same movement (else: no "way it is going")
+    if (!recent) speed *= 0.3;
+    const lim = Math.max(250, speed * 8 + 100);
+    if (mag > lim) {
+      const against = recent && (dx * lastDX + dy * lastDY) < 0;
+      if (against || mag > Math.max(1500, speed * 15)) { if (VR.Input) VR.Input.spikes = (VR.Input.spikes || 0) + 1; return; }
+    }
+    speed = speed * 0.7 + mag * 0.3;
+    lastDX = dx; lastDY = dy; lastT = now;
     look.x += dx; look.y += dy;
   }
   /** capture the mouse (the plain request: asking for raw movement fails on some systems and would lose the click that allowed it) */

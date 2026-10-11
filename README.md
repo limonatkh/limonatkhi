@@ -1120,6 +1120,14 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Mouse: no stutter on fast movement (v1.43)
+
+The filter for the browser's one-off mouse glitches (`js/input.js lookDelta`) no longer
+uses a fixed size limit — a fast real movement (big events, more so when the frame
+rate dips) was dropped and the view stuttered. Now an event is dropped only when it is
+far bigger than the mouse has been moving lately AND against the way it is going (or
+absurdly big); everything else counts in full.
+
 ## Views, the Hiroshima jump, the deck sniper, the admin free camera (v1.42)
 
 - **Views**: the square is third person (also with a weapon in hand — the gun is in
