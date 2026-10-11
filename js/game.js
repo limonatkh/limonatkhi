@@ -800,6 +800,7 @@
       this.challenge.update(dt);
       this.duel.tick(dt);
       this.updateFade(dt);
+      if (VR.Admin) VR.Admin.update(dt);                 // the owner's free camera (js/core/admin.js)
       if (this.state === 'mission' || this.state === 'gateReturn' || this.state === 'adventure') this.missions.render(this.renderer);
       else if (this.state === 'duel' || this.state === 'duelReturn') this.duel.render(this.renderer);
       else if (this.state === 'mini' || this.state === 'miniEnter' || this.state === 'miniReturn') this.mini.render(this.renderer);

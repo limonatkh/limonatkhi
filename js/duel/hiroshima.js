@@ -5,8 +5,11 @@
  * Two of them lie in the yard (glowing red beams, at the middle of each
  * long wall). E picks one up (one at a time); G then throws it instead of
  * an impulse grenade. Where it goes off, whoever is close (5 m, the
- * thrower too) is blown straight up out of the yard — a 2.4 s flight —
- * onto THE SKY DECK: a flat square high above the yard (90 m). Up there
+ * thrower too) is blown straight up out of the yard — a real jump (the
+ * same physics as the push grenade, ~2.6 s up and over): you fly up THROUGH
+ * the deck from below and come down on top of THE SKY DECK, a flat square
+ * high above the yard (90 m). On the deck lies a sniper with only two
+ * rounds (one at a time, back after 30 s; gone at the next round). Up there
  * you stay; with a sniper you can shoot the other player in the yard
  * below, and he can only get you by shooting up at you (you are hidden on
  * the deck unless you come to its edge to look down). Walk off the edge
@@ -21,12 +24,20 @@
   const T = THREE;
   const DECK = { x: 0, y: 90, z: 0, half: 9, thick: 1.2 };      // the sky deck (top at y)
   const R = 5.0, FLIGHT = 2.4, RESPAWN = 30, EDGE = 1.5;
-  const SPOTS = [['a', -9.6, 0.6], ['b', 9.6, -0.6]];
+  const SPOTS = [['a', -9.6, 0.6], ['b', 9.6, -0.6], ['deck', 0, 0]];      // two grenades in the yard, the sniper on the deck
+  const yOf = (id) => (id === 'deck' ? DECK.y : 0);
+  // the deck's sniper: two rounds, no reload (a loot weapon: js/duel/powers.js draws it from the sniper, recoloured)
+  if (VR.Powers && VR.FightKit) {
+    const sn = VR.FightKit.WEAPONS.sniper;
+    VR.Powers.LOOT_WEAPONS.skysniper = Object.assign({}, sn, { mag: 2, noReload: true, loot: true, base: 'sniper', color: 0xff3a2a });
+    VR.FightKit.WEAPONS.skysniper = VR.Powers.LOOT_WEAPONS.skysniper;
+    VR.FightKit.NAMES.skysniper = { en: 'Sky sniper (2 rounds)', ar: 'قناصة المنصّة (طلقتان)' };
+  }
   const tr = (k, v) => VR.t(k, v);
   Object.assign(VR.I18N.STRINGS.en, { 'hi.name': 'Hiroshima grenade', 'hi.got': 'Hiroshima grenade! G throws it', 'hi.pick': '{k}: pick up the Hiroshima grenade',
-    'hi.badge': 'HIROSHIMA · {k}', 'hi.up': 'Blown up to the sky deck!', 'hi.full': 'You already carry one' });
+    'hi.badge': 'HIROSHIMA · {k}', 'hi.up': 'Blown up to the sky deck!', 'hi.full': 'You already carry one', 'hi.pickGun': '{k}: take the sniper (2 rounds)', 'hi.gotGun': 'Sniper — two rounds only. Make them count!' });
   Object.assign(VR.I18N.STRINGS.ar, { 'hi.name': 'قنبلة هيروشيما', 'hi.got': 'قنبلة هيروشيما! G ترميها', 'hi.pick': '{k}: التقط قنبلة هيروشيما',
-    'hi.badge': 'هيروشيما · {k}', 'hi.up': 'طرت إلى المنصّة فوق!', 'hi.full': 'معك واحدة أصلًا' });
+    'hi.badge': 'هيروشيما · {k}', 'hi.up': 'طرت إلى المنصّة فوق!', 'hi.full': 'معك واحدة أصلًا', 'hi.pickGun': '{k}: خذ القناصة (طلقتان)', 'hi.gotGun': 'قناصة — طلقتان فقط. استغلّهم صح!' });
   VR.Audio.define('hiroBoom', ({ tone, noise }) => { noise(0.6, 0.6, 900); tone(70, 0.8, 'sawtooth', 0.25, 30); tone(140, 0.5, 'square', 0.1, 60); });
   VR.Audio.define('hiroFly', ({ noise, tone }) => { noise(1.2, 0.18, 2500); tone(200, 1.2, 'sine', 0.06, 900); });
 
@@ -44,7 +55,8 @@
     L.group.add(vb.build());
     // you stand on all of it; shots only stop at its middle: the last 1.5 m to each edge lets them through,
     // so from the edge you can shoot down — and that is the only place where you can be shot from below
-    L.collider(DECK.x - h, y - DECK.thick, DECK.z - h, DECK.x + h, y, DECK.z + h).noShot = true;
+    const slab = L.collider(DECK.x - h, y - DECK.thick, DECK.z - h, DECK.x + h, y, DECK.z + h); slab.noShot = true;
+    L.extras.deckSlab = slab;                                  // (flying up from the yard you pass through it: Hiroshima.stepFlight)
     const e = EDGE;
     (L.extras.shotOnly = L.extras.shotOnly || []).push({ min: [DECK.x - h + e, y - DECK.thick - 4.4, DECK.z - h + e], max: [DECK.x + h - e, y, DECK.z + h - e] });
     L.collider(DECK.x + 4.5, y, DECK.z - 5, DECK.x + 5.5, y + 1.1, DECK.z - 4); L.collider(DECK.x - 5.5, y, DECK.z + 4, DECK.x - 4.5, y + 1.1, DECK.z + 5);
@@ -60,9 +72,9 @@
     // ---- pickups
     show(id, x, z) {
       if (this.items.has(id)) return;
-      const g = new T.Group(); g.position.set(x, 0, z);
-      const gr = VR.DuelWeapons.grenade(); gr.scale.setScalar(3.2);
-      gr.traverse(o => { if (o.isMesh && o.material) { o.material = o.material.clone(); o.material.userData.own = true; if (o.material.color) o.material.color.lerp(new T.Color(0xff3a2a), 0.65); if (o.material.emissive) o.material.emissive.setHex(0x5a0a00); } });
+      const g = new T.Group(); g.position.set(x, yOf(id), z);
+      const gr = id === 'deck' ? VR.WeaponKit.model('skysniper') : VR.DuelWeapons.grenade(); gr.scale.setScalar(id === 'deck' ? 1.6 : 3.2);
+      if (id !== 'deck') gr.traverse(o => { if (o.isMesh && o.material) { o.material = o.material.clone(); o.material.userData.own = true; if (o.material.color) o.material.color.lerp(new T.Color(0xff3a2a), 0.65); if (o.material.emissive) o.material.emissive.setHex(0x5a0a00); } });
       const holder = new T.Group(); holder.position.y = 0.95; holder.add(gr); g.add(holder);
       const ring = new T.Mesh(new T.RingGeometry(0.55, 0.78, 28), new T.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.85, depthWrite: false, side: T.DoubleSide }));
       ring.material.userData.own = true; ring.geometry.userData.own = true; ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; g.add(ring);
@@ -77,7 +89,10 @@
     broadcast() { const m = this.mgr.match; if (m && m.type === 'pvp') this.mgr.send({ k: 'hl', it: this.list() }); }
     /** a new round: nothing in hand, both on the floor (the host decides) */
     resetRound() {
-      this.flight = null; this.charges = 0; this.wait = {};
+      this.endFlight(); this.charges = 0; this.wait = {};
+      // the deck's sniper is for one round only
+      const lo = this.mgr.lo;
+      if (lo && lo.slots) { const i = lo.slots.findIndex(q => q.id === 'skysniper'); if (i >= 0) { lo.slots.splice(i, 1); if (lo.cur > i || lo.cur >= lo.slots.length) lo.cur = Math.max(0, lo.cur - 1); } }
       for (const id of [...this.items.keys()]) this.hide(id);
       if (!this.on) return this.paint();
       if (this.host) { for (const [id, x, z] of SPOTS) this.show(id, x, z); this.broadcast(); }
@@ -87,27 +102,35 @@
     clear() { for (const id of [...this.items.keys()]) this.hide(id); this.charges = 0; this.flight = null; this.paint(); }
     nearest(r = 1.7) {
       const c = this.mgr.ctrl; let best = null, bd = r;
-      for (const it of this.items.values()) { const d = Math.hypot(it.x - c.pos.x, it.z - c.pos.z); if (d < bd && c.pos.y < 2.5) { bd = d; best = it; } }
+      for (const it of this.items.values()) { const d = Math.hypot(it.x - c.pos.x, it.z - c.pos.z), dy = c.pos.y - yOf(it.id); if (d < bd && dy > -0.5 && dy < 2.5) { bd = d; best = it; } }
       return best;
     }
-    prompt() { return this.on && this.nearest() ? tr('hi.pick', { k: keyOf('interact') }) : null; }
+    prompt() { const it = this.on && this.nearest(); return it ? tr(it.id === 'deck' ? 'hi.pickGun' : 'hi.pick', { k: keyOf('interact') }) : null; }
     /** E next to one: mine (the host), or asked for (the guest) */
     pick() {
       const mgr = this.mgr, m = mgr.match;
       if (!this.on || !m || m.phase !== 'fight' || m.dead[m.me]) return false;
       const it = this.nearest(); if (!it) return false;
-      if (this.charges > 0) { mgr.ui.feed(tr('hi.full'), ''); VR.Audio.play('buzz'); return true; }
-      if (this.host) { this.take(it.id); this.got(); }
+      if (it.id !== 'deck' && this.charges > 0) { mgr.ui.feed(tr('hi.full'), ''); VR.Audio.play('buzz'); return true; }
+      if (this.host) { this.take(it.id); this.got(it.id); }
       else { mgr.send({ k: 'hp', id: it.id }); }
       return true;
     }
     take(id) { if (!this.items.has(id)) return false; this.hide(id); this.wait[id] = RESPAWN; this.broadcast(); return true; }
-    got() { this.charges = 1; VR.Audio.play('unlock'); this.mgr.ui.feed(tr('hi.got'), 'good'); this.paint(); }
+    got(id) {
+      if (id === 'deck') {                                   // the deck's sniper: in hand at once, two rounds
+        const mgr = this.mgr;
+        if (mgr.loot && mgr.lo) { mgr.loot.giveWeapon('skysniper'); const sl = mgr.lo.slots.find(q => q.id === 'skysniper'); if (sl) sl.mag = 2; }
+        VR.Audio.play('unlock'); mgr.ui.feed(tr('hi.gotGun'), 'good');
+        return;
+      }
+      this.charges = 1; VR.Audio.play('unlock'); this.mgr.ui.feed(tr('hi.got'), 'good'); this.paint();
+    }
     onNet(d) {
       if (d.k === 'hl' && !this.host) this.sync(d.it || []);
       else if (d.k === 'hq' && this.host) this.broadcast();
       else if (d.k === 'hp' && this.host) { if (this.take(d.id)) this.mgr.send({ k: 'hg', id: d.id }); }
-      else if (d.k === 'hg' && !this.host) this.got();
+      else if (d.k === 'hg' && !this.host) this.got(d.id);
     }
     // ---- the grenade
     /** G: throw it (instead of an impulse grenade). Returns true when it did. */
@@ -133,25 +156,45 @@
       const c = mgr.ctrl, d = Math.hypot(c.pos.x - p.x, c.pos.y + 0.9 - p.y, c.pos.z - p.z);
       if (d <= R) this.launch();
     }
-    /** blown up: a flight out of the yard, up onto the deck (my own spot on it) */
+    /** blown up: a real jump out of the yard — straight up through the deck, down onto it (my own spot on it) */
     launch() {
       const c = this.mgr.ctrl, m = this.mgr.match, side = m && m.me === 'g' ? -1 : 1;
-      const to = new T.Vector3(DECK.x + side * 2.5 + (Math.random() - 0.5) * 2, DECK.y + 0.05, DECK.z + side * 5 + (Math.random() - 0.5) * 2);
-      this.flight = { t: 0, from: c.pos.clone(), to };
+      const to = new T.Vector3(DECK.x + side * 2.5 + (Math.random() - 0.5) * 2, DECK.y, DECK.z + side * 5 + (Math.random() - 0.5) * 2);
+      const g = c.gravity, apex = DECK.y + 4.5;                         // up past the deck's top, then down onto it
+      c.vel.y = Math.sqrt(2 * g * Math.max(4, apex - c.pos.y));
+      c.grounded = false; c.coyote = 0; c.climbing = null; c.slideTimer = 0;
+      this.flight = { t: 0, to };
+      this.steer();
       this.mgr.hostage && this.mgr.hostage.release && this.mgr.hostage.release('jump');
       this.mgr.dropScope && this.mgr.dropScope();
       VR.Audio.play('hiroFly'); this.mgr.ui.feed(tr('hi.up'), 'good');
     }
-    /** during the flight the controller is not used: the body follows the arc */
+    /** aim the sideways speed so the arc comes down on my spot (wind or not) */
+    steer() {
+      const c = this.mgr.ctrl, f = this.flight, g = c.gravity;
+      const vy = c.vel.y, top = c.pos.y + Math.max(0, vy) * Math.max(0, vy) / (2 * g);
+      const tUp = Math.max(0, vy) / g, tDown = Math.sqrt(Math.max(0, 2 * (top - f.to.y)) / g), left = Math.max(0.15, tUp + tDown);
+      c.vel.x = (f.to.x - c.pos.x) / left; c.vel.z = (f.to.z - c.pos.z) / left;
+    }
+    /**
+     * Every frame of the flight, BEFORE the controller moves me (the controller does the flying: real
+     * gravity, the camera follows): the deck lets me through while my feet are under its top, and holds
+     * me once they are over it — then I land on it like on any floor and stay there.
+     */
     stepFlight(dt) {
       const f = this.flight, c = this.mgr.ctrl; if (!f) return false;
       f.t += dt;
-      const k = Math.min(1, f.t / FLIGHT), e = 1 - Math.pow(1 - k, 2.2);
-      const x = f.from.x + (f.to.x - f.from.x) * k, z = f.from.z + (f.to.z - f.from.z) * k;
-      const y = f.from.y + (f.to.y + 6 - f.from.y) * e - 6 * Math.max(0, (k - 0.75) / 0.25) ** 2;    // up past it, then down onto it
-      c.pos.set(x, y, z); c.vel.set(0, 0, 0);
-      if (k >= 1) { c.pos.copy(f.to); this.flight = null; c.update(1 / 60, this.mgr.level, { x: 0, y: 0 }, false); VR.Audio.play('thud'); }
+      const slab = this.mgr.level && this.mgr.level.extras.deckSlab;
+      if (slab) slab.enabled = c.pos.y >= DECK.y - 0.02;
+      if (c.pos.y < DECK.y + 0.5 || c.vel.y > 0) this.steer();
+      if (f.t > 0.3 && c.vel.y <= 0 && c.pos.y < DECK.y - 3 && f.t < 1) { this.endFlight(); return true; }   // (a roof over me stopped the jump)
+      if (f.t > 0.3 && c.grounded) { this.endFlight(); VR.Audio.play('thud'); }
       return true;
+    }
+    endFlight() {
+      this.flight = null;
+      const slab = this.mgr.level && this.mgr.level.extras && this.mgr.level.extras.deckSlab;
+      if (slab) slab.enabled = true;
     }
     update(dt) {
       for (const it of this.items.values()) { it.t += dt; it.holder.rotation.y = it.t * 1.8; it.holder.position.y = 0.95 + Math.sin(it.t * 2.4) * 0.12; }

@@ -200,7 +200,18 @@
 
     // ------------------------------------------------------------ shooting
     eyePos(out) { const c = this.mgr.ctrl; return out.set(c.pos.x, c.pos.y + c.eye, c.pos.z); }
-    aimDir(out) { const c = this.mgr.ctrl, cp = Math.cos(c.pitch); return out.set(-Math.sin(c.yaw) * cp, Math.sin(c.pitch), -Math.cos(c.yaw) * cp); }
+    aimDir(out) {
+      const m = this.mgr, c = m.ctrl, cp = Math.cos(c.pitch);
+      out.set(-Math.sin(c.yaw) * cp, Math.sin(c.pitch), -Math.cos(c.yaw) * cp);
+      if (m.tppOn && m.tppOn()) {                  // third person: from my eyes to what the crosshair (the camera's centre) is on
+        const eye = this.eyePos(this._ce || (this._ce = new T.Vector3()));
+        // the camera behind my right shoulder looks along the same line (missions.js applyView)
+        const o = (this._co || (this._co = new T.Vector3())).copy(eye).add(new T.Vector3(0, 0.3, 0)).addScaledVector(c.right(), 0.55).addScaledVector(out, -(m.tppDist || 3));
+        const far = Math.min(80, VR.WeaponKit.wallDist(this.ray, this.solids(), o, out, 80));
+        out.multiplyScalar(Math.max(4, far)).add(o).sub(eye).normalize();
+      }
+      return out;
+    }
     muzzleWorld() {
       const o = this.eyePos(new T.Vector3()), d = this.aimDir(new T.Vector3());
       if (this.scoped) return o.addScaledVector(d, 0.6).add(new T.Vector3(0, -0.08, 0));

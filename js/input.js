@@ -58,6 +58,7 @@
   const held = active;
   const fpQueue = [];
   const look = { x: 0, y: 0 };
+  let hijack = false;                     // the admin's free camera has the controls: the game sees nothing (js/core/admin.js)
   const touchMove = { x: 0, y: 0 };      // virtual stick, -1..1
   const touchHold = new Set();           // e.g. 'crouch' held from a touch button
   let fpEnabled = false;
@@ -193,6 +194,19 @@
     window.addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') { end(); dragLook = false; } });
   });
 
+  // (plain functions: some callers keep a bare reference to the methods below)
+  function rawMove() {
+    let x = 0, y = 0;
+    if (isHeld('forward')) y += 1;
+    if (isHeld('back')) y -= 1;
+    if (isHeld('right')) x += 1;
+    if (isHeld('left')) x -= 1;
+    x += touchMove.x; y += touchMove.y;
+    const l = Math.hypot(x, y);
+    return l > 1 ? { x: x / l, y: y / l } : { x, y };
+  }
+  function rawSprint() { return isHeld('sprint') || Math.hypot(touchMove.x, touchMove.y) > 0.95; }
+  function rawLook() { const r = { x: look.x, y: look.y }; look.x = look.y = 0; return r; }
   VR.Input = {
     // ---- runner API (unchanged)
     setEnabled(v) { enabled = v; if (!v) queue.length = 0; },
@@ -224,26 +238,24 @@
 
     // ---- first-person queries
     /** movement intent in local space: x = strafe right, y = forward. */
-    moveVector() {
-      let x = 0, y = 0;
-      if (isHeld('forward')) y += 1;
-      if (isHeld('back')) y -= 1;
-      if (isHeld('right')) x += 1;
-      if (isHeld('left')) x -= 1;
-      x += touchMove.x; y += touchMove.y;
-      const l = Math.hypot(x, y);
-      return l > 1 ? { x: x / l, y: y / l } : { x, y };
-    },
-    aimHeld() { const k = isHeld('aim'); if (!k) aimBlock = false; return touchHold.has('aim') || (k && !aimBlock); },
+    moveVector() { return hijack ? { x: 0, y: 0 } : rawMove(); },
+    rawMove() { return rawMove(); },
+    aimHeld() { if (hijack) return false; const k = isHeld('aim'); if (!k) aimBlock = false; return touchHold.has('aim') || (k && !aimBlock); },
     /** fire held (automatic weapons): its binding (left button while captured), or the touch FIRE button */
-    fireHeld() { return touchHold.has('fire') || isHeld('fire'); },
+    fireHeld() { return !hijack && (touchHold.has('fire') || isHeld('fire')); },
     /** sprint: its binding (Shift) held, or the touch stick pushed all the way */
-    sprintHeld() { return isHeld('sprint') || Math.hypot(touchMove.x, touchMove.y) > 0.95; },
-    crouchHeld() { if (crouchOn && Math.hypot(touchMove.x, touchMove.y) > 0.95) crouchOn = false; return crouchOn || touchHold.has('crouch'); },
+    sprintHeld() { return !hijack && rawSprint(); },
+    rawSprint() { return rawSprint(); },
+    crouchHeld() { if (hijack) return false; if (crouchOn && Math.hypot(touchMove.x, touchMove.y) > 0.95) crouchOn = false; return crouchOn || touchHold.has('crouch'); },
     /** stand up (e.g. after dying or a new round) */
     resetCrouch() { crouchOn = false; },
-    takeLook() { const r = { x: look.x, y: look.y }; look.x = look.y = 0; return r; },
-    nextAction() { return fpQueue.shift(); },
+    takeLook() { if (hijack) return { x: 0, y: 0 }; return rawLook(); },
+    rawLook() { return rawLook(); },
+    nextAction() { return hijack ? undefined : fpQueue.shift(); },
+    /** the free camera takes the controls (on) / gives them back (off) */
+    setHijack(v) { hijack = !!v; fpQueue.length = 0; crouchOn = false; },
+    get hijacked() { return hijack; },
+    rawKey(code) { return active.has(code); },
 
     // ---- hooks for touch controls (mission UI)
     press(action) { if (mode === 'fp' && fpEnabled) fpQueue.push(action); },
@@ -281,7 +293,7 @@
       return N[code] || code;
     },
     /** is the input of an action held right now (e.g. Tab → the scoreboard) */
-    actionHeld(a) { return !!binds[a] && isHeld(a); },
+    actionHeld(a) { return !hijack && !!binds[a] && isHeld(a); },
     touchHeld(name) { return touchHold.has(name); },
     /** the first input bound to an action, as a label (for hint texts) */
     keyFor(action) { const b = binds[action]; return this.label((b && (b[0] || b[1])) || ''); },

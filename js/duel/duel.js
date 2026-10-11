@@ -578,7 +578,7 @@
       }
       this.level = null; this.avatar = null; this.nades = []; this.mines = [];
       if (this.powers) { this.powers.clearRound(); this.loot.items = []; this.hostage.held = null; }
-      if (this.hiro) { this.hiro.items.clear(); this.hiro.charges = 0; this.hiro.flight = null; this.hiro.paint(); }
+      if (this.hiro) { this.hiro.items.clear(); this.hiro.charges = 0; this.hiro.endFlight(); this.hiro.paint(); }
       this.bots.list = [];                          // their bodies went with the scene
       this.gunId = null;
     }
@@ -1431,7 +1431,8 @@
       if (m.phase !== 'end' && m.phase !== 'over' && m.phase !== 'wait') {
         c.sprint = canMove && VR.Input.sprintHeld() && !this.hostage.held;     // no running with a hostage
         this.lastPos = (this.lastPos || new T.Vector3()).copy(c.pos);
-        const evs = this.hiro && this.hiro.flight && this.hiro.stepFlight(dt) ? [] : c.update(dt, L, move, canMove && VR.Input.crouchHeld());
+        const flying = !!(this.hiro && this.hiro.flight && this.hiro.stepFlight(dt));     // (blown up by a Hiroshima: the jump flies me, no steering)
+        const evs = c.update(dt, L, flying ? { x: 0, y: 0 } : move, !flying && canMove && VR.Input.crouchHeld());
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');
           else if (e.type === 'land') this.onLand(e.speed);
@@ -1714,7 +1715,7 @@
     render(renderer) {
       renderer.render(this.scene, this.camera);
       const m = this.match;
-      if (m && m.phase !== 'wait' && !this.scoped && !(m.dead && m.dead[m.me])) {
+      if (m && m.phase !== 'wait' && !this.scoped && !(m.dead && m.dead[m.me]) && !(VR.Admin && VR.Admin.freecam)) {
         const ac = renderer.autoClear;
         renderer.autoClear = false; renderer.clearDepth();
         renderer.render(this.hands.scene, this.hands.camera);

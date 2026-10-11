@@ -1120,6 +1120,21 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Views, the Hiroshima jump, the deck sniper, the admin free camera (v1.42)
+
+- **Views**: the square is third person (also with a weapon in hand — the gun is in
+  the character's hands, shots go where the crosshair is; looking through a scope
+  is first person). The Mini Planet starts in first person. T switches both.
+- **Hiroshima** (`js/duel/hiroshima.js`): a real jump now — the controller flies
+  you (gravity, the camera follows), straight up *through* the sky deck from below,
+  over its top and down onto it; you stay there until you walk off its edge.
+- **The deck's sniper**: one sniper on the deck, only **2 rounds**, no reload (taken
+  with E; back after 30 s; gone at the next round).
+- **Admin free camera** (`js/core/admin.js`): owner only — unlocked once per device
+  with a pass phrase that is not in the code (only a hash of a hash is). Then `
+  (or the 🎥 button) inside a world: fly the camera (WASD, Space/C, Shift, H hides
+  the HUD) while the player stands still.
+
 ## Mini Planet — الكوكب الصغير (v1.41) — `js/planet/`
 
 A tiny round voxel world (radius 45 m, a lap ≈ 283 m) you can walk all the way

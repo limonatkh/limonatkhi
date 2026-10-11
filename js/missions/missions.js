@@ -50,13 +50,13 @@
       this.ray = new T.Raycaster();
       this._v = new T.Vector3(); this._p = new T.Vector3();
       // the view in the square / start area: third person by default (T switches), first person in missions
-      this.viewTpp = VR.UI.store.get('hubView', 'tpp') !== 'fpp';
+      this.viewTpp = VR.UI.store.get('hubView2', 'tpp') !== 'fpp';
       this.tppRay = new T.Ray(); this.tppDist = 3;
     }
-    /** third person here? (the areas you keep coming back to; never with a weapon in your hands) */
-    tppOn() { return !!(this.run && this.run.def.persistent && this.viewTpp && !(this.combat && this.combat.armed)); }
+    /** third person here? (the areas you keep coming back to — also with a weapon in your hands; looking through a scope is first person) */
+    tppOn() { return !!(this.run && this.run.def.persistent && (this.viewTpp || (VR.Admin && VR.Admin.freecam)) && !(this.combat && this.combat.scoped && !(VR.Admin && VR.Admin.freecam))); }
     /** the view each place remembers: the square (third person by default) · exploration / islands (def.viewKey, first person by default) */
-    viewKey() { const d = this.run && this.run.def; return (d && d.viewKey) || 'hubView'; }
+    viewKey() { const d = this.run && this.run.def; return (d && d.viewKey) || 'hubView2'; }      // (v1.41: a new key — the square starts in third person again)
     loadView() { const d = this.run && this.run.def; this.viewTpp = VR.UI.store.get(this.viewKey(), (d && d.view) || 'tpp') !== 'fpp'; }
     toggleView() {
       this.viewTpp = !this.viewTpp; VR.UI.store.set(this.viewKey(), this.viewTpp ? 'tpp' : 'fpp');
@@ -75,6 +75,9 @@
       const b = this.tppBody; b.g.visible = true;
       b.pos.copy(ctrl.pos); b.yaw = ctrl.yaw; b.pitch = ctrl.pitch * 0.35;
       b.low = ctrl.crouching; b.slide = ctrl.slideTimer > 0; b.air = !ctrl.grounded;
+      // the weapon in my hands, on my body
+      const wid = this.combat && this.combat.armed && this.combat.weapon && this.combat.weapon.id;
+      if (wid) VR.DuelBody.setGun(b, wid); else if (b.gun) { b.gun.visible = false; b.gun = null; b.gunId = null; }
       VR.DuelBody.animate(b, dt);
       if (ctrl.isPlanet) { b.g.quaternion.copy(ctrl.qBody); ctrl.tpp(cam, dt); return; }   // standing on the Mini Planet: up is the planet's normal
       // camera: from a point over my right shoulder, straight back along the view

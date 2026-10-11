@@ -148,7 +148,7 @@
   // ------------------------------------------------------------------ the area
   VR.ADVENTURE.areas.planet = {
     id: 'planet', persistent: true, planet: true, noLocation: true, combat: false, weather: false, order: 40,
-    environment: 'miniPlanet', view: 'tpp', viewKey: 'planetView',
+    environment: 'miniPlanet', view: 'fpp', viewKey: 'planetView2',
     personalFlags: ['planet_bottom', 'planet_lap'],
     name: t2('Mini Planet', 'الكوكب الصغير'),
     eyebrow: t2('A tiny world in the sky', 'عالم صغير في السماء'),
