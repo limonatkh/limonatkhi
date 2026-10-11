@@ -1120,6 +1120,43 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Mini Planet — الكوكب الصغير (v1.41) — `js/planet/`
+
+A tiny round voxel world (radius 45 m, a lap ≈ 283 m) you can walk all the way
+around, and the same planet hanging in the sky of every other world.
+
+- **Getting there**: the main menu's **"Mini Planet — الكوكب الصغير"** button —
+  the menu camera turns to the planet in the sky and zooms at it while the screen
+  fades (`modes.enterPlanet`), then the planet's area (`VR.ADVENTURE.areas.planet`).
+  The portal beside the start (or the pause menu) goes back to the main menu
+  (`modes.leavePlanet`). The planet never becomes CONTINUE's place.
+- **The planet** (`miniplanet.js`): a cube-sphere — six cube faces × 52 × 52 cells,
+  each a voxel column on the sphere (top at R + height, radial walls). Heights are
+  0.5 m steps and neighbours never differ by more than one step (rocks, 1–1.5 m,
+  aside), so hills are walked up step by step. A lap road runs over both poles;
+  landmarks all round: the cottage and the way home at the top, two arches at the
+  equator, a giant lemon tree, a crashed rocket, a windmill, a lemon garden, a
+  beacon tower, crystals, a well and a stone circle at the very bottom; 78 trees.
+  Meshes are merged per block texture and built once.
+- **Spherical gravity** (`planetctrl.js`, only on the planet — `missions.js` swaps
+  it in for `def.planet` and back to the usual `FirstPersonController` everywhere
+  else): up = the direction from the centre; gravity pulls toward the centre with
+  the usual strength; walking is a rotation of the position about the centre that
+  also carries the velocity and the heading (no flips over the top, the sides or
+  the bottom); the radius never goes under the ground. Same speeds, jump, sprint,
+  crouch, slide, Lemon Burst and inputs as everywhere; first person and third
+  person (camera behind the shoulder, pulled in by the ground and walls). Walls:
+  rises > 0.55 m and the landmark / tree boxes, with sliding.
+- **In every sky** (`skyplanet.js`): the game has one renderer; `install()` wraps
+  `renderer.render` so before any world is drawn its sky is cleared and the far
+  planet (the playable planet's own heights, trees and landmarks with fewer blocks,
+  lit by its own lights) is drawn into it with the world camera's rotation and lens;
+  the world is then drawn over it. So it is a fixed body in the sky (no parallax),
+  always behind the world, in every scene: menu, runner, the square, exploration,
+  the islands, missions, the arena, the mini-games — and any new world. Per world
+  place / size / haze: `scene.userData.skyPlanet` (`PLACES` in skyplanet.js),
+  `null` on the planet itself. Cost: 2 draw calls, ~12k triangles.
+
 ## Rock routes between the sky islands · the Hiroshima grenade (v1.39)
 
 - **Sky routes** (`js/explore/skyroutes.js`): parkour paths of floating rocks

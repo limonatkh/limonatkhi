@@ -156,7 +156,7 @@
   function cloud(fx, k) {
     const sc = fx.scene; if (!sc || !sc.fog || !fx.fog0) return;
     if (Math.abs(k - fx.k) < 0.002 && fx.hidden) return;
-    fx.k = k;
+    fx.k = k; sc.userData.skyHideK = k;              // (the Mini Planet hides in the cloud too: js/planet/skyplanet.js)
     sc.fog.near = fx.fog0[0] + (0.5 - fx.fog0[0]) * k; sc.fog.far = fx.fog0[1] + (12 - fx.fog0[1]) * k;
     if (fx.bg0 && sc.background && sc.background.isColor) sc.background.copy(fx.bg0).lerp(sc.fog.color, k);
     if (!fx.hidden) { fx.hidden = []; sc.traverse(o => { if (o.isMesh && o.material && o.material.fog === false) fx.hidden.push(o); }); }

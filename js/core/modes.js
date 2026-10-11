@@ -17,6 +17,10 @@
  *   quitToMenu()     save and go back to the main menu
  *   enterMission(id, returnTo)   a door in the world: fade out, play the
  *                    mission, then come back to the door (backFromMission)
+ *   enterPlanet()    the main menu's "Mini Planet" button: the camera turns
+ *                    to the planet in the sky and flies at it while the screen
+ *                    fades, then the planet's area (js/planet/); its portal
+ *                    (or the pause menu) leaves it: leavePlanet() → main menu
  *   enterCourse(returnTo)        the runner portal: fade out, the runner
  *                    course (third person); after its result screen
  *                    backFromCourse() returns to the portal (first person)
@@ -80,6 +84,45 @@
     }
     quitToMenu() { this.game.toMenu(); }
 
+    // ---- the Mini Planet (js/planet/): main menu → planet → main menu
+    enterPlanet() {
+      const g = this.game;
+      if (g.state !== 'menu' || !VR.ADVENTURE.areas.planet) return false;
+      VR.Audio.unlock();
+      if (g.settings.fullscreen) VR.Fullscreen.request();
+      this.planetT = 0; this.planetFov0 = g.camera.fov;
+      g.setState('planetEnter');
+      g.fade.target = 1;
+      VR.Audio.play('portal'); VR.Audio.setMusicVolume(0.25);
+      return true;
+    }
+    /** game loop while flying to it (after the menu camera is placed) */
+    updatePlanetEnter(dt) {
+      const g = this.game, cam = g.camera;
+      this.planetT += dt;
+      const k = Math.min(1, this.planetT / 0.9), e = k * k * (3 - 2 * k);
+      if (VR.SkyPlanet) {                                   // turn toward it and zoom in: it grows to fill the view
+        const d = VR.SkyPlanet.dirOf(Object.assign({}, VR.SkyPlanet.DEFAULT, VR.SkyPlanet.PLACES.menu), new THREE.Vector3());
+        const look = g.camLook.clone().lerp(cam.position.clone().addScaledVector(d, 10), e);
+        cam.lookAt(look);
+        cam.fov = this.planetFov0 + (9 - this.planetFov0) * e; cam.updateProjectionMatrix();
+      }
+      if (g.fade.value < 0.99 || this.planetT < 0.6) return;
+      cam.fov = this.planetFov0; cam.updateProjectionMatrix();
+      this.enterAdventure('planet', { intro: false, location: null, fadeIn: true });
+      setTimeout(() => { if (g.missions.run && g.missions.run.def.planet) g.missions.ui.caption(VR.t('pl.arrive'), 4); }, 500);
+    }
+    /** the planet's portal: fade out, back to the main menu (fading in) */
+    leavePlanet() {
+      const g = this.game;
+      if (this.pending || g.state !== 'adventure') return false;
+      this.pending = { menu: true };
+      g.missions.freeze(true);
+      g.fade.target = 1;
+      VR.Audio.play('portal');
+      return true;
+    }
+
     // ---- doors: adventure → mission → back to the same door
     enterCourse(returnTo) {
       const g = this.game;
@@ -132,6 +175,7 @@
       if (!pd || g.fade.value < 0.99) return;
       this.pending = null;
       if (pd.travel) { g.missions.abort(); this.arrive(pd.travel.area, pd.travel.at); return; }
+      if (pd.menu) { g.toMenu(); g.fade.value = 1; g.fade.target = 0; g.updateFade(0); return; }
       g.missions.abort();                              // saves the area…
       const p = VR.Profiles.player();                  // …then: come back in front of the door
       p.location = Object.assign({ t: Date.now() }, pd.returnTo);

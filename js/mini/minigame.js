@@ -139,6 +139,7 @@
       const g = this.game;
       if (g.missions.active) g.missions.abort();          // the square is saved and closed
       this.scene = new T.Scene();
+      this.scene.userData.skyPlanet = this.id;               // the Mini Planet in this game's sky (js/planet/skyplanet.js)
       this.camera.up.set(0, 1, 0);                           // (a world may have turned it for a top view)
       this.cur = new CLASSES[this.id](this);
       this.root.hidden = false; this.root.dataset.game = this.id;

@@ -29,6 +29,9 @@
       this.scene = new T.Scene();
       this.camera = new T.PerspectiveCamera(FP().FOV, 1, 0.05, 220);
       this.ctrl = new VR.FirstPersonController(this.camera);
+      this.flatCtrl = this.ctrl;                // every world's movement; the Mini Planet swaps in its own (buildWorld)
+      // the Mini Planet in this sky (js/planet/skyplanet.js), placed per area
+      this.scene.userData.skyPlanet = () => (VR.SkyPlanet ? VR.SkyPlanet.forArea(this.run && this.run.def) : null);
       this.hands = new VR.HandsView();
       this.ui = new VR.MissionUI(this);
       this.settings = Object.assign({ sens: 1, fov: FP().FOV }, VR.UI.store.get('fpSettings', {}));
@@ -73,6 +76,7 @@
       b.pos.copy(ctrl.pos); b.yaw = ctrl.yaw; b.pitch = ctrl.pitch * 0.35;
       b.low = ctrl.crouching; b.slide = ctrl.slideTimer > 0; b.air = !ctrl.grounded;
       VR.DuelBody.animate(b, dt);
+      if (ctrl.isPlanet) { b.g.quaternion.copy(ctrl.qBody); ctrl.tpp(cam, dt); return; }   // standing on the Mini Planet: up is the planet's normal
       // camera: from a point over my right shoulder, straight back along the view
       const cp = Math.cos(ctrl.pitch), look = this._v.set(-Math.sin(ctrl.yaw) * cp, Math.sin(ctrl.pitch), -Math.cos(ctrl.yaw) * cp);
       const right = ctrl.right();
@@ -171,7 +175,8 @@
       P.world(id).flags = flags.filter(f => !MissionManager.personalFlag(f, run.def));
       if (this.combat) this.combat.save();
       p.inventory.tools = (p.inventory.tools || []).filter(it => it.area !== id).concat(run.inventory.map(it => Object.assign({}, it, { area: id })));
-      if (withLocation && this.ctrl && run.state !== 'entering') {
+      if (run.def.noLocation) { /* (the Mini Planet: CONTINUE keeps taking you back where you were before it) */ }
+      else if (withLocation && this.ctrl && run.state !== 'entering') {
         const q = this.ctrl.pos;
         p.location = { area: id, pos: [+q.x.toFixed(2), +q.y.toFixed(2), +q.z.toFixed(2)], yaw: +this.ctrl.yaw.toFixed(3), t: Date.now() };
       } else if (!p.location) p.location = { area: id, pos: null, yaw: 0, t: Date.now() };
@@ -314,6 +319,8 @@
     buildWorld(def, location = null, prebuilt = null) {
       this.clearWorld();
       const L = prebuilt || VR.MissionEnvironments[def.environment]();
+      // movement: spherical gravity on the Mini Planet (js/planet/planetctrl.js), the usual controller everywhere else
+      this.ctrl = def.planet && VR.PlanetController ? (this.planetCtrl || (this.planetCtrl = new VR.PlanetController(this.camera))) : this.flatCtrl;
       this.level = L;
       const sc = this.scene;
       sc.add(L.group);
@@ -459,7 +466,7 @@
       const cam = this.camera;
       const dir = new T.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
       // third person: reach is measured from my eyes, not from the camera behind me
-      const origin = this.tppOn() ? new T.Vector3(this.ctrl.pos.x, this.ctrl.pos.y + this.ctrl.eye, this.ctrl.pos.z) : cam.getWorldPosition(this._v.set(0, 0, 0)).clone();
+      const origin = this.tppOn() ? (this.ctrl.eyeWorld ? this.ctrl.eyeWorld() : new T.Vector3(this.ctrl.pos.x, this.ctrl.pos.y + this.ctrl.eye, this.ctrl.pos.z)) : cam.getWorldPosition(this._v.set(0, 0, 0)).clone();
       const ray = new T.Ray(origin, dir);
       const reach = FP().REACH;
       let best = null, bestD = reach;

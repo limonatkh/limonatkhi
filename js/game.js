@@ -64,11 +64,15 @@
       const holder = document.getElementById('game');
       this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
       holder.appendChild(this.renderer.domElement);
+      if (VR.SkyPlanet) VR.SkyPlanet.install(this.renderer);       // the Mini Planet in every world's sky (js/planet/skyplanet.js)
       this.scene = new THREE.Scene();
       this.skyColor = new THREE.Color(0x8fd3ff);
       this.fogColor = new THREE.Color(0xb8e4ff);
       this.scene.background = this.skyColor.clone();
       this.scene.fog = new THREE.Fog(this.fogColor.clone(), 70, 200);
+      // the menu / runner sky's Mini Planet: over the menu's view, ahead of the runner
+      const MENUISH = ['menu', 'character', 'loading', 'challenge', 'missionsList', 'planetEnter'];
+      this.scene.userData.skyPlanet = () => (MENUISH.includes(this.state) || (this.state === 'settings' && this.settingsReturn !== 'paused') ? 'menu' : 'runner');
 
       this.hemi = new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.9);
       this.sun = new THREE.DirectionalLight(0xfff2d6, 2.1);
@@ -139,6 +143,7 @@
       // the result screen of a course: back into the world when it came from the portal
       UI.bind('againBtn', () => (this.courseFrom === 'adventure' ? this.modes.backFromCourse() : this.start()));
       UI.bind('charBtn', () => this.setState('character'));
+      UI.bind('planetBtn', () => this.modes.enterPlanet());
       UI.bind('missionsBtn', () => this.setState('missionsList'));
       UI.bind('mlBack', () => this.setState('menu'));
       UI.bind('duelBtn', () => { VR.Audio.unlock(); this.duel.openPickerFromMenu(null, this.fightMenu.rules()); });
@@ -791,6 +796,7 @@
       else if (st === 'duelPick') this.world.animateGates(dt);
       else if (st === 'mini' || st === 'miniEnter' || st === 'miniReturn') this.mini.update(dt);
       else if (st === 'secretEnter') VR.SecretCave.updateEnter(this, dt);
+      else if (st === 'planetEnter') { this.updateMenu(dt); this.modes.updatePlanetEnter(dt); }
       this.challenge.update(dt);
       this.duel.tick(dt);
       this.updateFade(dt);

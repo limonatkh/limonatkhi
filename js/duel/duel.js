@@ -55,6 +55,7 @@
       this.game = game;
       this.ui = new VR.DuelUI(this);
       this.scene = new T.Scene();
+      this.scene.userData.skyPlanet = 'duel';                 // the Mini Planet in the arena's sky (js/planet/skyplanet.js)
       this.camera = new T.PerspectiveCamera(FP().FOV, 1, 0.05, 260);
       this.ctrl = new VR.FirstPersonController(this.camera);
       this.hands = new VR.HandsView();
