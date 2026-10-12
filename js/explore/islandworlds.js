@@ -348,12 +348,12 @@
   const name = (id) => VR.islandById(id).name;
   const coins = (id, pts) => ({ id, type: 'coins', points: pts.map(([x, z]) => [x, null, z]) });
   /** where each island's way home puts you in the square: in front of the way you came */
-  const ACCESS = {
-    isl1: { pos: [-9.9, 0, -20.75], yaw: 0, scale: 0.62 },        // the vines in the nook behind the courtyard's low gap
-    isl2: { pos: [0, 0, -49.4], yaw: PI },                         // the frost stone behind the fountain
-    isl3: { pos: [-10.9, 0, -31.62], yaw: PI },                    // the sand wall in the square's south wall (west of the gate)
-    isl4: { pos: [23.7, 0, -40.0], yaw: -PI / 2 },                 // the crystal stone on the hidden garden's far wall
-    isl5: { pos: [7.3, 0, -23.0], yaw: -PI / 2 },                  // the four sockets in the courtyard
+  const ACCESS = {                                                // in the square's Portal Terrace (v1.45, js/adventure/hubworld.js)
+    isl1: { pos: [-39.2, 0, -69.0], yaw: PI / 2 },                  // the vines
+    isl2: { pos: [-39.2, 0, -62.0], yaw: PI / 2 },                  // the frost stone
+    isl3: { pos: [-35.0, 0, -57.8], yaw: PI },                      // the sand wall (its symbol panel beside it)
+    isl4: { pos: [-24.0, 0, -57.8], yaw: PI },                      // the crystal stone
+    isl5: { pos: [-16.6, 0, -69.0], yaw: -PI / 2 },                 // the four sockets
   };
   const backFrom = (id) => {
     const a = ACCESS[id], d = a.scale ? 1.75 : 2.2;
@@ -458,7 +458,7 @@
    * the ways there, in the square
    * ================================================================ */
   VR.ISLAND_ACCESS = [
-    { id: 'skyRuins', type: 'secretPortal', pos: ACCESS.isl1.pos, yaw: ACCESS.isl1.yaw, scale: ACCESS.isl1.scale, style: 'vine', to: 'isl1', openOnUse: true,
+    { id: 'skyRuins', type: 'secretPortal', pos: ACCESS.isl1.pos, yaw: ACCESS.isl1.yaw, style: 'vine', to: 'isl1', openOnUse: true,
       name: t2('Thick vines on the wall', 'نباتات كثيفة على الجدار'), hint: t2('Thick vines… there is a draught behind them.', 'نباتات كثيفة… وخلفها تيار هواء.') },
     { id: 'skyFrost', type: 'secretPortal', pos: ACCESS.isl2.pos, yaw: ACCESS.isl2.yaw, style: 'ice', to: 'isl2', needs: { items: ['frost_shard'] },
       name: t2('A cold stone behind the fountain', 'حجر بارد خلف النافورة'), hint: t2('It is cold here, colder than it should be. It wants winter.', 'المكان بارد هنا، أبرد مما ينبغي. يريد الشتاء.') },
@@ -470,15 +470,19 @@
     { id: 'skyCitadel', type: 'secretPortal', pos: ACCESS.isl5.pos, yaw: ACCESS.isl5.yaw, style: 'citadel', to: 'isl5', needs: { items: ['relic_ruins', 'relic_frost', 'relic_desert', 'relic_crystal'] },
       name: t2('A pedestal with four sockets', 'قاعدة فيها أربعة تجاويف'), hint: t2('Four empty sockets, each a different shape.', 'أربعة تجاويف فارغة، لكلٍّ شكل مختلف.') },
   ];
+  VR.ISLAND_ACCESS.forEach(d => { d.skin = 'hub'; });                     // (the square's own gate model, js/adventure/hubgates.js)
   const hub = VR.ADVENTURE.areas.hub;
   if (hub && !hub.entities.some(e => e.id === 'skyRuins')) hub.entities.push(...VR.ISLAND_ACCESS);
   // the square: the sand panel's board, and the islands in its sky
   const hubEnv = VR.MissionEnvironments.hub;
   VR.MissionEnvironments.hub = function () {
     const L = hubEnv.apply(this, arguments);
-    L.anchor('skySandPanel', -7.4, 1.15, -31.48, PI);
+    L.anchor('skySandPanel', -31.4, 1.15, -57.98, PI);
     const vb = new VR.VoxelBuilder();                 // (the level's blocks are already merged: its own little mesh)
-    vb.addBox(-7.4, 0.6, -31.45, 2.0, 1.6, 0.1, 'sandstone#c98a5a'); L.group.add(vb.build());
+    vb.addBox(-31.4, 0.6, -57.95, 2.0, 1.6, 0.1, 'sandstone#c98a5a'); vb.addColorBox(-31.4, 0, -57.75, 2.2, 2.4, 0.3, 0x434b5c); L.collider(-32.5, 0, -57.9, -30.3, 2.4, -57.6);
+    // the five gates' plinths and lights (the new square draws them: js/adventure/hubworld.js)
+    if (L.extras.islandDeck) { const C = { isl1: 0x6fe04a, isl2: 0xbfeaff, isl3: 0xffb04a, isl4: 0xa98cff, isl5: 0xffe14a }; for (const id in ACCESS) L.extras.islandDeck(ACCESS[id].pos[0], ACCESS[id].pos[2], ACCESS[id].yaw, C[id]); }
+    L.group.add(vb.build());
     const ex = L.extras, b0 = ex.build, u0 = ex.update, d0 = ex.dispose;
     let sky = null;
     ex.build = function (scene, mgr) { if (b0) b0.call(this, scene, mgr); sky = VR.SkyIslands ? new VR.SkyIslands(scene, { haze: 0xc8e6f8, distK: 0.62, scale: 0.9 }) : null; };

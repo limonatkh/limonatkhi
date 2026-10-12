@@ -25,24 +25,72 @@
     'hub.enter': 'ادخل', 'menu.play': 'ابدأ اللعب', 'hub.soon': '{name}: اللعبة قيد البناء — قريبًا جدًا!', 'hub.view': 'الكاميرا: من عيون اللاعب / من خلفه',
   });
 
-  function portalFrame(color) {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    for (const x of [-1.6, 1.6]) vb.addColorBox(x, 0, 0, 0.5, 3.6, 0.6, 0x4a4f5d);
-    vb.addColorBox(0, 3.6, 0, 3.7, 0.5, 0.6, 0x4a4f5d);
-    vb.addColorBox(0, 0, 0, 3.7, 0.12, 1.2, 0x2a2f3d);
-    for (const x of [-1.6, 1.6]) vb.addColorBox(x, 3.0, 0.31, 0.3, 0.3, 0.02, color);
-    g.add(vb.build());
-    return g;
+  /* ------------------------------------------------------------------
+   * THE SQUARE'S GATE MODELS (v1.45) — shared by the hub's gates, the
+   * runner portal (portal.js) and the sky-island gates on the Portal
+   * Terrace (loot.js secretPortal with skin 'hub'). Front = +z, base y 0;
+   * the sizes match each gate's colliders and hit boxes.
+   * ------------------------------------------------------------------ */
+  const DARK = 0x2f3542, NAVY = 0x2b3a67, TRIM = 0x485063;
+  const glowMat = () => { const m = new T.MeshBasicMaterial({ vertexColors: true }); m.toneMapped = false; m.userData.own = true; return m; };
+  /** two builders: lit blocks + glowing blocks (unlit) */
+  function kit() {
+    const lit = new VR.VoxelBuilder(), glow = new VR.VoxelBuilder();
+    const done = () => {
+      const g = new T.Group(); g.add(lit.build());
+      if (!glow.isEmpty()) { const m = glow.build(); m.traverse(o => { if (o.isMesh) { o.material = glowMat(); o.userData.noShadow = true; } }); g.add(m); }
+      return g;
+    };
+    return { L: (...a) => lit.addColorBox(...a), G: (...a) => glow.addColorBox(...a), done };
   }
-  function doorFrame(color) {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    vb.addColorBox(0, 0, 0, 2.7, 3.2, 0.3, 0x5a3a20);                 // frame
-    vb.addColorBox(0, 0, 0.16, 2.0, 2.8, 0.06, 0x7a4c28);             // leaf
-    vb.addColorBox(0.65, 1.25, 0.21, 0.15, 0.15, 0.08, 0xd9a90f);     // handle
-    vb.addColorBox(0, 2.95, 0.2, 2.2, 0.18, 0.04, color);             // a coloured lintel
-    g.add(vb.build());
-    return g;
-  }
+  const ringOf = (G, r, y, n, size, col, z = 0) => { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; G(Math.cos(a) * r, y + Math.sin(a) * r - size / 2, z, size, size, size, col); } };
+  VR.HubPortals = {
+    /** an energy gate: two angled pylons with light strips, a beam, a ring of light inside (fight, challenge, basketball) */
+    energy(col) {
+      const k = kit();
+      k.L(0, 0, 0, 4.4, 0.22, 1.7, DARK); k.G(0, 0.22, 0.86, 4.2, 0.04, 0.04, col);
+      for (const s of [-1, 1]) {
+        k.L(s * 1.85, 0.22, 0, 0.6, 3.9, 0.75, NAVY); k.L(s * 1.85, 0.22, 0, 0.72, 0.4, 0.86, DARK);
+        k.G(s * 1.53, 0.7, 0.2, 0.06, 3.1, 0.12, col); k.G(s * 1.85, 3.0, 0.39, 0.3, 0.3, 0.04, col);
+      }
+      k.L(0, 4.1, 0, 4.4, 0.5, 0.8, NAVY); k.G(0, 4.25, 0.41, 3.6, 0.08, 0.04, col);
+      ringOf(k.G, 1.42, 2.05, 24, 0.16, col, 0.05);
+      return k.done();
+    },
+    /** an arcade door: a dark glass door in a neon frame (billiards) */
+    arcadeDoor(col) {
+      const k = kit();
+      k.L(0, 0, 0, 2.9, 3.35, 0.32, DARK);
+      k.L(0, 0, 0.17, 2.0, 2.8, 0.06, 0x24324a);
+      k.G(0, 1.15, 0.21, 1.6, 0.08, 0.02, col); k.G(0, 1.9, 0.21, 1.6, 0.08, 0.02, col);
+      for (const s of [-1, 1]) k.G(s * 1.25, 0.1, 0.17, 0.1, 3.0, 0.06, col);
+      k.G(0, 3.0, 0.17, 2.6, 0.1, 0.06, col);
+      k.L(0.68, 1.3, 0.22, 0.12, 0.3, 0.08, 0xffd84a);
+      return k.done();
+    },
+    /** the runner course: a plinth, two pylons with yellow light (the big turning ring is the square's: hubworld.js) */
+    runner(col = 0xffe14a) {
+      const k = kit();
+      k.L(0, 0, 0, 4.0, 0.22, 1.6, DARK); k.G(0, 0.22, 0.81, 3.8, 0.04, 0.04, col);
+      for (const s of [-1, 1]) { k.L(s * 1.6, 0.22, 0, 0.5, 3.6, 0.62, NAVY); k.G(s * 1.33, 0.6, 0.15, 0.05, 2.9, 0.1, col); k.L(s * 1.6, 3.82, 0, 0.66, 0.2, 0.74, DARK); }
+      return k.done();
+    },
+    /** a time gate (the sky islands): two obelisks of stacked lights, a stepped top, small floating lights */
+    timeGate(col) {
+      const k = kit();
+      k.L(0, 0, 0, 3.6, 0.18, 1.4, DARK); k.G(0, 0.18, 0.71, 3.4, 0.04, 0.04, col);
+      for (const s of [-1, 1]) {
+        k.L(s * 1.35, 0.18, 0, 0.42, 3.4, 0.5, TRIM);
+        for (let i = 0; i < 5; i++) k.G(s * 1.35, 0.5 + i * 0.6, 0.26, 0.26, 0.3, 0.02, col);
+        k.L(s * 1.35, 3.58, 0, 0.56, 0.22, 0.6, DARK);
+      }
+      k.L(0, 3.4, 0, 3.1, 0.28, 0.5, DARK); k.L(0, 3.68, 0, 1.9, 0.26, 0.46, TRIM); k.G(0, 3.94, 0, 0.5, 0.22, 0.3, col);
+      for (const [x, y] of [[-0.7, 4.5], [0.5, 4.75], [0, 5.1]]) k.G(x, y, 0, 0.18, 0.18, 0.18, col);
+      return k.done();
+    },
+  };
+  const portalFrame = (color) => VR.HubPortals.energy(color);
+  const doorFrame = (color) => VR.HubPortals.arcadeDoor(color);
 
   MS.Components.hubGate = {
     build(def, ctx) {
@@ -86,10 +134,10 @@
 
   // the gates in the square (x -14..14, z -55..-31): two portals on the sides, a door and a portal for the mini-games
   VR.HUB_GATES = [
-    { id: 'gFight', type: 'hubGate', pos: [-9.4, 0, -49.5], yaw: Math.PI / 2, action: 'fight', label: 'hub.fight', icon: '⚔', color: 0xc9b2ff },
-    { id: 'gChallenge', type: 'hubGate', pos: [9.4, 0, -49.5], yaw: -Math.PI / 2, action: 'challenge', label: 'hub.challenge', icon: '🏁', color: 0x7fe8ff },
-    { id: 'gBasket', type: 'hubGate', pos: [9.4, 0, -43.2], yaw: -Math.PI / 2, action: 'basketball', label: 'hub.basketball', icon: '🏀', color: 0xff9a3a },
-    { id: 'gBilliards', type: 'hubGate', style: 'door', pos: [13.8, 0, -48], yaw: -Math.PI / 2, action: 'billiards', label: 'hub.billiards', icon: '🎱', color: 0x3f8a2b },
+    { id: 'gFight', type: 'hubGate', pos: [-12.2, 0, -33.4], yaw: Math.PI / 2, action: 'fight', label: 'hub.fight', icon: '⚔', color: 0xc9b2ff },
+    { id: 'gChallenge', type: 'hubGate', pos: [-12.2, 0, -52.6], yaw: Math.PI / 2, action: 'challenge', label: 'hub.challenge', icon: '🏁', color: 0x7fe8ff },
+    { id: 'gBasket', type: 'hubGate', pos: [29.6, 0, -57.0], yaw: -Math.PI / 2, action: 'basketball', label: 'hub.basketball', icon: '🏀', color: 0xff9a3a },
+    { id: 'gBilliards', type: 'hubGate', style: 'door', pos: [31.8, 0, -66.5], yaw: -Math.PI / 2, action: 'billiards', label: 'hub.billiards', icon: '🎱', color: 0x3f8a2b },
   ];
   // add them to the start area's definition (js/adventure/hub.js)
   const hub = VR.ADVENTURE && VR.ADVENTURE.areas && VR.ADVENTURE.areas.hub;

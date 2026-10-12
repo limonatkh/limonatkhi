@@ -35,7 +35,7 @@
   const PLACES = {
     menu: { az: Math.PI + 0.42, el: 0.1, ang: 0.17, haze: 0.12 },       // main menu: over the right shoulder of the view, above the peaks
     runner: { az: -0.42, el: 0.32, ang: 0.15, haze: 0.2 },             // the course: ahead and to the left (clear of the sky islands)
-    hub: { az: 2.15, el: 0.52, ang: 0.19, haze: 0.15 },
+    hub: { az: 2.15, el: 0.52, ang: 0.19, haze: 0.1 },
     explore: { az: 2.15, el: 0.45, ang: 0.15, haze: 0.22 },
     island: { az: 2.15, el: 0.4, ang: 0.26, haze: 0.08 },              // up in the sky: closer and clearer
     mission: { az: 2.15, el: 0.5, ang: 0.14, haze: 0.25 },
@@ -133,7 +133,8 @@
       if (scene.background) renderer.setClearColor(scene.background, 1);
       renderer.autoClear = false;
       renderer.clear(true, true, true);
-      render(skyScene, skyCam);
+      if (scene.userData.skyBackdrop) { render(scene.userData.skyBackdrop, skyCam); renderer.clearDepth(); }   // a world's own sky (the square's gradient dome)
+      if (!Sky.hidePlanet) render(skyScene, skyCam);         // (tests: hidePlanet = the same sky without the planet)
       renderer.clearDepth();
       renderer.setClearColor(oldC, oldA);
       // (tests) what was drawn where

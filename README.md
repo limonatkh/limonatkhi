@@ -1120,6 +1120,32 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Lemon Square rebuilt (v1.45, branch `feature/hub-redesign`) — `js/adventure/hubworld.js`
+
+The main hub's architecture and look were rebuilt; its places, rules and entities are
+the same (every id, flag, puzzle, door, gate and portal works as before).
+
+- **Zones**: Arrival (the spawn terrace, the corridor with the wall to jump, the
+  Courtyard of Marks — same footprint: the first chapter plays the same) · Lemon
+  Plaza (the Citrus Spire landmark in its pool, the shop, HOME) · Combat (the
+  training arena — same floor plan and cover — with a stadium gate, the Fight and
+  Challenge gates) · Story Gateway (a hall of the five chapter doors + sealed places
+  for new chapters, a balcony on top reached by two stairs, a grand arch with a
+  turning ring) · Portal Terrace (the runner ring, the five sky-island gates with
+  their own locks and puzzles — moved here from their hidden corners —, a plinth
+  for a new world, an observation deck) · Arcade (basketball, billiards, a stage
+  for what comes next) · the hidden garden (same).
+- **Look**: clean coloured blocks (no pixel textures in the square), trims and
+  glowing accents, a gradient sky (drawn behind the Mini Planet by
+  `skyplanet.js` — `scene.userData.skyBackdrop`), soft sun shadows (drawn when
+  something changes, not every frame), new gate models (`VR.HubPortals` in
+  `hubgates.js`: energy gates, an arcade door, the runner ring, time gates for the
+  islands — the islands themselves keep their own gates).
+- **Saves**: a CONTINUE place saved before the rebuild (`layoutSince`) starts at
+  HOME instead; places computed by portals and doors are always used.
+- **Protected**: the islands, their routes, the planet, the runner and the worlds
+  behind the gates are unchanged (compared collider by collider with `main`).
+
 ## Third person: the crosshair works on symbols and doors · choose the view (v1.44)
 
 - In third person what you use is what the **crosshair** is on: the ray from the camera

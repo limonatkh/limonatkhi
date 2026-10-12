@@ -146,168 +146,9 @@
   };
 
   /* ==================================================================
-   * ENVIRONMENT: hub
-   * North is -Z (yaw 0 looks north). Walls carry tall invisible colliders
-   * so a burst jump never leaves the area.
+   * ENVIRONMENT: hub — js/adventure/hubworld.js (v1.45: the square rebuilt;
+   * same places for every entity's anchor name, new architecture)
    * ================================================================ */
-  function hub() {
-    const L = new VR.MissionLevel('hub');
-    const M = VR.MissionModels;
-    L.ambient = { sky: 0xcfe4ff, ground: 0x6a5a40, intensity: 0.95, background: 0x9cc8ee, fog: [0x9cc8ee, 45, 130] };
-    L.sun = { color: 0xfff0d2, intensity: 0.95, dir: [0.5, 1, 0.35] };
-    const STONE = 'stone_bricks', TOP = 40;
-    /** a wall: visible block of height h, collider up to TOP */
-    const wall = (x0, z0, x1, z1, h = 3.4, mat = STONE) => {
-      L.box(x0, 0, z0, x1, h, z1, mat, false);
-      L.box(x0 - 0.05, h, z0 - 0.05, x1 + 0.05, h + 0.25, z1 + 0.05, 'cobble', false);   // cap
-      L.collider(x0, -1, z0, x1, TOP, z1);
-    };
-    const floor = (x0, z0, x1, z1, mat) => L.box(x0, -0.5, z0, x1, 0, z1, mat);
-
-    // ---- start yard (x -4..4, z -1..8)
-    floor(-4, -1, 4, 8, 'grass_top');
-    wall(-4.4, -1, -4, 8.4); wall(4, -1, 4.4, 8.4); wall(-4.4, 8, 4.4, 8.4);
-    wall(-4.4, -1.4, -1.6, -1); wall(1.6, -1.4, 4.4, -1);                    // north side, corridor opening
-    L.place(M.barrel(), -3.3, 0, 7.2); L.place(M.crate(1.0), 3.2, 0, 7.1, 0.3);
-    L.place(M.lampPost(4), 3.3, 0, 2.5, -PI / 2, true, 0.12);
-    L.light(2.7, 3.7, 2.5, 0xffe6b8, 10, 9);
-    L.anchor('welcome', -2.9, 1.75, -0.95, 0);
-    L.spawn = { pos: [0, 0, 5.5], yaw: 0 };
-
-    // ---- corridor (x -1.6..1.6, z -15..-1) with a low wall to jump
-    floor(-1.6, -15, 1.6, -1, 'cobble');
-    wall(-2.0, -15, -1.6, -1, 3.2); wall(1.6, -15, 2.0, -1, 3.2);
-    L.box(-1.6, 0, -9.0, 1.6, 1.3, -8.4, 'brick');                             // 1.3 m: needs a jump
-    L.box(-1.6, 0.0, -8.25, 1.6, 0.02, -8.15, tint('concrete', 0xf2c230), false);   // painted line before it
-    L.anchor('wallSign', 0, 0.75, -8.38, 0);
-    L.light(0, 2.8, -5, 0xffe2a8, 8, 7); L.light(0, 2.8, -12, 0xffe2a8, 8, 7);
-
-    // ---- courtyard (x -8..8, z -31..-15)
-    floor(-8, -31.4, 8, -15, 'cobble');
-    wall(-8.4, -15.4, -1.6, -15, 4); wall(1.6, -15.4, 8.4, -15, 4);
-    // west wall with a LOW GAP (1.05 m: crouch or slide) into a hidden nook, half hidden by crates
-    wall(-8.4, -31, -8, -19.6, 4); wall(-8.4, -18.4, -8, -15.4, 4); wall(8, -31, 8.4, -15.4, 4);
-    L.box(-8.4, 1.05, -19.6, -8, 4, -18.4, STONE, false); L.collider(-8.4, 1.05, -19.6, -8, TOP, -18.4);
-    // the nook (x -12..-8.4, z -21..-17), roofed
-    floor(-12, -21, -8.4, -17, 'planks');
-    wall(-12.4, -21.4, -12, -16.6, 2.4); wall(-12.4, -21.4, -8.4, -21, 2.4); wall(-12.4, -17, -8.4, -16.6, 2.4);
-    L.box(-12.4, 2.4, -21.4, -8.0, 2.7, -16.6, 'planks', false); L.collider(-12.4, 2.4, -21.4, -8.0, TOP, -16.6);
-    L.place(M.crate(1.0), -11.4, 0, -20.4, 0.2); L.place(M.barrel(), -11.5, 0, -17.6);
-    L.place(M.hangingLamp(0.5), -10.2, 2.4, -19, 0, false);
-    L.light(-10.2, 1.8, -19, 0xffc880, 7, 5);
-    L.anchor('nookNote', -11.97, 1.4, -19, PI / 2);
-    floor(-8.4, -19.6, -8, -18.4, 'cobble');                                  // under the gap
-    wall(-8.4, -31.4, -2.5, -31, 4.4); wall(2.5, -31.4, 8.4, -31, 4.4);       // north wall, gate gap 5 m
-    L.box(-2.7, 3.4, -31.4, 2.7, 4.4, -31, STONE, false);                      // lintel over the gate
-    L.anchor('gate', 0, 0, -31.2, 0);
-    // three numbered marks (east, west, north walls)
-    L.anchor('mark1', 7.95, 1.9, -18.5, -PI / 2);
-    L.anchor('mark2', -7.95, 1.9, -25.5, PI / 2);
-    L.anchor('mark3', -5.3, 1.9, -30.95, 0);
-    // chest + its note, keyhole beside the gate
-    L.anchor('chest', 5.4, 0, -27.6, 0);
-    L.box(3.9, 0, -29.0, 6.9, 0.25, -26.4, 'planks', false);                   // a little platform
-    L.anchor('chestNote', 5.4, 1.65, -30.95, 0);
-    L.box(4.6, 0.9, -31.0, 6.2, 2.4, -30.97, 'planks', false);                 // board behind the note
-    L.anchor('keyhole', 3.3, 1.3, -30.95, 0);
-    // props: low cover and a tree
-    L.place(M.crate(1.2), -5.6, 0, -18.2, 0.2); L.place(M.crate(1.2), -6.2, 0, -18.6, 0.6);
-    L.place(M.barrel(), 6.9, 0, -16.3); L.place(M.barrel(), 6.1, 0, -16.2);
-    L.box(-4.3, 0, -24.3, -3.7, 2.6, -23.7, 'log');                            // tree trunk
-    L.box(-5.4, 2.6, -25.4, -2.6, 4.6, -22.6, 'leaves', false);
-    L.collider(-5.4, 2.6, -25.4, -2.6, 4.6, -22.6);
-    for (const [x, z, yaw] of [[-7.4, -21, PI / 2], [7.4, -24, -PI / 2]]) {
-      L.place(M.lampPost(4.2), x, 0, z, yaw, true, 0.12);
-      L.light(x + Math.sin(yaw) * 0.6, 3.9, z + Math.cos(yaw) * 0.6, 0xffe6b8, 14, 11);
-    }
-
-    // ---- plaza (x -14..14, z -55..-31), behind the gate
-    floor(-14, -55, 14, -31.4, 'grass_top');
-    L.box(-2.2, -0.01, -45, 2.2, 0.005, -31.4, 'cobble', false);              // path to the fountain
-    wall(-14.4, -31.4, -8.4, -31, 4); wall(8.4, -31.4, 14.4, -31, 4);
-    // west wall: the gate to the training arena
-    wall(-14.4, -55, -14, -44.5, 4.4); wall(-14.4, -41.5, -14, -31.4, 4.4);
-    L.box(-14.4, 3.2, -44.7, -14, 4.4, -41.3, STONE, false); L.collider(-14.4, 3.2, -44.7, -14, TOP, -41.3);
-    floor(-14.4, -44.5, -14, -41.5, 'cobble');
-    L.anchor('arenaGate', -14.2, 0, -43, PI / 2);
-    L.anchor('shop', 8.4, 0, -37.6, 0);
-    L.anchor('portal', -9.6, 0, -35.4, PI / 2);                              // the runner portal, facing east                                      // the shop stall, facing the gate
-    L.anchor('arenaSign', -13.95, 3.75, -43, -PI / 2);
-    L.anchor('arenaRespawn', -11.8, 0, -43, PI / 2);
-    L.anchor('pistolRack', -12.4, 0, -38.6, PI / 2);
-    L.box(-13.2, 0, -39.4, -11.6, 0.6, -37.8, 'planks');                     // a little table for the first weapon
-    L.anchor('arenaNote', -13.97, 1.7, -36.4, -PI / 2);
-    arena(L, wall, floor, TOP);
-    // east wall with a hidden gate (opens with the symbol panel) to the garden
-    wall(14, -55, 14.4, -44.5, 4.4); wall(14, -41.5, 14.4, -31.4, 4.4);
-    L.box(14, 3.2, -44.7, 14.4, 4.4, -41.3, STONE, false); L.collider(14, 3.2, -44.7, 14.4, TOP, -41.3);
-    L.anchor('gardenGate', 14.2, 0, -43, PI / 2);
-    floor(14, -44.5, 14.4, -41.5, 'cobble');                                  // under the garden gate
-    L.anchor('panel', 13.92, 1.15, -39.2, -PI / 2);
-    L.box(13.9, 0.6, -40.2, 14.0, 2.6, -36.2, 'planks', false);                // board for the panel and its note
-    L.anchor('panelNote', 13.88, 1.6, -37.0, -PI / 2);
-    // the garden (x 14.4..24, z -50..-36)
-    floor(14.4, -50, 24, -36, 'grass_top');
-    wall(24, -50.4, 24.4, -35.6, 3.6); wall(14.4, -50.4, 24.4, -50, 3.6); wall(14.4, -36, 24.4, -35.6, 3.6);
-    for (const [x, z] of [[17, -38.2], [21.6, -47.6], [21.8, -38.4]]) {
-      L.box(x - 0.3, 0, z - 0.3, x + 0.3, 2.2, z + 0.3, 'log');
-      L.box(x - 1.3, 2.2, z - 1.3, x + 1.3, 3.8, z + 1.3, tint('leaves', 0x8fd04a), false);
-    }
-    L.box(19.6, 0, -44.2, 21.4, 0.5, -41.8, 'sandstone');                      // pedestal
-    L.anchor('gardenPrize', 20.5, 0.5, -43, -PI / 2);
-    L.anchor('gardenNote', 23.95, 1.6, -45.6, -PI / 2);
-    L.light(20.5, 3, -43, 0xfff2b0, 10, 10);
-    wall(-14.4, -55.4, 14.4, -55, 5);
-    // fountain
-    L.box(-2.6, 0, -47.6, 2.6, 0.7, -42.4, 'sandstone');
-    L.box(-2.2, 0.5, -47.2, 2.2, 0.62, -42.8, 'water', false);
-    L.box(-0.4, 0.7, -45.4, 0.4, 2.2, -44.6, 'sandstone');
-    L.light(0, 3.2, -45, 0xcfe8ff, 10, 9);
-    // five doors in the north wall (the other areas; closed for now)
-    L.extras.doors = [];
-    [-10, -5, 0, 5, 10].forEach((x, i) => {
-      L.box(x - 1.35, 0, -55.0, x + 1.35, 3.2, -54.75, 'log', false);          // frame
-      L.box(x - 1.0, 0, -54.78, x + 1.0, 2.8, -54.7, tint('planks', 0x6a4424), false);   // door leaf
-      L.box(x + 0.6, 1.25, -54.72, x + 0.75, 1.4, -54.62, 'iron', false);       // handle
-      L.anchor('door' + (i + 1), x, 0, -54.74, 0);
-      L.anchor('doorMark' + (i + 1), x, 2.15, -54.66, 0);
-      L.anchor('doorSign' + (i + 1), x, 3.75, -54.7, 0);
-      L.extras.doors.push({ x, z: -54.7 });
-    });
-    for (const [x, z] of [[-12.5, -34], [12.5, -34], [-12.5, -52], [12.5, -52]]) {
-      L.place(M.lampPost(4.6), x, 0, z, x < 0 ? PI / 2 : -PI / 2, true, 0.12);
-      L.light(x + (x < 0 ? 0.6 : -0.6), 4.3, z, 0xffe6b8, 16, 13);
-    }
-    return L.finish();
-  }
-  /* ---- the training arena (x -40..-14.4, z -54..-32), west of the square */
-  function arena(L, wall, floor, TOP) {
-    const M = VR.MissionModels;
-    floor(-40, -54, -14.4, -32, 'gravel');
-    wall(-40.4, -54.4, -14.4, -54, 5); wall(-40.4, -32, -14.4, -31.6, 5); wall(-40.4, -54, -40, -32, 5);
-    const low = (x0, z0, x1, z1, h = 1.1) => L.box(x0, 0, z0, x1, h, z1, 'brick');
-    low(-24.3, -47.5, -23.7, -44.5); low(-24.3, -41.5, -23.7, -38.5);              // low cover near the middle
-    low(-31, -52, -28, -51.4); low(-31, -34.6, -28, -34);
-    for (const [x, z] of [[-30, -38.5], [-30, -47.5], [-33, -43]]) L.box(x - 0.6, 0, z - 0.6, x + 0.6, 3.2, z + 0.6, 'stone_bricks');   // pillars
-    L.place(M.crate(1.2), -19.5, 0, -40.2, 0.2); L.place(M.crate(1.2), -19.4, 0, -46.0, 0.5);
-    L.place(M.crate(1.2), -35.6, 0, -50.8, 0.3); L.place(M.barrel(), -26.5, 0, -33.2); L.place(M.barrel(), -26.5, 0, -52.8);
-    // sniper platform (north-west) with steps
-    L.box(-39.6, 0, -36.2, -35.4, 2.0, -32.4, 'planks');
-    for (let i = 0; i < 5; i++) L.box(-35.4 + i * 0.5, 0, -35.6, -34.9 + i * 0.5, 2.0 - i * 0.4, -34.0, 'planks');
-    L.box(-39.6, 2.0, -36.3, -35.4, 2.9, -36.2, 'iron', false); L.collider(-39.6, 2.0, -36.3, -35.4, 2.9, -36.2);   // railing
-    L.anchor('sniperSpot', -37.6, 2.0, -34.2, -PI / 2);
-    L.anchor('shotgunSpot', -20.6, 0, -50.4, -PI / 2);
-    L.anchor('smgSpot', -20.6, 0, -35.6, -PI / 2);
-    L.anchor('nadeSpot', -27.0, 0, -50.2, -PI / 2);
-    L.anchor('ammo1', -16.0, 0, -52.6, 0); L.anchor('ammo2', -16.0, 0, -33.4, 0);
-    L.anchor('arenaZone', -20.5, 0, -43, 0);
-    L.anchor('bell', -16.4, 0, -47.6, 0);
-    for (const [x, z] of [[-17, -34], [-17, -52], [-38, -52], [-38, -40]]) {
-      L.place(M.lampPost(4.6), x, 0, z, x < -30 ? -PI / 2 : PI / 2, true, 0.12);
-      L.light(x + (x < -30 ? 0.6 : -0.6), 4.3, z, 0xffe6b8, 16, 14);
-    }
-  }
-  VR.MissionEnvironments.hub = hub;
 
   /* ==================================================================
    * AREA DEFINITION
@@ -319,6 +160,8 @@
 
   const HUB = {
     id: 'hub', persistent: true, combat: true, order: 0, environment: 'hub',
+    // v1.45: the square was rebuilt — a place saved before this (CONTINUE) is not used: you start at HOME
+    layoutSince: Date.UTC(2026, 9, 12, 19, 0),
     // flags that are each player's own progress (the rest — doors, gates, the garden — belong to the world)
     personalFlags: ['crossed_wall', 'in_plaza', 'in_garden', 'arena_clear', 'used_portal', 'visited_shop'],
     name: { en: 'Lemon Square', ar: 'ساحة الليمون' },
@@ -387,7 +230,7 @@
         closedText: { en: 'Locked. There is a keyhole beside it.', ar: 'مقفلة. بجانبها قفل.' } },
       { id: 'inPlaza', type: 'zone', at: 'gate', offset: [0, 0, -3.2], size: [10, 4, 3], flag: 'in_plaza', requires: 'plaza_open' },
       { id: 'c_court', type: 'coins', points: [[-6.6, 1.8, -18.6], [-3.0, 1.0, -21], [3.0, 1.0, -21], [0, 1.0, -26]] },
-      { id: 'c_plaza', type: 'coins', points: [[-3.6, 1.0, -45], [3.6, 1.0, -45], [0, 1.0, -41.4], [0, 1.0, -48.6], [-10, 1.0, -38], [11.6, 1.0, -38]] },
+      { id: 'c_plaza', type: 'coins', points: [[-7.6, 1.0, -47.5], [7.6, 1.0, -47.5], [0, 1.0, -39.6], [0, 1.0, -56.6], [-10, 1.0, -38.6], [11.6, 1.0, -40.8]] },
       ...DOOR_NAMES.map((n, i) => ({
         id: 'doorSign' + (i + 1), type: 'text', at: 'doorSign' + (i + 1), style: 'sign', size: 0.21, width: 3.4, inspect: false,
         text: { en: `${i + 1} · ${n.en}`, ar: `${AR_NUM[i]} · ${n.ar}` },

@@ -64,6 +64,8 @@
       const holder = document.getElementById('game');
       this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
       holder.appendChild(this.renderer.domElement);
+      // soft shadows: only the rebuilt square casts them (js/adventure/hubworld.js), drawn when it asks (not every frame)
+      this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.shadowMap.autoUpdate = false;
       if (VR.SkyPlanet) VR.SkyPlanet.install(this.renderer);       // the Mini Planet in every world's sky (js/planet/skyplanet.js)
       this.scene = new THREE.Scene();
       this.skyColor = new THREE.Color(0x8fd3ff);

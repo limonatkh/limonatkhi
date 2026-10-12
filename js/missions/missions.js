@@ -364,6 +364,10 @@
       if (L.extras.build) L.extras.build(sc, this);           // a world's own extras (the cloud sea, sky islands…)
       this.loadView();
       this.ctrl.reset(L.spawn); this.ctrl.safe = null;
+      if (location && location.pos && def.layoutSince && location.t && location.t < def.layoutSince) {   // (a place computed just now — a portal, a door — has no time: always good)   // saved before the area was rebuilt: not a safe place any more
+        const H = def.id === 'hub' && VR.ADVENTURE.HOME; location = H ? { pos: H.pos.slice(), yaw: H.yaw } : null;
+        if (location && !this.run.has('in_plaza')) location = null;                 // (the first chapter: from the spawn)
+      }
       if (location && location.pos) {               // CONTINUE: back where you were (the spawn stays the respawn point)
         this.ctrl.reset({ pos: location.pos, yaw: location.yaw || 0 });
         this.ctrl.spawn = L.spawn;

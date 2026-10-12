@@ -254,7 +254,7 @@
       const isOpen = () => always || Loot.isUnlocked(def.id);
       const root = new T.Group(); root.position.copy(pos); root.rotation.y = yaw; ctx.scene.add(root);
       if (def.scale) root.scale.setScalar(def.scale);                  // (a low room: a smaller frame)
-      const frame = portalFrame(st); root.add(frame);
+      const frame = def.skin === 'hub' && VR.HubPortals ? VR.HubPortals.timeGate(st.glow) : portalFrame(st); root.add(frame);   // (in the square: its own gate model; the islands keep theirs)
       const curtainMat = own(new T.MeshBasicMaterial({ color: st.glow, transparent: true, opacity: 0.62, side: T.DoubleSide, depthWrite: false }));
       curtainMat.toneMapped = false;
       const curtain = new T.Mesh(new T.PlaneGeometry(2.05, 3.15), curtainMat); curtain.geometry.userData.own = true; curtain.position.set(0, 1.62, 0); root.add(curtain);

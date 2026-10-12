@@ -25,15 +25,7 @@
   });
   const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
-  function frame() {
-    const g = new T.Group(), vb = new VR.VoxelBuilder();
-    for (const x of [-1.6, 1.6]) vb.addColorBox(x, 0, 0, 0.5, 3.6, 0.6, 0x4a4f5d);
-    vb.addColorBox(0, 3.6, 0, 3.7, 0.5, 0.6, 0x4a4f5d);
-    vb.addColorBox(0, 0, 0, 3.7, 0.12, 1.2, 0x2a2f3d);
-    for (const x of [-1.6, 1.6]) vb.addColorBox(x, 3.0, 0.31, 0.3, 0.3, 0.02, 0xffe14a);
-    g.add(vb.build());
-    return g;
-  }
+  function frame() { return VR.HubPortals.runner(0xffe14a); }      // (the square's gate models: js/adventure/hubgates.js)
 
   MS.Components.runnerPortal = {
     build(def, ctx) {
