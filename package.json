@@ -1,0 +1,17 @@
+{
+  "name": "lemonat-tests",
+  "private": true,
+  "description": "Tests for the Lemonat game. The game itself has no build step and no dependencies; this file only installs the test tools.",
+  "scripts": {
+    "test": "npm run test:node && npm run test:e2e",
+    "test:node": "node --test \"tests/static/*.test.js\" \"tests/unit/*.test.js\"",
+    "test:e2e": "playwright test --project=blocking",
+    "test:known": "playwright test --project=known-issues",
+    "test:unstable": "playwright test --project=unstable --pass-with-no-tests",
+    "serve": "node tests/helpers/server.js",
+    "baseline": "node tests/helpers/fingerprints.js && playwright test --project=baseline"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

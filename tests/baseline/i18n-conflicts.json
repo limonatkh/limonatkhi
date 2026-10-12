@@ -1,0 +1,8 @@
+{
+  "about": "Translation keys (v1.44) defined with different text in two files; the last file loaded wins everywhere. This list may only get shorter. lt.got is a known bug (see tests/known-issues/lt-got.spec.js); menu.play is the hub replacing the menu label on purpose.",
+  "entries": [
+    "ar lt.got: js/explore/loot.js | js/duel/powers.js",
+    "ar menu.play: js/i18n.js | js/adventure/hubgates.js",
+    "en lt.got: js/explore/loot.js | js/duel/powers.js"
+  ]
+}

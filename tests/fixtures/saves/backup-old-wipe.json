@@ -1,0 +1,30 @@
+{
+  "storage": {
+    "cubeexpress.profiles": {
+      "version": 1, "active": "p1",
+      "players": { "p1": {
+        "id": "p1", "uid": "lmtest03", "created": 1760000000000,
+        "wallet": { "coins": 0, "ledger": [] },
+        "inventory": { "weapons": [], "tools": [], "consumables": {} },
+        "upgrades": {},
+        "progress": { "missions": { "completed": {}, "secondary": {}, "achievements": [], "plays": {} }, "areas": {}, "flags": [] },
+        "location": { "area": "hub", "pos": [0, 0.05, 0], "yaw": 0 },
+        "stats": { "best": 100, "duel": { "w": 0, "l": 0, "d": 0 } }
+      } },
+      "world": {}
+    },
+    "cubeexpress.profiles.backup": {
+      "version": 1, "active": "p1", "backedUp": 1750000000000,
+      "players": { "p1": {
+        "id": "p1", "uid": "lmtest03",
+        "wallet": { "coins": 1500, "ledger": [] },
+        "inventory": { "weapons": [], "tools": [], "consumables": { "medkit": 3 } },
+        "upgrades": { "hp": 3, "regen": 1 },
+        "unlocks": { "arena": ["lmg"] },
+        "progress": { "missions": { "completed": {}, "secondary": {}, "achievements": [], "plays": {} }, "areas": {}, "flags": [] },
+        "stats": { "best": 4000, "duel": { "w": 1, "l": 0, "d": 0 } }
+      } },
+      "world": {}
+    }
+  }
+}

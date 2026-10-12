@@ -1,0 +1,8 @@
+{
+  "storage": {
+    "cubeexpress.bank": 1234.7,
+    "cubeexpress.best": 5821,
+    "cubeexpress.missions": { "completed": { "m1": { "t": 1700000000000, "score": 900 } }, "secondary": { "m1": ["fast"] }, "achievements": ["first_win"], "plays": { "m1": 3 } },
+    "cubeexpress.duelStats": { "w": 4, "l": 2, "d": 1 }
+  }
+}

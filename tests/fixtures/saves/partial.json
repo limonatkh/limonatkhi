@@ -1,0 +1,17 @@
+{
+  "storage": {
+    "cubeexpress.profiles": {
+      "version": 1,
+      "active": "p1",
+      "players": {
+        "p1": {
+          "id": "p1",
+          "wallet": { "coins": 640 },
+          "inventory": { "weapons": [] },
+          "progress": { "missions": { "completed": { "m3": { "t": 1, "score": 50 } } } },
+          "stats": { "best": 300 }
+        }
+      }
+    }
+  }
+}

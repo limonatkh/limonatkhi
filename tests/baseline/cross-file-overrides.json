@@ -1,0 +1,10 @@
+{
+  "about": "Places (v1.44) where one file replaces a function of a system defined in another file. This list may only get shorter: a new entry means a new hidden link between systems. To remove one, fix it and delete its line here.",
+  "entries": [
+    "js/duel/powers.js: VR.WeaponKit.model",
+    "js/explore/islandworlds.js: VR.MissionEnvironments.hub (replaces js/adventure/hub.js)",
+    "js/missions/video.js: VR.MissionUI.prototype.close",
+    "js/missions/video.js: VR.MissionUI.prototype.showVideo",
+    "js/planet/planetworld.js: VR.MiniPlanet.lapState"
+  ]
+}
