@@ -1,0 +1,22 @@
+{
+  "storage": {
+    "cubeexpress.profiles": {
+      "version": 1,
+      "active": "p1",
+      "futureTopLevel": { "keep": "me" },
+      "players": {
+        "p1": {
+          "id": "p1", "uid": "lmtest02", "created": 1760000000000,
+          "wallet": { "coins": 99, "ledger": [], "futureWalletField": 7 },
+          "inventory": { "weapons": [], "tools": [], "consumables": {}, "pets": ["lemon_cat"] },
+          "upgrades": {},
+          "progress": { "missions": { "completed": {}, "secondary": {}, "achievements": [], "plays": {}, "streak": 4 }, "areas": {}, "flags": [], "storyWorlds": { "desert": { "chapter": 2 } } },
+          "location": null,
+          "stats": { "best": 0, "duel": { "w": 0, "l": 0, "d": 0 } },
+          "cosmetics": { "hat": "crown" }
+        }
+      },
+      "world": {}
+    }
+  }
+}

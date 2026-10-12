@@ -1,0 +1,430 @@
+{
+  "about": "Shape of the generated exploration area, sky islands and sky routes (v1.44). Regenerate with `npm run baseline` ONLY when a change to them is on purpose.",
+  "worlds": {
+    "explore": {
+      "spots": {
+        "ammo": [
+          3,
+          4.4,
+          58
+        ],
+        "desertChest": [
+          46,
+          2.4,
+          6
+        ],
+        "desertLight": [
+          44,
+          5.4,
+          3
+        ],
+        "desertTablet": [
+          48.9,
+          4,
+          1
+        ],
+        "home": [
+          0,
+          4,
+          71.4
+        ],
+        "ledge": [
+          -12,
+          1.2,
+          0
+        ],
+        "mesaTop": [
+          48,
+          15.6,
+          4
+        ],
+        "pillar": [
+          20,
+          6,
+          -20
+        ],
+        "roomChest": [
+          54,
+          2.4,
+          50
+        ],
+        "roomLight": [
+          53,
+          4.8,
+          48
+        ],
+        "routeChest": [
+          6,
+          4.8,
+          50
+        ],
+        "ruin": [
+          -20,
+          2,
+          -60
+        ],
+        "shard": [
+          -44,
+          30.2,
+          -42
+        ],
+        "spawn": [
+          0,
+          4,
+          69
+        ],
+        "summit": [
+          -44,
+          28.8,
+          -42
+        ],
+        "tablet": [
+          -30,
+          10.8,
+          -30
+        ],
+        "tree": [
+          -44,
+          8,
+          26
+        ],
+        "villageChest": [
+          26,
+          4.8,
+          52
+        ],
+        "well": [
+          30,
+          6,
+          48
+        ]
+      },
+      "groundHash": "da55c4c9dd0fc5cd"
+    },
+    "isl1": {
+      "spots": {
+        "ammo": [
+          -11,
+          2,
+          7
+        ],
+        "home": [
+          -17.6,
+          2,
+          1
+        ],
+        "islet": [
+          33,
+          3.6,
+          0
+        ],
+        "key": [
+          34,
+          15.3,
+          4
+        ],
+        "plate": [
+          -3,
+          2.4,
+          15
+        ],
+        "podium": [
+          0,
+          6,
+          -9
+        ],
+        "room": [
+          0,
+          2.4,
+          -8
+        ],
+        "roomChest": [
+          2,
+          2.4,
+          -6
+        ],
+        "roomRelic": [
+          0,
+          3.4,
+          -9
+        ],
+        "sign": [
+          -15,
+          2,
+          5
+        ],
+        "spawn": [
+          -15,
+          2,
+          1
+        ]
+      },
+      "groundHash": "393575d360a91b98",
+      "killY": -16,
+      "skyRoutes": "f6c3a6a74ae4c034"
+    },
+    "isl2": {
+      "spots": {
+        "ammo": [
+          5,
+          6,
+          13
+        ],
+        "cave": [
+          -2,
+          2.4,
+          -5
+        ],
+        "caveChest": [
+          -3,
+          2.4,
+          -7
+        ],
+        "caveLight": [
+          -2,
+          4.8,
+          -5
+        ],
+        "cavePlate": [
+          -1,
+          3.4,
+          -3
+        ],
+        "home": [
+          1,
+          3.6,
+          17.4
+        ],
+        "hutChest": [
+          -34,
+          6,
+          -22.4
+        ],
+        "knob": [
+          -33,
+          6,
+          -21
+        ],
+        "relic": [
+          5,
+          16.9,
+          -3
+        ],
+        "sign": [
+          -2.6,
+          4.8,
+          15
+        ],
+        "spawn": [
+          1,
+          4.8,
+          15
+        ],
+        "summit": [
+          5,
+          15.6,
+          -3
+        ]
+      },
+      "groundHash": "1c013cfc04e26658",
+      "killY": -16,
+      "skyRoutes": "e10325e0b2702f78"
+    },
+    "isl3": {
+      "spots": {
+        "ammo": [
+          7,
+          2.4,
+          7
+        ],
+        "home": [
+          0,
+          2.4,
+          23.4
+        ],
+        "keep": [
+          0,
+          2.4,
+          -1
+        ],
+        "nade": [
+          -10,
+          8,
+          10
+        ],
+        "sign": [
+          -2.6,
+          2.8,
+          19
+        ],
+        "spawn": [
+          0,
+          2.4,
+          21
+        ],
+        "towerChest": [
+          10,
+          8,
+          -10
+        ],
+        "under": [
+          1,
+          -1.2,
+          -8
+        ],
+        "underChest": [
+          -1,
+          -1.2,
+          -9
+        ],
+        "underLight": [
+          1,
+          1.2,
+          -8
+        ],
+        "underRelic": [
+          3,
+          -0.2,
+          -9
+        ]
+      },
+      "groundHash": "b28361d06a155b64",
+      "killY": -16,
+      "skyRoutes": "2ac94a793338be18"
+    },
+    "isl4": {
+      "spots": {
+        "alcove": [
+          11,
+          -3.6,
+          -5
+        ],
+        "ammo": [
+          -5,
+          6,
+          13
+        ],
+        "chamber": [
+          0,
+          -3.6,
+          -2
+        ],
+        "chest": [
+          5,
+          -3.6,
+          -7
+        ],
+        "home": [
+          1,
+          5.6,
+          15.4
+        ],
+        "light1": [
+          -3,
+          1.6,
+          -3
+        ],
+        "light2": [
+          5,
+          1.6,
+          1
+        ],
+        "mouth": [
+          -11,
+          6,
+          9
+        ],
+        "relic": [
+          1,
+          -1.2,
+          -3
+        ],
+        "sign": [
+          -1.6,
+          6,
+          13
+        ],
+        "spawn": [
+          1,
+          6,
+          13
+        ],
+        "voidStone": [
+          -5,
+          -0.3,
+          -5
+        ]
+      },
+      "groundHash": "498fde731c42e71f",
+      "killY": -18,
+      "skyRoutes": "8395c70f1e8f1fe7"
+    },
+    "isl5": {
+      "spots": {
+        "ammo": [
+          12,
+          4.4,
+          2
+        ],
+        "cave": [
+          31,
+          8.4,
+          -9
+        ],
+        "crown": [
+          3,
+          18.8,
+          -3
+        ],
+        "home": [
+          -24.4,
+          2.4,
+          5
+        ],
+        "room": [
+          4,
+          4.4,
+          -2
+        ],
+        "sigilCave": [
+          29.5,
+          9.4,
+          -9
+        ],
+        "sigilRoom": [
+          5,
+          5.4,
+          -2
+        ],
+        "sigilStones": [
+          -27,
+          9.4,
+          1
+        ],
+        "sign": [
+          -21,
+          2.4,
+          7.6
+        ],
+        "spawn": [
+          -21,
+          2.4,
+          5
+        ],
+        "top": [
+          4,
+          18.8,
+          -2
+        ],
+        "wallDoor": [
+          0,
+          4.4,
+          -1
+        ]
+      },
+      "groundHash": "6ccdd48d83f5a40e",
+      "killY": -16,
+      "skyRoutes": "d24b75f5edd8ed71"
+    }
+  }
+}

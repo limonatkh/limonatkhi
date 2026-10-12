@@ -1,0 +1,1462 @@
+{
+  "about": "The runner course for fixed seeds (v1.44): chunks and obstacles. Must stay the same unless the course is changed on purpose.",
+  "seeds": {
+    "777": [
+      {
+        "z0": 60,
+        "style": "ridge",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": 20,
+        "style": "ridge",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -20,
+        "style": "ridge",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -60,
+        "style": "ledge_r",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -100,
+        "style": "saddle",
+        "biome": "mountains",
+        "obs": [
+          [
+            "step",
+            -26,
+            -1124
+          ]
+        ]
+      },
+      {
+        "z0": -140,
+        "style": "ledge_r",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -180,
+        "style": "w2m",
+        "biome": "mountains",
+        "obs": [
+          [
+            "rock_low",
+            -20,
+            -1884
+          ],
+          [
+            "boulder",
+            18,
+            -2055
+          ]
+        ]
+      },
+      {
+        "z0": -220,
+        "style": "ridge_m",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -260,
+        "style": "pass_m",
+        "biome": "snow",
+        "obs": [
+          [
+            "crevice",
+            -16,
+            -2828
+          ]
+        ]
+      },
+      {
+        "z0": -300,
+        "style": "m2w",
+        "biome": "snow",
+        "obs": [
+          [
+            "rock_low",
+            -17,
+            -3135
+          ],
+          [
+            "rock_low",
+            17,
+            -3135
+          ]
+        ]
+      },
+      {
+        "z0": -340,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": [
+          [
+            "step",
+            6,
+            -3514
+          ]
+        ]
+      },
+      {
+        "z0": -380,
+        "style": "ledge_l",
+        "biome": "snow",
+        "obs": [
+          [
+            "rock_low",
+            -30,
+            -4033
+          ]
+        ]
+      },
+      {
+        "z0": -420,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": [
+          [
+            "boulder",
+            -25,
+            -4286
+          ],
+          [
+            "rock_low",
+            12,
+            -4453
+          ]
+        ]
+      },
+      {
+        "z0": -460,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": [
+          [
+            "lintel",
+            -29,
+            -4680
+          ],
+          [
+            "lintel",
+            0,
+            -4680
+          ],
+          [
+            "lintel",
+            29,
+            -4680
+          ],
+          [
+            "post",
+            -47,
+            -4680
+          ],
+          [
+            "post",
+            47,
+            -4680
+          ],
+          [
+            "lintel",
+            -29,
+            -4909
+          ],
+          [
+            "lintel",
+            0,
+            -4909
+          ],
+          [
+            "lintel",
+            29,
+            -4909
+          ],
+          [
+            "post",
+            -47,
+            -4909
+          ],
+          [
+            "post",
+            47,
+            -4909
+          ]
+        ]
+      },
+      {
+        "z0": -500,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": [
+          [
+            "log",
+            -21,
+            -5077
+          ],
+          [
+            "pillar",
+            12,
+            -5228
+          ]
+        ]
+      },
+      {
+        "z0": -540,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": [
+          [
+            "boulder",
+            -9,
+            -5480
+          ],
+          [
+            "crevice",
+            6,
+            -5622
+          ]
+        ]
+      },
+      {
+        "z0": -580,
+        "style": "saddle",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -620,
+        "style": "split_m",
+        "biome": "grassland",
+        "obs": [
+          [
+            "log",
+            -51,
+            -6454
+          ]
+        ]
+      },
+      {
+        "z0": -660,
+        "style": "merge_mw",
+        "biome": "grassland",
+        "obs": [
+          [
+            "log",
+            39,
+            -6819
+          ]
+        ]
+      },
+      {
+        "z0": -700,
+        "style": "ridge",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rockfall",
+            -1,
+            -7155
+          ],
+          [
+            "log",
+            28,
+            -7229
+          ]
+        ]
+      },
+      {
+        "z0": -740,
+        "style": "pass_w",
+        "biome": "grassland",
+        "obs": []
+      },
+      {
+        "z0": -780,
+        "style": "ridge",
+        "biome": "grassland",
+        "obs": [
+          [
+            "crevice",
+            -29,
+            -7880
+          ],
+          [
+            "crevice",
+            0,
+            -7880
+          ],
+          [
+            "crevice",
+            29,
+            -7880
+          ]
+        ]
+      },
+      {
+        "z0": -820,
+        "style": "w2m",
+        "biome": "grassland",
+        "obs": [
+          [
+            "log",
+            6,
+            -8439
+          ]
+        ]
+      },
+      {
+        "z0": -860,
+        "style": "m2w",
+        "biome": "grassland",
+        "obs": [
+          [
+            "lintel",
+            -15,
+            -8680
+          ],
+          [
+            "lintel",
+            15,
+            -8680
+          ],
+          [
+            "post",
+            -34,
+            -8680
+          ],
+          [
+            "post",
+            34,
+            -8680
+          ]
+        ]
+      },
+      {
+        "z0": -900,
+        "style": "pass_w",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rock_low",
+            -29,
+            -9080
+          ],
+          [
+            "rock_low",
+            0,
+            -9080
+          ],
+          [
+            "rock_low",
+            29,
+            -9080
+          ]
+        ]
+      },
+      {
+        "z0": -940,
+        "style": "saddle",
+        "biome": "grassland",
+        "obs": [
+          [
+            "log",
+            -23,
+            -9600
+          ]
+        ]
+      },
+      {
+        "z0": -980,
+        "style": "saddle",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rock_low",
+            -29,
+            -10010
+          ],
+          [
+            "rock_low",
+            0,
+            -10010
+          ],
+          [
+            "rock_low",
+            29,
+            -10010
+          ]
+        ]
+      },
+      {
+        "z0": -1020,
+        "style": "saddle",
+        "biome": "forest",
+        "obs": [
+          [
+            "log",
+            -28,
+            -10412
+          ]
+        ]
+      },
+      {
+        "z0": -1060,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": [
+          [
+            "crevice",
+            26,
+            -10680
+          ],
+          [
+            "boulder",
+            -10,
+            -10795
+          ]
+        ]
+      },
+      {
+        "z0": -1100,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": [
+          [
+            "leaning",
+            -18,
+            -11076
+          ],
+          [
+            "pillar",
+            0,
+            -11223
+          ]
+        ]
+      },
+      {
+        "z0": -1140,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1180,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1220,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1260,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1300,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1340,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1380,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1420,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1460,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      }
+    ],
+    "2024": [
+      {
+        "z0": 60,
+        "style": "ridge",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": 20,
+        "style": "ridge",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -20,
+        "style": "ridge",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -60,
+        "style": "ledge_r",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -100,
+        "style": "split_c",
+        "biome": "mountains",
+        "obs": [
+          [
+            "crevice",
+            50,
+            -1241
+          ]
+        ]
+      },
+      {
+        "z0": -140,
+        "style": "merge_cw",
+        "biome": "mountains",
+        "obs": []
+      },
+      {
+        "z0": -180,
+        "style": "saddle",
+        "biome": "mountains",
+        "obs": [
+          [
+            "log",
+            -1,
+            -2031
+          ]
+        ]
+      },
+      {
+        "z0": -220,
+        "style": "ledge_r",
+        "biome": "snow",
+        "obs": [
+          [
+            "rock_low",
+            24,
+            -2427
+          ]
+        ]
+      },
+      {
+        "z0": -260,
+        "style": "ledge_l",
+        "biome": "snow",
+        "obs": [
+          [
+            "crevice",
+            -25,
+            -2668
+          ],
+          [
+            "boulder",
+            -21,
+            -2819
+          ]
+        ]
+      },
+      {
+        "z0": -300,
+        "style": "ledge_l",
+        "biome": "snow",
+        "obs": [
+          [
+            "arch",
+            -29,
+            -3083
+          ],
+          [
+            "log",
+            4,
+            -3231
+          ]
+        ]
+      },
+      {
+        "z0": -340,
+        "style": "pass_w",
+        "biome": "snow",
+        "obs": [
+          [
+            "rock_low",
+            -26,
+            -3621
+          ]
+        ]
+      },
+      {
+        "z0": -380,
+        "style": "saddle",
+        "biome": "snow",
+        "obs": [
+          [
+            "step",
+            0,
+            -3921
+          ]
+        ]
+      },
+      {
+        "z0": -420,
+        "style": "pass_w",
+        "biome": "snow",
+        "obs": [
+          [
+            "pillar",
+            -32,
+            -4275
+          ],
+          [
+            "boulder",
+            29,
+            -4350
+          ],
+          [
+            "boulder",
+            -28,
+            -4422
+          ],
+          [
+            "boulder",
+            27,
+            -4511
+          ]
+        ]
+      },
+      {
+        "z0": -460,
+        "style": "split_m",
+        "biome": "snow",
+        "obs": [
+          [
+            "log",
+            43,
+            -4807
+          ]
+        ]
+      },
+      {
+        "z0": -500,
+        "style": "twin_m",
+        "biome": "snow",
+        "obs": [
+          [
+            "rock_low",
+            -62,
+            -5219
+          ]
+        ]
+      },
+      {
+        "z0": -540,
+        "style": "merge_mw",
+        "biome": "snow",
+        "obs": [
+          [
+            "log",
+            50,
+            -5558
+          ]
+        ]
+      },
+      {
+        "z0": -580,
+        "style": "split_c",
+        "biome": "snow",
+        "obs": [
+          [
+            "log",
+            33,
+            -5945
+          ],
+          [
+            "rock_low",
+            -58,
+            -6100
+          ]
+        ]
+      },
+      {
+        "z0": -620,
+        "style": "merge_cn",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -660,
+        "style": "n2w",
+        "biome": "grassland",
+        "obs": [
+          [
+            "lintel",
+            0,
+            -6669
+          ],
+          [
+            "post",
+            -20,
+            -6669
+          ],
+          [
+            "post",
+            20,
+            -6669
+          ]
+        ]
+      },
+      {
+        "z0": -700,
+        "style": "ridge",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rock_low",
+            28,
+            -7256
+          ]
+        ]
+      },
+      {
+        "z0": -740,
+        "style": "pass_w",
+        "biome": "grassland",
+        "obs": [
+          [
+            "boulder",
+            -24,
+            -7485
+          ],
+          [
+            "leaning",
+            -16,
+            -7613
+          ]
+        ]
+      },
+      {
+        "z0": -780,
+        "style": "w2m",
+        "biome": "grassland",
+        "obs": []
+      },
+      {
+        "z0": -820,
+        "style": "m2n",
+        "biome": "grassland",
+        "obs": [
+          [
+            "crevice",
+            0,
+            -8434
+          ]
+        ]
+      },
+      {
+        "z0": -860,
+        "style": "n2w",
+        "biome": "grassland",
+        "obs": [
+          [
+            "boulder",
+            6,
+            -8734
+          ],
+          [
+            "boulder",
+            24,
+            -8882
+          ]
+        ]
+      },
+      {
+        "z0": -900,
+        "style": "split_c",
+        "biome": "grassland",
+        "obs": []
+      },
+      {
+        "z0": -940,
+        "style": "twin_c",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rock_low",
+            62,
+            -9552
+          ]
+        ]
+      },
+      {
+        "z0": -980,
+        "style": "merge_cw",
+        "biome": "grassland",
+        "obs": [
+          [
+            "crevice",
+            -46,
+            -9972
+          ]
+        ]
+      },
+      {
+        "z0": -1020,
+        "style": "ledge_l",
+        "biome": "forest",
+        "obs": [
+          [
+            "log",
+            -22,
+            -10280
+          ],
+          [
+            "log",
+            22,
+            -10280
+          ],
+          [
+            "lintel",
+            -29,
+            -10518
+          ],
+          [
+            "lintel",
+            0,
+            -10518
+          ],
+          [
+            "lintel",
+            29,
+            -10518
+          ],
+          [
+            "post",
+            -47,
+            -10518
+          ],
+          [
+            "post",
+            47,
+            -10518
+          ]
+        ]
+      },
+      {
+        "z0": -1060,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": [
+          [
+            "rock_low",
+            34,
+            -10778
+          ]
+        ]
+      },
+      {
+        "z0": -1100,
+        "style": "saddle",
+        "biome": "forest",
+        "obs": [
+          [
+            "rock_low",
+            16,
+            -11064
+          ],
+          [
+            "pillar",
+            -31,
+            -11195
+          ],
+          [
+            "crevice",
+            6,
+            -11315
+          ]
+        ]
+      },
+      {
+        "z0": -1140,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1180,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1220,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1260,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1300,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -1340,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1380,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1420,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1460,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      }
+    ],
+    "12345": [
+      {
+        "z0": 60,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": 20,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -20,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -60,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -100,
+        "style": "w2m",
+        "biome": "snow",
+        "obs": [
+          [
+            "boulder",
+            -25,
+            -1074
+          ]
+        ]
+      },
+      {
+        "z0": -140,
+        "style": "m2w",
+        "biome": "snow",
+        "obs": []
+      },
+      {
+        "z0": -180,
+        "style": "ridge",
+        "biome": "snow",
+        "obs": [
+          [
+            "arch",
+            13,
+            -1865
+          ],
+          [
+            "boulder",
+            11,
+            -2004
+          ]
+        ]
+      },
+      {
+        "z0": -220,
+        "style": "split_c",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rock_low",
+            -51,
+            -2458
+          ]
+        ]
+      },
+      {
+        "z0": -260,
+        "style": "merge_cw",
+        "biome": "grassland",
+        "obs": [
+          [
+            "crevice",
+            -59,
+            -2689
+          ],
+          [
+            "crevice",
+            59,
+            -2689
+          ]
+        ]
+      },
+      {
+        "z0": -300,
+        "style": "split_c",
+        "biome": "grassland",
+        "obs": []
+      },
+      {
+        "z0": -340,
+        "style": "twin_c",
+        "biome": "grassland",
+        "obs": [
+          [
+            "crevice",
+            -62,
+            -3480
+          ],
+          [
+            "rock_low",
+            62,
+            -3480
+          ],
+          [
+            "crevice",
+            -62,
+            -3716
+          ],
+          [
+            "rock_low",
+            62,
+            -3716
+          ]
+        ]
+      },
+      {
+        "z0": -380,
+        "style": "merge_cw",
+        "biome": "grassland",
+        "obs": [
+          [
+            "crevice",
+            -45,
+            -3981
+          ]
+        ]
+      },
+      {
+        "z0": -420,
+        "style": "w2m",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rock_low",
+            -29,
+            -4280
+          ],
+          [
+            "rock_low",
+            0,
+            -4280
+          ],
+          [
+            "rock_low",
+            29,
+            -4280
+          ],
+          [
+            "rock_low",
+            -15,
+            -4523
+          ],
+          [
+            "rock_low",
+            15,
+            -4523
+          ]
+        ]
+      },
+      {
+        "z0": -460,
+        "style": "m2w",
+        "biome": "grassland",
+        "obs": [
+          [
+            "rockfall",
+            1,
+            -4776
+          ]
+        ]
+      },
+      {
+        "z0": -500,
+        "style": "w2n",
+        "biome": "grassland",
+        "obs": []
+      },
+      {
+        "z0": -540,
+        "style": "n2m",
+        "biome": "forest",
+        "obs": [
+          [
+            "rock_low",
+            0,
+            -5462
+          ],
+          [
+            "boulder",
+            4,
+            -5610
+          ]
+        ]
+      },
+      {
+        "z0": -580,
+        "style": "pass_m",
+        "biome": "forest",
+        "obs": [
+          [
+            "pillar",
+            -19,
+            -5869
+          ],
+          [
+            "pillar",
+            12,
+            -5955
+          ],
+          [
+            "boulder",
+            16,
+            -6109
+          ]
+        ]
+      },
+      {
+        "z0": -620,
+        "style": "m2w",
+        "biome": "forest",
+        "obs": [
+          [
+            "log",
+            0,
+            -6280
+          ]
+        ]
+      },
+      {
+        "z0": -660,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -700,
+        "style": "ridge",
+        "biome": "forest",
+        "obs": [
+          [
+            "boulder",
+            -19,
+            -7084
+          ],
+          [
+            "crevice",
+            -20,
+            -7226
+          ]
+        ]
+      },
+      {
+        "z0": -740,
+        "style": "split_m",
+        "biome": "forest",
+        "obs": [
+          [
+            "crevice",
+            -45,
+            -7610
+          ],
+          [
+            "rock_low",
+            45,
+            -7610
+          ]
+        ]
+      },
+      {
+        "z0": -780,
+        "style": "twin_m",
+        "biome": "forest",
+        "obs": [
+          [
+            "crevice",
+            -62,
+            -7882
+          ],
+          [
+            "log",
+            62,
+            -7882
+          ],
+          [
+            "log",
+            -62,
+            -8129
+          ]
+        ]
+      },
+      {
+        "z0": -820,
+        "style": "merge_mn",
+        "biome": "forest",
+        "obs": []
+      },
+      {
+        "z0": -860,
+        "style": "arch",
+        "biome": "forest",
+        "obs": [
+          [
+            "log",
+            0,
+            -8680
+          ],
+          [
+            "lintel",
+            0,
+            -8930
+          ],
+          [
+            "post",
+            -19,
+            -8930
+          ],
+          [
+            "post",
+            19,
+            -8930
+          ]
+        ]
+      },
+      {
+        "z0": -900,
+        "style": "n2w",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -940,
+        "style": "ridge",
+        "biome": "village",
+        "obs": [
+          [
+            "leaning",
+            16,
+            -9467
+          ],
+          [
+            "boulder",
+            5,
+            -9611
+          ]
+        ]
+      },
+      {
+        "z0": -980,
+        "style": "saddle",
+        "biome": "village",
+        "obs": [
+          [
+            "lintel",
+            -29,
+            -9880
+          ],
+          [
+            "lintel",
+            0,
+            -9880
+          ],
+          [
+            "lintel",
+            29,
+            -9880
+          ],
+          [
+            "post",
+            -47,
+            -9880
+          ],
+          [
+            "post",
+            47,
+            -9880
+          ],
+          [
+            "lintel",
+            -29,
+            -10124
+          ],
+          [
+            "lintel",
+            0,
+            -10124
+          ],
+          [
+            "lintel",
+            29,
+            -10124
+          ],
+          [
+            "post",
+            -47,
+            -10124
+          ],
+          [
+            "post",
+            47,
+            -10124
+          ]
+        ]
+      },
+      {
+        "z0": -1020,
+        "style": "ledge_l",
+        "biome": "village",
+        "obs": [
+          [
+            "rockfall",
+            18,
+            -10388
+          ]
+        ]
+      },
+      {
+        "z0": -1060,
+        "style": "pass_w",
+        "biome": "village",
+        "obs": [
+          [
+            "rockfall",
+            -1,
+            -10807
+          ]
+        ]
+      },
+      {
+        "z0": -1100,
+        "style": "saddle",
+        "biome": "village",
+        "obs": [
+          [
+            "pillar",
+            16,
+            -11216
+          ]
+        ]
+      },
+      {
+        "z0": -1140,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1180,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1220,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1260,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1300,
+        "style": "ridge",
+        "biome": "village",
+        "obs": []
+      },
+      {
+        "z0": -1340,
+        "style": "ridge",
+        "biome": "desert",
+        "obs": []
+      },
+      {
+        "z0": -1380,
+        "style": "ridge",
+        "biome": "desert",
+        "obs": []
+      },
+      {
+        "z0": -1420,
+        "style": "ridge",
+        "biome": "desert",
+        "obs": []
+      },
+      {
+        "z0": -1460,
+        "style": "ridge",
+        "biome": "desert",
+        "obs": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "storage": {
+    "cubeexpress.profiles": {
+      "version": 1,
+      "active": "p1",
+      "players": {
+        "p1": {
+          "id": "p1", "uid": "lmtest01abcd", "created": 1760000000000,
+          "wallet": { "coins": 2750, "ledger": [
+            { "id": "run:abc:end:1", "amount": 300, "kind": "run", "t": 1760000100000 },
+            { "id": "shop:hp:1", "amount": -90, "kind": "shop:hp", "t": 1760000200000 },
+            { "id": "mission:m1run", "amount": 150, "kind": "mission", "t": 1760000300000 }
+          ] },
+          "inventory": {
+            "weapons": [{ "id": "shotgun", "mag": 6, "reserve": 12 }], "weaponSlot": 0,
+            "tools": [],
+            "consumables": { "medkit": 2, "startShield": 1 },
+            "loot": { "items": { "plate_crystal": 1, "gem": 3 }, "opened": { "isl1:chest:a": true }, "unlocked": { "isl2": true } }
+          },
+          "upgrades": { "hp": 2, "ammo": 1, "magnet": 1 },
+          "unlocks": { "arena": ["revolver", "rifle"] },
+          "progress": {
+            "missions": { "completed": { "m1": { "t": 1760000300000, "score": 1200 }, "m2": { "t": 1760000400000, "score": 800 } }, "secondary": { "m1": ["fast"] }, "achievements": ["first_win"], "plays": { "m1": 2, "m2": 1 } },
+            "areas": { "hub": { "flags": ["in_plaza", "met_guide"] }, "isl1": { "flags": ["boss_down"] } },
+            "flags": ["seen_intro"]
+          },
+          "location": { "area": "isl1", "pos": [4, 0.05, -12], "yaw": 1.2, "t": 1760000500000 },
+          "stats": { "best": 9100, "duel": { "w": 7, "l": 3, "d": 0 } }
+        }
+      },
+      "world": { "hub": { "flags": ["plaza_open"] }, "isl1": { "flags": ["gate_open"] } },
+      "migrated": { "bank": false, "best": false, "missions": false, "duel": false }
+    },
+    "cubeexpress.settings": { "online": false }
+  }
+}
