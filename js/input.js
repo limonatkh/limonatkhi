@@ -110,31 +110,68 @@
   // ---- mouse look --------------------------------------------------------
   const locked = () => document.pointerLockElement === surface();
   /**
-   * Captured-mouse movement. Some browsers (Chrome on Windows above all) now and then
-   * deliver ONE event with a huge jump — often backwards — while the mouse moves fast
-   * or in circles: the view "skips". Only such a glitch is dropped: far bigger than the
-   * mouse has been moving lately AND against the way it is going (or absurdly big).
-   * A fast real movement — big events, more so when the frame rate dips and the browser
-   * packs more motion into each event — always counts in full (v1.43: the older, fixed
-   * limit dropped those and the view stuttered when moving the mouse fast).
+   * Captured-mouse movement (v1.44.1: rebuilt after the "skips").
+   *
+   * 1. Raw input first: the mouse is captured with { unadjustedMovement: true } where the browser
+   *    allows it (Chrome / Edge on Windows, macOS, ChromeOS). Raw movement skips the operating
+   *    system's acceleration AND the path where Chrome now and then sends one event with a huge
+   *    jump — the "skip". Where raw is refused, the plain capture is used (same click).
+   * 2. Nothing real is ever thrown away. The old filter (v1.43) dropped an event that was big and
+   *    against the way the mouse was going: a quick flick back after a small move was eaten, and
+   *    the view jumped. Now such an event is only HELD for the next event (or 35 ms): if the mouse
+   *    goes on that way it was real and counts in full; if it goes on the old way it was a glitch
+   *    (Chrome's spike: one wild event, then the motion carries on) and only then it is dropped.
+   *    In raw mode only an absurd single event (> 4000 px) is held this way.
+   * 3. The first event right after the capture starts (or comes back after Esc / Alt-Tab) can
+   *    carry the jump of the hidden cursor: it is ignored when it is big.
+   * Debug: ?mousedebug=1 shows the mode, events, held / dropped glitches and the frame time.
    */
   let lastDX = 0, lastDY = 0, lastT = 0, speed = 0;     // speed: recent size of one event (px), smoothed
-  function lookDelta(dx, dy) {
-    dx = dx || 0; dy = dy || 0;
-    const now = performance.now(), mag = Math.hypot(dx, dy);
-    const recent = now - lastT < 120;                   // still the same movement (else: no "way it is going")
-    if (!recent) speed *= 0.3;
-    const lim = Math.max(250, speed * 8 + 100);
-    if (mag > lim) {
-      const against = recent && (dx * lastDX + dy * lastDY) < 0;
-      if (against || mag > Math.max(1500, speed * 15)) { if (VR.Input) VR.Input.spikes = (VR.Input.spikes || 0) + 1; return; }
-    }
+  let rawMode = false, lockStart = 0, pend = null, pendTimer = 0;
+  const stats = { events: 0, held: 0, dropped: 0, kept: 0, maxMag: 0, raw: false, firstSkipped: 0 };
+  function take(dx, dy, now) {
+    const mag = Math.hypot(dx, dy);
     speed = speed * 0.7 + mag * 0.3;
     lastDX = dx; lastDY = dy; lastT = now;
     look.x += dx; look.y += dy;
   }
-  /** capture the mouse (the plain request: asking for raw movement fails on some systems and would lose the click that allowed it) */
-  function lockPointer(el) { return el.requestPointerLock(); }
+  function flushPend(real) {
+    if (!pend) return;
+    clearTimeout(pendTimer);
+    const p = pend; pend = null;
+    if (real) { stats.kept++; take(p.dx, p.dy, p.t); } else { stats.dropped++; if (VR.Input) VR.Input.spikes = (VR.Input.spikes || 0) + 1; }
+  }
+  function lookDelta(dx, dy) {
+    dx = dx || 0; dy = dy || 0;
+    const now = performance.now(), mag = Math.hypot(dx, dy);
+    stats.events++; if (mag > stats.maxMag) stats.maxMag = mag;
+    // the first event of a new capture: the hidden cursor's jump, not a movement
+    if (now - lockStart < 80 && mag > 60) { stats.firstSkipped++; lockStart = 0; return; }
+    // a held event: decided by this one (same way → it was real; the old way → a glitch)
+    if (pend) flushPend(dx * pend.dx + dy * pend.dy > 0 || (lastDX === 0 && lastDY === 0) || (dx * lastDX + dy * lastDY) <= 0);
+    const recent = now - lastT < 120;
+    if (!recent) speed *= 0.3;
+    const against = recent && (dx * lastDX + dy * lastDY) < 0;
+    const suspicious = rawMode ? mag > 4000
+      : (mag > Math.max(400, speed * 8 + 150) && against) || mag > Math.max(1500, speed * 15);
+    if (suspicious) {
+      stats.held++;
+      pend = { dx, dy, t: now };
+      pendTimer = setTimeout(() => flushPend(true), 35);       // nothing after it: the mouse stopped there → it was real
+      return;
+    }
+    take(dx, dy, now);
+  }
+  /** capture the mouse: raw movement if the browser gives it, else the plain capture (in the same click) */
+  function lockPointer(el) {
+    let p;
+    try { p = el.requestPointerLock({ unadjustedMovement: true }); } catch (e) { p = null; }
+    if (p && p.then) {
+      return p.then(() => { rawMode = true; stats.raw = true; }, () => { rawMode = false; stats.raw = false; return el.requestPointerLock(); });
+    }
+    if (!p) { rawMode = false; stats.raw = false; return el.requestPointerLock(); }
+    return p;                                                // (an old browser: no promise, no raw)
+  }
   window.addEventListener('mousemove', (e) => {
     if (mode !== 'fp' || !fpEnabled) return;
     if (locked()) lookDelta(e.movementX, e.movementY);
@@ -157,6 +194,7 @@
     if (fpDown(code, false)) setTimeout(() => fpUp(code), 120);
   }, { passive: true });
   document.addEventListener('pointerlockchange', () => {
+    if (locked()) { lockStart = performance.now(); lastDX = lastDY = 0; speed = 0; flushPend(false); }   // (a new capture: the first event may carry the cursor's jump)
     // a lock granted after we stopped wanting it (e.g. a menu opened meanwhile): give it back
     if (locked() && (!wantLock || !fpEnabled || mode !== 'fp')) { try { document.exitPointerLock(); } catch (e) { /* ignore */ } return; }
     // the browser releases the lock on Esc: treat that as "pause"
@@ -202,6 +240,27 @@
     window.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && mode === 'runner') move(e.clientX, e.clientY); });
     window.addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') { end(); dragLook = false; } });
   });
+
+  // ?mousedebug=1: a small box with what the mouse filter does (to report a skip that is still there)
+  try {
+    if (/[?&]mousedebug=1\b/.test(location.search)) window.addEventListener('DOMContentLoaded', () => {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99999;font:12px/1.35 monospace;color:#fff;background:rgba(0,0,0,.65);padding:5px 8px;border-radius:6px;pointer-events:none;white-space:pre';
+      document.body.appendChild(box);
+      let last = performance.now(), worst = 0, ev0 = 0, t0 = last;
+      (function tick(now) {
+        worst = Math.max(worst, now - last); last = now;
+        if (now - t0 > 500) {
+          const per = Math.round((stats.events - ev0) * 1000 / (now - t0)); ev0 = stats.events; t0 = now;
+          box.textContent = 'mouse: ' + (locked() ? (rawMode ? 'raw' : 'adjusted') : 'not captured') + '  events/s ' + per +
+            '\nheld ' + stats.held + '  kept ' + stats.kept + '  dropped ' + stats.dropped + '  first-skip ' + stats.firstSkipped +
+            '\nbiggest event ' + Math.round(stats.maxMag) + ' px   slowest frame ' + Math.round(worst) + ' ms';
+          worst = 0;
+        }
+        requestAnimationFrame(tick);
+      })(last);
+    });
+  } catch (e) { /* no location */ }
 
   // (plain functions: some callers keep a bare reference to the methods below)
   function rawMove() {
@@ -312,5 +371,9 @@
     addLook(dx, dy) { if (fpEnabled) { look.x += dx; look.y += dy; } },
     /** (tests) a captured-mouse movement as the browser would deliver it */
     _mouseMove(dx, dy) { lookDelta(dx, dy); },
+    /** (tests / ?mousedebug=1) what the mouse filter did */
+    mouseStats() { return Object.assign({ rawMode, pending: !!pend }, stats); },
+    _setRaw(v) { rawMode = !!v; stats.raw = rawMode; },
+    _lockStarted(t) { lockStart = t === undefined ? performance.now() : t; },
   };
 })();

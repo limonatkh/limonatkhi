@@ -1466,3 +1466,10 @@ VR.Audio.useMusicFile('sounds/theme.mp3');
 | Missions / achievements | hook into `Game.onCoin`, `onPowerUp`, `gameOver` |
 | Leaderboards | send `this.score` from `Game.gameOver()` |
 | Shop / unlocks | `game.bank` already stores lifetime coins |
+
+## Mouse look without skips (v1.44.1)
+
+- The mouse is captured with raw movement (`unadjustedMovement`) where the browser allows it (Chrome / Edge), with the plain capture as the fallback. Raw movement avoids the operating system's acceleration and the occasional single huge event that made the view "skip".
+- No real movement is thrown away any more. A big event against the motion is held for one event (at most 35 ms): if the mouse goes on that way it counts in full; only a lone wild event inside steady motion is dropped. In raw mode only an absurd event (over 4000 px) is checked.
+- The first big event right after the capture starts (or comes back after Esc / Alt-Tab) is ignored: it is the hidden cursor's jump.
+- `?mousedebug=1` shows a small box: raw or adjusted capture, events per second, held / kept / dropped events, the biggest event and the slowest frame. If a skip is still there, a photo of this box tells which it is (a dropped event, or a slow frame).
