@@ -17,7 +17,7 @@
 
   Object.assign(VR.I18N.STRINGS.en, {
     'kb.title': 'Controls', 'kb.sub': 'Click a box, then press a key, a mouse button or turn the wheel. Esc cancels, Backspace clears.',
-    'kb.press': 'Press…', 'kb.reset': 'RESET TO DEFAULT', 'kb.open': '🎮 Controls', 'xh.open': '⌖ Crosshair',
+    'kb.press': 'Press…', 'kb.dash': 'Dash', 'kb.reset': 'RESET TO DEFAULT', 'kb.open': '🎮 Controls', 'xh.open': '⌖ Crosshair',
     'kb.forward': 'Forward', 'kb.back': 'Back', 'kb.left': 'Left', 'kb.right': 'Right', 'kb.jump': 'Jump', 'kb.crouch': 'Crouch / slide (on/off)',
     'kb.sprint': 'Sprint', 'kb.fire': 'Fire', 'kb.aim': 'Aim / scope', 'kb.reload': 'Reload', 'kb.slot1': 'Weapon 1', 'kb.slot2': 'Weapon 2',
     'kb.slot3': 'Weapon 3', 'kb.knife': 'Knife', 'kb.slotNext': 'Next weapon', 'kb.slotPrev': 'Previous weapon', 'kb.burst': 'Lemon Burst / impulse grenade',
@@ -38,7 +38,7 @@
   });
   Object.assign(VR.I18N.STRINGS.ar, {
     'kb.title': 'التحكم بالأزرار', 'kb.sub': 'اضغط على خانة، ثم اضغط أي زر في لوحة المفاتيح أو الماوس أو حرّك العجلة. Esc للإلغاء، Backspace للمسح.',
-    'kb.press': 'اضغط زرًا…', 'kb.reset': 'إرجاع الافتراضي', 'kb.open': '🎮 التحكم بالأزرار', 'xh.open': '⌖ الكروسهير',
+    'kb.press': 'اضغط زرًا…', 'kb.dash': 'اندفاع', 'kb.reset': 'إرجاع الافتراضي', 'kb.open': '🎮 التحكم بالأزرار', 'xh.open': '⌖ الكروسهير',
     'kb.forward': 'للأمام', 'kb.back': 'للخلف', 'kb.left': 'يسار', 'kb.right': 'يمين', 'kb.jump': 'قفز', 'kb.crouch': 'انخفاض / انزلاق (تشغيل/إيقاف)',
     'kb.sprint': 'ركض سريع', 'kb.fire': 'إطلاق', 'kb.aim': 'تصويب / منظار', 'kb.reload': 'تلقيم', 'kb.slot1': 'السلاح 1', 'kb.slot2': 'السلاح 2',
     'kb.slot3': 'السلاح 3', 'kb.knife': 'السكّين', 'kb.slotNext': 'السلاح التالي', 'kb.slotPrev': 'السلاح السابق', 'kb.burst': 'قفزة الليمون / قنبلة الدفع',

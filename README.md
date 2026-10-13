@@ -1120,6 +1120,43 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Movement (v1.47, branch `feature/rivals-inspired-movement`) — `js/missions/fpcontroller.js`, `CONFIG.MOVE`
+
+One controller for every world that walks on boxes (the square, the adventure areas, the
+story missions, the training arena, every fight). The runner, the mini-games and the Mini
+Planet keep their own physics. All numbers are in `CONFIG.MOVE` (js/config.js).
+
+- **Fixed timestep** (120 Hz) with the camera drawn between the last two steps: the same
+  jump (2.1 m), run and slide at 30 / 60 / 120 / 144 fps (tested).
+- **Ground**: Quake-style accelerate + friction — 90% of walking speed in 0.1 s, a stop
+  from a sprint in 0.25 s, A↔D reversal in 0.15 s; strafing 95%, backwards 90%; diagonals
+  never faster. Walk 5.95 m/s, sprint (Shift) 8.9 m/s, crouch 50%.
+- **Jump** 2.1 m / 0.65 s (unchanged: every world's jumps still work), coyote 0.1 s,
+  buffer 0.12 s. **Double jump** (profile `full`): +1.5 m above where you press it — it
+  resets the rise (never stacks), turns your speed toward the keys, once per air time,
+  recharged only by landing; a press just above the floor becomes a hop instead.
+- **Air**: Source-style air acceleration (air strafing gains speed), plus a little
+  steering toward the keys and a brake on the opposite key; launches (explosions, the
+  Lemon Burst) are never slowed by the air rules.
+- **Bunny hop**: a jump on landing (buffered, or held with `AUTO_HOP`) skips the ground
+  friction → the speed carries on; with air strafing it grows to the cap (12.5 m/s, full).
+- **Slide**: crouch while running (≥ 3.3 m/s): +2.2 m/s (once per 0.9 s), slows down and
+  ends by itself (≈ 0.75 s, ≈ 5 m from a sprint), steerable a little, faster down steps
+  and slower up them; letting go of crouch cancels it; a **slide jump** keeps its speed.
+  Landing with crouch held at speed slides. Walking / sliding down stairs stays grounded.
+- **Dash** (optional, off: RIVALS has no basic dash): `MOVE.DASH.ENABLED` or `?dash=1`
+  (key Z): ~4.8 m in 0.16 s, 2 s cooldown, a jump out of it keeps its speed, no immunity.
+- **Profiles** (`ctrl.profile`): `full` in the square and every fight; `parkour` (no double
+  jump, no strafe speed past 9.4 m/s) in the island routes, the exploration world and the
+  story missions, which were built for one jump. An area def can set `movement`.
+- **Camera** (looks only): strafe tilt, bob, landing dip, slide tilt, a speed FOV kick.
+  Shots leave from `pos + eye` along yaw / pitch, never from the bobbing camera.
+- The Lemon Burst keeps its v1.44 air steering everywhere (its route gaps were measured with
+  it); computer players never step off a walkway by accident and skip path points they can
+  already walk past (js/duel/bots.js).
+- Test: `test_move.py` (heights, distances, times, hops, slides, walls at 80 m/s, fps,
+  combinations, FPP = TPP, firing while sliding, no extra jumps).
+
 ## Combat maps, sky rules, no pickups in the square, the sound engine (v1.46, branch `feature/combat-maps`)
 
 - **Lemon Works** (`js/duel/arena.js`, `VR.DuelArena.VERSION = 2`) replaces the old

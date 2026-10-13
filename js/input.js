@@ -39,6 +39,8 @@
     ['interact', 'press', ['KeyE', null]], ['journal', 'press', ['KeyJ', 'Tab']],
     ['ability', 'press', ['KeyX', 'Mouse3']], ['grab', 'press', ['KeyF', null]], ['view', 'press', ['KeyT', null]],
   ];
+  // the optional dash (CONFIG.MOVE.DASH.ENABLED, or ?dash=1): its own key only when it is on
+  if (VR.CONFIG && VR.CONFIG.MOVE && VR.CONFIG.MOVE.DASH.ENABLED) ACTIONS.push(['dash', 'press', ['KeyZ', null]]);
   const KIND = Object.fromEntries(ACTIONS.map(a => [a[0], a[1]]));
   const DEFAULTS = () => Object.fromEntries(ACTIONS.map(a => [a[0], a[2].slice()]));
   const loadBinds = () => {
@@ -252,6 +254,8 @@
     fireHeld() { return !hijack && (touchHold.has('fire') || isHeld('fire')); },
     /** sprint: its binding (Shift) held, or the touch stick pushed all the way */
     sprintHeld() { return !hijack && rawSprint(); },
+    /** jump held (for auto-hop / a variable jump): its binding, or the touch JUMP button */
+    jumpHeld() { return !hijack && (touchHold.has('jump') || isHeld('jump')); },
     rawSprint() { return rawSprint(); },
     crouchHeld() { if (hijack) return false; if (crouchOn && Math.hypot(touchMove.x, touchMove.y) > 0.95) crouchOn = false; return crouchOn || touchHold.has('crouch'); },
     /** stand up (e.g. after dying or a new round) */

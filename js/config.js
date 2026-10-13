@@ -100,6 +100,76 @@ VR.CONFIG = {
     MOUSE_SENS: 0.0022,
   },
 
+  // ---------- Player movement (v1.47: js/missions/fpcontroller.js — the hub, the adventure, every fight) ----------
+  // Every number of the movement lives here. Metres, seconds, m/s, m/s². The physics runs at a fixed
+  // STEP (120 Hz), so jump heights, distances and speeds are the same at 30, 60 or 144 frames a second.
+  // Values marked "Lemonat" are our own; RIVALS publishes no numbers (see the README: Movement).
+  MOVE: {
+    STEP: 1 / 120,
+    // ground (Quake-style accelerate + friction: instant to start, a short skid to stop, no slow "walking sim")
+    GROUND_ACCEL: 14,            // how fast you reach the wished speed (× wished speed per second)
+    FRICTION: 9,                 // ground friction (per second)
+    STOP_SPEED: 2.5,             // below this, friction works as if you went this fast (crisp stops)
+    BACK_SPEED: 0.9,             // walking backwards: 90% (Lemonat)
+    SIDE_SPEED: 0.95,            // strafing: 95% (guides: "slightly reduced, ~90-95%")
+    // jump (height / time kept from v1.44: every jump the worlds were built around still works)
+    COYOTE: 0.1,                 // you can still jump this long after walking off an edge
+    JUMP_BUFFER: 0.12,           // a jump pressed this long before landing happens on landing
+    FALL_GRAVITY: 1.0,           // gravity × this while falling (1 = the same arc up and down)
+    VARIABLE_JUMP: false,        // let go of jump early → lower jump (off: a tapped Space is a full jump)
+    JUMP_CUT: 0.6,
+    // double jump (Lemonat: in RIVALS it comes with some items — here a rule of the movement profile)
+    DOUBLE_JUMP_HEIGHT: 1.5,     // m above where you press it (it RESETS the rise, it does not add)
+    DOUBLE_JUMP_STEER: 1.0,      // 1: the second jump turns your speed fully toward the keys you hold
+    DOUBLE_JUMP_MIN_AIR: 0.06,   // not on the same press as the take-off
+    GROUND_NEAR: 0.35,           // falling this close to the floor, a jump press waits for the landing (a hop) instead
+    // air (Source-style air acceleration = air strafing; plus a little steering for keyboard players)
+    AIR_ACCEL: 14,               // air strafing: speed is gained by turning while holding A / D
+    AIR_WISH_CAP: 0.9,           // m/s: the classic "30 ups" cap that makes strafing gain speed
+    AIR_TURN: 2.6,               // rad/s: the velocity turns toward the keys you hold (no speed change)
+    AIR_PUSH: 9,                 // m/s²: pushed up toward walking speed when slower (a jump from standing)
+    AIR_PUSH_FRAC: 0.8,
+    AIR_BRAKE: 7,                // m/s²: holding the opposite key slows you in the air
+    AIR_FRICTION: 0,
+    // bunny hop: jump on the landing (buffered or held) → the ground friction never touches you
+    BHOP_GRACE: 0.07,            // s on the ground with no friction (a hop pressed just after landing still counts)
+    BHOP_RETENTION: 1.0,         // speed kept through a hop
+    BHOP_CAP: 12.5,              // m/s: no movement makes you faster than this (launches by explosions can)
+    AUTO_HOP: false,             // holding jump hops on every landing (off: time it yourself)
+    // slide (crouch while running; "momentum carries you")
+    SLIDE_MIN_SPEED: 3.3,        // m/s to start a slide (slower: you crouch instead)
+    SLIDE_BOOST: 2.2,            // m/s added at the start…
+    SLIDE_BOOST_COOLDOWN: 0.9,   // …only once in this long (no infinite slide-spam speed)
+    SLIDE_MAX: 13,               // m/s
+    SLIDE_FRICTION: 1.25,        // per second (exponential) …
+    SLIDE_DECEL: 1.6,            // … plus m/s² (a slide always ends)
+    SLIDE_END_SPEED: 3.6,        // below this the slide becomes a crouch (or you stand)
+    SLIDE_MAX_TIME: 1.15,
+    SLIDE_STEER: 1.8,            // rad/s
+    SLIDE_SLOPE: 0.6,            // share of the height energy gained going down (lost going up)
+    SLIDE_COOLDOWN: 0.3,
+    SLIDE_CANCEL_AFTER: 0.15,    // letting go of crouch ends the slide after this (slide cancel)
+    SLIDE_JUMP_BOOST: 0.6,       // m/s added to a jump out of a slide
+    // crouch
+    CROUCH_ACCEL: 12,
+    // dash (Lemonat, optional: RIVALS has no basic dash — the scythe's dash is a weapon ability). Off by default.
+    DASH: { ENABLED: false, SPEED: 26, TIME: 0.16, COOLDOWN: 2.0, EXIT: 1.15, AIR: 1 },
+    // knockback / launches (explosions, the Lemon Burst): never slowed by the air rules, air control keeps working
+    LAUNCH_KEEP: true,
+    // camera (look only: the shot always leaves from the eye along the aim — no bob, no tilt in it)
+    CAM_TILT: 0.022,             // rad of roll when strafing
+    CAM_SLIDE_TILT: 0.05,
+    CAM_BOB: 0.03, CAM_BOB_SIDE: 0.018,
+    CAM_LAND: 0.035,             // landing dip per m/s of fall speed (capped)
+    CAM_LAND_MAX: 1.2,
+    CAM_SPEED_FOV: 6,            // extra degrees of FOV at bunny-hop speed
+    // movement profiles: what each world allows (the island routes and the story worlds were built for one jump)
+    PROFILES: {
+      full: { doubleJump: true, bhopCap: 12.5 },
+      parkour: { doubleJump: false, bhopCap: 9.4, classicAir: true },   // (classicAir: the v1.44 air steering every route jump was measured with)
+    },
+  },
+
   // ---------- Camera ----------
   CAMERA_HEIGHT: 4.3,
   CAMERA_DISTANCE: 7.6,
@@ -108,3 +178,5 @@ VR.CONFIG = {
   CAMERA_SPEED_PULL: 0.06,    // extra distance per m/s above start speed (keeps the runner framed)
   CAMERA_SPEED_FOV: 7,        // extra degrees of FOV at top speed (sense of speed)
 };
+// (testing the optional dash: ?dash=1 turns it on for this visit)
+try { if (/[?&]dash=1\b/.test(location.search)) VR.CONFIG.MOVE.DASH.ENABLED = true; } catch (e) { /* no location */ }

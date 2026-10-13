@@ -56,7 +56,7 @@
       this.ui = new VR.DuelUI(this);
       this.scene = new T.Scene();
       this.camera = new T.PerspectiveCamera(FP().FOV, 1, 0.05, 260);
-      this.ctrl = new VR.FirstPersonController(this.camera);
+      this.ctrl = new VR.FirstPersonController(this.camera); this.ctrl.profile = 'full';     // every fight: the full movement (js/config.js MOVE)
       this.hands = new VR.HandsView();
       this.gunHolder = new T.Group(); this.hands.root.add(this.gunHolder);
       this.gunModels = {}; this.gunId = null;                 // the weapon in your hands (one model per weapon)
@@ -1404,6 +1404,7 @@
         if (!canMove) continue;
         if (a === 'jump') c.jump();
         else if (a === 'slide') c.slidePress();
+        else if (a === 'dash') c.dash();
         else if (a === 'fire') { if (this.lo.def.charge) this.beginDraw(); else this.fire(); }
         else if (a === 'burst' || a === 'grenade') this.throwNade();
         else if (a === 'reload') { if (this.lo.startReload()) { this.dropScope(); VR.Audio.play('reload'); } }
@@ -1433,6 +1434,7 @@
       const move = canMove ? VR.Input.moveVector() : { x: 0, y: 0 };
       if (m.phase !== 'end' && m.phase !== 'over' && m.phase !== 'wait') {
         c.sprint = canMove && VR.Input.sprintHeld() && !this.hostage.held;     // no running with a hostage
+        c.jumpHeld = canMove && VR.Input.jumpHeld();
         this.lastPos = (this.lastPos || new T.Vector3()).copy(c.pos);
         const flying = !!(this.hiro && this.hiro.flight && this.hiro.stepFlight(dt));     // (blown up by a Hiroshima: the jump flies me, no steering)
         const evs = c.update(dt, L, flying ? { x: 0, y: 0 } : move, !flying && canMove && VR.Input.crouchHeld());
@@ -1440,6 +1442,7 @@
           if (e.type === 'jump') VR.Audio.play('jump');
           else if (e.type === 'land') this.onLand(e.speed);
           else if (e.type === 'slide') VR.Audio.play('slide');
+          else if (e.type === 'dash') VR.Audio.play('dodge');
           else if (e.type === 'respawn') this.onFall();          // fell out of the world
         }
         evs.length = 0;
@@ -1620,7 +1623,7 @@
       this.fovKick = (this.fovKick || 0) + ((fs.speed && sprinting ? 5 : 0) - (this.fovKick || 0)) * Math.min(1, dt * 6);
       this.landPulse = Math.max(0, (this.landPulse || 0) - dt * 4);
       const pulse = fs.speed ? Math.sin(Math.min(1, this.landPulse) * Math.PI) * -2.5 : 0;
-      const fov = (this.scoped ? D.SCOPE_FOV : this.baseFov() * adsF + this.fovKick + pulse) + c.burstFov * (fs.speed ? 1 : 0.3);
+      const fov = (this.scoped ? D.SCOPE_FOV : this.baseFov() * adsF + this.fovKick + pulse + (c.speedFov || 0) * (fs.speed ? 1 : 0.3)) + c.burstFov * (fs.speed ? 1 : 0.3);
       cam.fov += (fov - cam.fov) * Math.min(1, dt * 18);
       cam.updateProjectionMatrix();
       // hands + weapon

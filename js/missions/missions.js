@@ -72,7 +72,7 @@
         b.charId = id; this.scene.add(b.g); this.tppBody = b;
       }
       const b = this.tppBody; b.g.visible = true;
-      b.pos.copy(ctrl.pos); b.yaw = ctrl.yaw; b.pitch = ctrl.pitch * 0.35;
+      b.pos.copy(ctrl.renderPos || ctrl.pos); b.yaw = ctrl.yaw; b.pitch = ctrl.pitch * 0.35;   // (drawn between the last two physics steps)
       b.low = ctrl.crouching; b.slide = ctrl.slideTimer > 0; b.air = !ctrl.grounded;
       // the weapon in my hands, on my body
       const wid = this.combat && this.combat.armed && this.combat.weapon && this.combat.weapon.id;
@@ -82,7 +82,7 @@
       // camera: from a point over my right shoulder, straight back along the view
       const cp = Math.cos(ctrl.pitch), look = this._v.set(-Math.sin(ctrl.yaw) * cp, Math.sin(ctrl.pitch), -Math.cos(ctrl.yaw) * cp);
       const right = ctrl.right();
-      const head = new T.Vector3(ctrl.pos.x, ctrl.pos.y + ctrl.eye + 0.3, ctrl.pos.z);
+      const rp = ctrl.renderPos || ctrl.pos, head = new T.Vector3(rp.x, rp.y + ctrl.eye + 0.3, rp.z);
       let side = 0.55;
       const sw = VR.WeaponKit.wallDist(this.tppRay, this.solidBoxes, head, right, 0.8); side = Math.min(side, sw - 0.25);
       const shoulder = head.clone().addScaledVector(right, Math.max(0, side));
@@ -323,6 +323,9 @@
       const L = prebuilt || VR.MissionEnvironments[def.environment]();
       // movement: spherical gravity on the Mini Planet (js/planet/planetctrl.js), the usual controller everywhere else
       this.ctrl = def.planet && VR.PlanetController ? (this.planetCtrl || (this.planetCtrl = new VR.PlanetController(this.camera))) : this.flatCtrl;
+      // the movement rules of this world (CONFIG.MOVE.PROFILES): the square has the full set; the island routes, the exploration
+      // world and the story missions were built for one jump — no double jump, no bunny-hop speed past running there
+      if (this.ctrl === this.flatCtrl) this.ctrl.profile = def.movement || (def.id === 'hub' ? 'full' : 'parkour');
       this.level = L;
       const sc = this.scene;
       sc.add(L.group);
@@ -406,6 +409,7 @@
           if (cb && cb.action(a)) continue;           // fire, reload, weapon slots, grenade
           if (a === 'jump') ctrl.jump();
           else if (a === 'slide') ctrl.slidePress();
+          else if (a === 'dash') { if (ctrl.dash) ctrl.dash(); }
           else if (a === 'burst') { if (ctrl.burst(move)) VR.Audio.play('burst'); else if (ctrl.burstCooldown > 0) this.ui.caption(VR.t('c.burstCharging'), 1); }
           else if (a === 'interact') this.interact();
           else if (a === 'view') { if (this.run.def.persistent) this.toggleView(); }
@@ -415,13 +419,14 @@
         }
         look = VR.Input.takeLook();
         ctrl.look(look.x, look.y, FP().MOUSE_SENS * this.settings.sens * (cb && cb.scoped ? 0.35 : 1));
-        ctrl.sprint = VR.Input.sprintHeld();
+        ctrl.sprint = VR.Input.sprintHeld(); ctrl.jumpHeld = VR.Input.jumpHeld();
         const evs = ctrl.update(dt, L, move, VR.Input.crouchHeld());
         this.applyView(dt);
         for (const e of evs) {
           if (e.type === 'jump') VR.Audio.play('jump');
           else if (e.type === 'land' && e.speed > 7) VR.Audio.play('land');
           else if (e.type === 'slide') VR.Audio.play('slide');
+          else if (e.type === 'dash') VR.Audio.play('dodge');
           else if (e.type === 'respawn') this.ui.caption(VR.t(L.safeRespawn && ctrl.safe ? 'c.fellSafe' : 'c.fell'), 2);
         }
         evs.length = 0;
@@ -448,7 +453,7 @@
       if (this.weather) { this.weather.update(dt); ctrl.wind = this.weather.wind; }
       this.hands.update(dt, ctrl, look);
       this.hands.setBrightness(this.lightLevel());
-      const fov = (cb && cb.scoped ? 32 : this.settings.fov) + ctrl.burstFov;
+      const fov = (cb && cb.scoped ? 32 : this.settings.fov) + ctrl.burstFov + (cb && cb.scoped ? 0 : (ctrl.speedFov || 0));
       if (Math.abs(this.camera.fov - fov) > 0.05) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
       this.ui.setTimer(run);
       this.ui.setAbility(ctrl.burstCooldown, FP().BURST_COOLDOWN);

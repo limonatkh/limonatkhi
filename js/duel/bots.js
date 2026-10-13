@@ -135,9 +135,11 @@
       const x0 = b.pos.x, z0 = b.pos.z;
       if (b.slowT > 0) { dx *= 0.5; dz *= 0.5; }                      // frozen by my frost / freeze
       const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.25));     // fast movers: short steps (never through a wall)
+      // up on a walkway / balcony: never step off its edge by accident (a computer player only goes down by the stairs)
+      const ledge = this.mgr.level && b.pos.y > 0.3 && !b.held ? (x, z) => this.floorAt(x, z, b.pos.y, 0.05) < b.pos.y - 0.5 : () => false;
       for (let i = 0; i < n; i++) {
-        if (!blocked(b.pos.x + dx / n, b.pos.z)) b.pos.x += dx / n;
-        if (!blocked(b.pos.x, b.pos.z + dz / n)) b.pos.z += dz / n;
+        if (!blocked(b.pos.x + dx / n, b.pos.z) && !ledge(b.pos.x + dx / n, b.pos.z)) b.pos.x += dx / n;
+        if (!blocked(b.pos.x, b.pos.z + dz / n) && !ledge(b.pos.x, b.pos.z + dz / n)) b.pos.z += dz / n;
       }
       return Math.hypot(b.pos.x - x0, b.pos.z - z0);
     }
@@ -202,6 +204,8 @@
       while (b.path && b.path.length) {
         const n = g.nodes[b.path[0]];
         if (Math.hypot(n.x - b.pos.x, n.z - b.pos.z) < 0.7 && Math.abs(n.y - b.pos.y) < 0.8) { b.path.shift(); continue; }
+        // the one after it can be walked to straight from here (a corner already cut): go on to it
+        if (b.path.length > 1) { const m = g.nodes[b.path[1]]; if (Math.abs(n.y - b.pos.y) < 0.8 && Math.abs(m.y - b.pos.y) < 0.8 && this.walkable(b.pos, m, b.pos.y)) { b.path.shift(); continue; } }
         return n;
       }
       return target;

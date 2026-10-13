@@ -636,11 +636,11 @@
       this.root.querySelectorAll('.du-tbtns .mi-tbtn').forEach(b => {
         b.addEventListener('pointerdown', (e) => {
           e.preventDefault();
-          if (b.dataset.act) VR.Input.press(b.dataset.act);
+          if (b.dataset.act) { VR.Input.press(b.dataset.act); if (b.dataset.act === 'jump') VR.Input.hold('jump', true); }   // (jump held: auto-hop / variable jump)
           if (b.dataset.hold === 'aim') { VR.Input.hold('aim', !VR.Input.aimHeld()); b.classList.toggle('on', VR.Input.aimHeld()); return; }
           if (b.dataset.hold) { VR.Input.hold(b.dataset.hold, true); if (b.dataset.hold === 'crouch') VR.Input.press('slide'); }
         });
-        const up = () => { if (b.dataset.hold && b.dataset.hold !== 'aim') VR.Input.hold(b.dataset.hold, false); };
+        const up = () => { if (b.dataset.hold && b.dataset.hold !== 'aim') VR.Input.hold(b.dataset.hold, false); if (b.dataset.act === 'jump') VR.Input.hold('jump', false); };
         b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
       });
     }
