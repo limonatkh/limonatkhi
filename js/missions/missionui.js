@@ -155,6 +155,7 @@
 
     // ------------------------------------------------------------ modals
     open(name, html, onBind) {
+      if (name === 'pause' && this.modal !== 'pause') VR.Audio.play('uiOpen');
       this.modal = name;
       this.el.card.className = 'mi-card panel mi-' + name;
       this.el.card.innerHTML = html;
@@ -167,6 +168,7 @@
     close() {
       if (!this.modal) return;
       const was = this.modal;
+      if (was === 'pause') VR.Audio.play('uiClose');
       this.modal = null; this.el.overlay.hidden = true; this.el.card.innerHTML = '';
       this.mgr.onModal(false, was);
     }

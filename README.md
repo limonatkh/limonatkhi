@@ -1120,6 +1120,49 @@ Now, during a match:
 - `?p2p=0` keeps a match on the relay; `match.net.sim = { lat, jitter, drop }`
   (tests) delays / drops messages.
 
+## Combat maps, sky rules, no pickups in the square, the sound engine (v1.46, branch `feature/combat-maps`)
+
+- **Lemon Works** (`js/duel/arena.js`, `VR.DuelArena.VERSION = 2`) replaces the old
+  sniper yard for every fight (1v1, vs bots, co-op, practice, loot, the Hiroshima sky
+  deck). Same 23 × 46 m bounds, mirrored halves (the test checks every collider has its
+  mirror), three lanes: the container **alley** (roofed middle, a duct you crouch or
+  slide under), the **plaza** (the Juice Press tower, stacked containers, low walls, a
+  billboard wall, a pillar), the **catwalk** 2.4 m up (stairs and balcony in each base, a
+  crate to jump from, a covered middle bay, a half wall). No spawn spot sees a spawn spot
+  of the other side; no open line runs the whole length at eye height on the ground. Sky
+  dome, soft sun shadows drawn once, no point lights, own geometry freed on rebuild.
+  Online: invites carry `mv` (the arena version); a different version is refused
+  (`du.why.version`).
+- **Computer players** (`js/duel/bots.js`): stand on the ground (step up 0.45 m, fall),
+  walk the stairs, and follow the arena's points (`L.extras.nav`, links built once) when
+  the way is not straight — the same for fighters. Aim, damage and rules unchanged.
+- **Training Facility** (the square's arena, `hubworld.js`): the same cover spots,
+  weapons, bell and wave spots; a drop bay with lit doors, a scoreboard, a roofed side
+  lane, lane markings, modular barriers.
+- **Sky rules**: the Mini Planet is seen only where you stand on it; the five islands
+  only inside the island areas (where the sky routes point at them). The menu, runner,
+  square, exploration, arena, mini-games and story worlds draw neither
+  (`skyplanet.js` is now the generic sky pass: `scene.userData.skyBackdrop`).
+- **No coins or lemons to pick up** in the square (`noCollectibles` on the area def) or
+  the arena; the corridor's coin trail became glowing chevrons; the garden lemon became
+  the **garden medal** (same quest step and flag `got_gardenLemon`). Coins taken before
+  stay in the wallet; missions, the runner and the exploration world keep theirs.
+- **Graphics budget** (`VR.Gfx`, in `skyplanet.js`): Quality "low" leaves out the sun
+  shadows, the sky dome and the far skyline in the square and the arena (live, from the
+  settings); on "high", a device that stays under ~28 frames a second for 4 s in a world
+  steps down by itself once (a toast says so; choosing the quality yourself ends it).
+  Shadows use PCF with a blur radius (cheaper than PCFSoft), drawn only when something
+  changes; floors are their own meshes drawn after walls and cover (less overdraw).
+  Surfaces are set on the colliders (metal containers / catwalk / stairs, wooden crates,
+  grass in the garden) for the steps and impacts.
+- **Sound** (`js/audio.js`, `js/soundbank.js`): groups (combat, move, sfx, ui, world,
+  music) into a limiter; the fight ducks music and ambience; each synth sound is baked
+  once into a buffer and replayed with a small pitch change; at most 28 voices, merged
+  repeats; opponents' shots, steps, landings, impacts and enemies are heard from where
+  they are (`play(name, { at })` + `setEar(camera)`); a new original sound bank
+  (weapons, hits, steps, match start / end, interface, portals) and ambience for the
+  square and the arena. Real files can still replace any name (`useFile`).
+
 ## Lemon Square rebuilt (v1.45, branch `feature/hub-redesign`) — `js/adventure/hubworld.js`
 
 The main hub's architecture and look were rebuilt; its places, rules and entities are
@@ -1136,8 +1179,8 @@ the same (every id, flag, puzzle, door, gate and portal works as before).
   for a new world, an observation deck) · Arcade (basketball, billiards, a stage
   for what comes next) · the hidden garden (same).
 - **Look**: clean coloured blocks (no pixel textures in the square), trims and
-  glowing accents, a gradient sky (drawn behind the Mini Planet by
-  `skyplanet.js` — `scene.userData.skyBackdrop`), soft sun shadows (drawn when
+  glowing accents, a gradient sky (drawn by `skyplanet.js` —
+  `scene.userData.skyBackdrop`; since v1.46 no planet or islands in it), soft sun shadows (drawn when
   something changes, not every frame), new gate models (`VR.HubPortals` in
   `hubgates.js`: energy gates, an arcade door, the runner ring, time gates for the
   islands — the islands themselves keep their own gates).

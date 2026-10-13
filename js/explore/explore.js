@@ -267,10 +267,10 @@
     A('routeChest', spots.routeChest); A('mesaTop', spots.mesaTop); A('villageChest', spots.villageChest); A('desertChest', spots.desertChest);
     A('roomChest', spots.roomChest); A('treeTop', spots.treeTop); A('ledge', spots.ledge); A('pillar', spots.pillar); A('ammo', spots.ammo);
     A('shard', spots.shard); A('ruin', spots.ruin); A('summitChest', [s[0] + 1.6, s[1], s[2] - 0.2]);
-    // extras: the runner's sea of clouds and far peaks, and the islands in the sky
+    // extras: the runner's sea of clouds and far peaks
     let bd = null, sky = null, far0 = 0;
     L.extras.build = (scene, mgr) => {
-      bd = new VR.Backdrop(scene); sky = VR.SkyIslands ? new VR.SkyIslands(scene, { haze: 0xc2e2f7 }) : null;
+      bd = new VR.Backdrop(scene); sky = null;    // (no sky islands here since v1.46: only in the island areas)
       far0 = mgr.camera.far; mgr.camera.far = 520; mgr.camera.updateProjectionMatrix();
       L.extras.mgr = mgr;
     };

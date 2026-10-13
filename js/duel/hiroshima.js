@@ -25,6 +25,8 @@
   const DECK = { x: 0, y: 90, z: 0, half: 9, thick: 1.2 };      // the sky deck (top at y)
   const R = 5.0, FLIGHT = 2.4, RESPAWN = 30, EDGE = 1.5;
   const SPOTS = [['a', -9.6, 0.6], ['b', 9.6, -0.6], ['deck', 0, 0]];      // two grenades in the yard, the sniper on the deck
+  // (an arena can name its own two yard spots, under open sky: L.extras.hiroSpots = [[x, z], [x, z]])
+  const spotsOf = (L) => { const h = L && L.extras && L.extras.hiroSpots; return h ? [['a', h[0][0], h[0][1]], ['b', h[1][0], h[1][1]], ['deck', 0, 0]] : SPOTS; };
   const yOf = (id) => (id === 'deck' ? DECK.y : 0);
   // the deck's sniper: two rounds, no reload (a loot weapon: js/duel/powers.js draws it from the sniper, recoloured)
   if (VR.Powers && VR.FightKit) {
@@ -95,7 +97,7 @@
       if (lo && lo.slots) { const i = lo.slots.findIndex(q => q.id === 'skysniper'); if (i >= 0) { lo.slots.splice(i, 1); if (lo.cur > i || lo.cur >= lo.slots.length) lo.cur = Math.max(0, lo.cur - 1); } }
       for (const id of [...this.items.keys()]) this.hide(id);
       if (!this.on) return this.paint();
-      if (this.host) { for (const [id, x, z] of SPOTS) this.show(id, x, z); this.broadcast(); }
+      if (this.host) { for (const [id, x, z] of spotsOf(this.mgr.level)) this.show(id, x, z); this.broadcast(); }
       else this.mgr.send({ k: 'hq' });                    // (whatever order the round start and the list arrive in: ask for it)
       this.paint();
     }
@@ -200,7 +202,7 @@
       for (const it of this.items.values()) { it.t += dt; it.holder.rotation.y = it.t * 1.8; it.holder.position.y = 0.95 + Math.sin(it.t * 2.4) * 0.12; }
       const m = this.mgr.match;
       if (this.on && this.host && m && m.phase === 'fight') {
-        for (const id in this.wait) { this.wait[id] -= dt; if (this.wait[id] <= 0) { delete this.wait[id]; const s = SPOTS.find(q => q[0] === id); if (s) { this.show(id, s[1], s[2]); this.broadcast(); } } }
+        for (const id in this.wait) { this.wait[id] -= dt; if (this.wait[id] <= 0) { delete this.wait[id]; const s = spotsOf(this.mgr.level).find(q => q[0] === id); if (s) { this.show(id, s[1], s[2]); this.broadcast(); } } }
       }
     }
     paint() {

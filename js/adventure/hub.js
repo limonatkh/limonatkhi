@@ -60,6 +60,8 @@
   const markTaken = (area, key) => { const s = areaSave(area); (s.coins || (s.coins = [])).push(key); };
   MS.Components.coins = {
     build(def, ctx) {
+      // areas without pickups (the square since v1.46): nothing is built, nothing can be collected
+      if (ctx.mgr.run.def.noCollectibles) return { id: def.id, def, obj: null, kind: null, hit: null, prompt: () => null, use: () => {}, coins: [], sync: () => {}, update: () => {} };
       if (!coinGeo) { coinGeo = new T.BoxGeometry(0.42, 0.42, 0.08); coinGeo.userData.shared = true; }
       const mat = VR.Mat.get('coin');
       const area = ctx.mgr.run.def.id;
@@ -162,6 +164,7 @@
     id: 'hub', persistent: true, combat: true, order: 0, environment: 'hub',
     // v1.45: the square was rebuilt — a place saved before this (CONTINUE) is not used: you start at HOME
     layoutSince: Date.UTC(2026, 9, 12, 19, 0),
+    noCollectibles: true,                        // no coins or lemons to pick up in the square (v1.46); the economy is untouched
     // flags that are each player's own progress (the rest — doors, gates, the garden — belong to the world)
     personalFlags: ['crossed_wall', 'in_plaza', 'in_garden', 'arena_clear', 'used_portal', 'visited_shop'],
     name: { en: 'Lemon Square', ar: 'ساحة الليمون' },
@@ -193,20 +196,17 @@
       objectives: [
         { text: { en: 'Open the hidden gate in the square', ar: 'افتح البوابة المخفية في الساحة' }, done: 'garden_open' },
         { text: { en: 'Enter the garden', ar: 'ادخل الحديقة' }, done: 'in_garden' },
-        { text: { en: 'Take the garden lemon', ar: 'خذ ليمونة الحديقة' }, done: 'got_gardenLemon' },
+        { text: { en: 'Take the garden medal', ar: 'خذ ميدالية الحديقة' }, done: 'got_gardenLemon' },
       ],
     }],
     hints: [],
     entities: [
       { id: 'welcome', type: 'text', at: 'welcome', style: 'chalk', size: 0.15, width: 2.0,
         title: { en: 'Sign', ar: 'لوحة' },
-        text: { en: 'Welcome to Lemon Square.\nGo north, jump the low wall, collect the coins.\nThe gate opens for whoever reads the walls.',
-                ar: 'أهلًا في ساحة الليمون.\nاتجه شمالًا، اقفز فوق الجدار المنخفض واجمع العملات.\nالبوابة تنفتح لمن يقرأ الجدران.' } },
+        text: { en: 'Welcome to Lemon Square.\nGo north and follow the lights over the low wall.\nThe gate opens for whoever reads the walls.',
+                ar: 'أهلًا في ساحة الليمون.\nاتجه شمالًا واتبع الأضواء فوق الجدار المنخفض.\nالبوابة تنفتح لمن يقرأ الجدران.' } },
       { id: 'wallSign', type: 'text', at: 'wallSign', style: 'stencil', size: 0.16, width: 2.6, inspect: false,
         text: { en: 'JUMP', ar: 'اقفز' } },
-      { id: 'c_corridor', type: 'coins', points: [[0, 1.0, -2.5], [0, 1.0, -4], [0, 1.0, -5.5], [0, 1.0, -7]] },
-      { id: 'c_wall', type: 'coins', points: [[0, 2.15, -7.9], [0, 2.5, -8.7], [0, 2.15, -9.5]] },
-      { id: 'c_after', type: 'coins', points: [[0, 1.0, -11], [0, 1.0, -12.5], [0, 1.0, -14]] },
       { id: 'crossedWall', type: 'zone', at: 'wallSign', offset: [0, -0.75, -2.6], size: [3.2, 3, 1.4], flag: 'crossed_wall' },
       { id: 'mark1', type: 'text', at: 'mark1', style: 'paint', size: 0.42, width: 1.8,
         title: { en: 'Mark 1', ar: 'العلامة ١' }, text: { en: '1  {star}', ar: '١  {star}' } },
@@ -229,8 +229,6 @@
       { id: 'gate', type: 'gate', at: 'gate', w: 5, h: 3.4, openWhen: 'plaza_open', name: { en: 'Gate', ar: 'البوابة' },
         closedText: { en: 'Locked. There is a keyhole beside it.', ar: 'مقفلة. بجانبها قفل.' } },
       { id: 'inPlaza', type: 'zone', at: 'gate', offset: [0, 0, -3.2], size: [10, 4, 3], flag: 'in_plaza', requires: 'plaza_open' },
-      { id: 'c_court', type: 'coins', points: [[-6.6, 1.8, -18.6], [-3.0, 1.0, -21], [3.0, 1.0, -21], [0, 1.0, -26]] },
-      { id: 'c_plaza', type: 'coins', points: [[-7.6, 1.0, -47.5], [7.6, 1.0, -47.5], [0, 1.0, -39.6], [0, 1.0, -56.6], [-10, 1.0, -38.6], [11.6, 1.0, -40.8]] },
       ...DOOR_NAMES.map((n, i) => ({
         id: 'doorSign' + (i + 1), type: 'text', at: 'doorSign' + (i + 1), style: 'sign', size: 0.21, width: 3.4, inspect: false,
         text: { en: `${i + 1} · ${n.en}`, ar: `${AR_NUM[i]} · ${n.ar}` },
@@ -250,9 +248,8 @@
       { id: 'gardenGate', type: 'gate', at: 'gardenGate', w: 3, h: 3.2, openWhen: 'garden_open', name: { en: 'Old gate', ar: 'بوابة قديمة' },
         closedText: { en: 'An old gate without a lock. Maybe the panel beside it…', ar: 'بوابة قديمة بلا قفل. ربما اللوحة بجانبها…' } },
       { id: 'inGarden', type: 'zone', at: 'gardenGate', offset: [0, 0, 2.6], size: [3, 4, 3], flag: 'in_garden', requires: 'garden_open' },
-      { id: 'gardenLemon', type: 'item', at: 'gardenPrize', offset: [0, 0.35, 0], name: { en: 'Garden lemon', ar: 'ليمونة الحديقة' },
-        model: 'goldenLemon', bonus: true },
-      { id: 'c_garden', type: 'coins', value: 5, points: [[17, 1.0, -41], [17, 1.0, -45], [22.5, 1.0, -43]] },
+      { id: 'gardenLemon', type: 'item', at: 'gardenPrize', offset: [0, 0.35, 0], name: { en: 'Garden medal', ar: 'ميدالية الحديقة' },
+        model: 'gardenMedal', bonus: true },          // (same id and flag as the old garden lemon)
       { id: 'gardenNote', type: 'text', at: 'gardenNote', style: 'chalk', size: 0.12, width: 1.8,
         title: { en: 'Garden board', ar: 'لوحة الحديقة' },
         text: { en: 'You found the hidden garden.\nMore of the world opens soon.', ar: 'وجدت الحديقة المخفية.\nأجزاء أخرى من العالم تُفتح قريبًا.' } },
@@ -283,7 +280,6 @@
           [{ type: 'heavy', at: [-36.5, -43], yaw: -PI / 2 }, { type: 'fast', at: [-34, -52.4], yaw: -PI / 2 }, { type: 'normal', at: [-32, -33.4], yaw: -PI / 2 }],
         ] },
       // the hidden nook behind the courtyard's low gap
-      { id: 'c_nook', type: 'coins', value: 2, points: [[-9.6, 0.6, -18.2], [-10.4, 0.6, -19.0], [-9.6, 0.6, -19.8]] },
       { id: 'nookNote', type: 'text', at: 'nookNote', style: 'paper', size: 0.07, width: 1.2,
         title: { en: 'Scribbled note', ar: 'ورقة مخربشة' },
         text: { en: 'Not every door is a door.\nIn the big square, the east wall has a gate without a lock.',

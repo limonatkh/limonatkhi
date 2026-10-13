@@ -55,7 +55,6 @@
       this.game = game;
       this.ui = new VR.DuelUI(this);
       this.scene = new T.Scene();
-      this.scene.userData.skyPlanet = 'duel';                 // the Mini Planet in the arena's sky (js/planet/skyplanet.js)
       this.camera = new T.PerspectiveCamera(FP().FOV, 1, 0.05, 260);
       this.ctrl = new VR.FirstPersonController(this.camera);
       this.hands = new VR.HandsView();
@@ -177,7 +176,7 @@
       if (!other) return;
       const chan = this.onlineChan(other.id, other.name, other.ch);
       this.pending = { did: VR.Net.randomCode(8), chan, auto: true, left: 6, until: performance.now() + 6000 };
-      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), auto: 1 });
+      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), auto: 1, mv: VR.DuelArena.VERSION });
     }
 
     // ================================================================ picker (inviter)
@@ -249,7 +248,7 @@
       if ((this.cool.get(key) || 0) > performance.now()) return;
       const opts = this.pickOpts || null, rules = this.pickFromMenu ? this.pickRules || null : null;
       this.pending = { did: VR.Net.randomCode(8), chan, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules };
-      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), mode: opts ? (opts.type === 'mini' ? 'mini' : 'coop') : 'pvp', game: opts && opts.game || '', bots: opts ? opts.bots : 0, diff: opts ? opts.diff : '',
+      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), mv: VR.DuelArena.VERSION, mode: opts ? (opts.type === 'mini' ? 'mini' : 'coop') : 'pvp', game: opts && opts.game || '', bots: opts ? opts.bots : 0, diff: opts ? opts.diff : '',
         ft: rules && rules.firstTo || 0, ow: rules && rules.weapon || '' });
       this.ui.showWaiting(chan.name, D.INVITE_TIME, D.INVITE_TIME, () => this.cancelInvite());
     }
@@ -278,6 +277,8 @@
     onInvite(d, chan) {
       const mini = d.mode === 'mini' && VR.MiniGames && VR.MiniGames.has(d.game);
       if (d.mode === 'mini' && !mini) return chan.send({ k: 'ans', did: d.did, ok: false, why: 'busy' });
+      // the arena is built by each game: both must have the same map, or walls and shots would not match
+      if (!mini && (d.mv | 0) !== VR.DuelArena.VERSION) return chan.send({ k: 'ans', did: d.did, ok: false, why: 'version' });
       const why = this.busyReason(mini ? 'mini' : chan.kind);
       if (why) return chan.send({ k: 'ans', did: d.did, ok: false, why });
       if (this.incoming) return chan.send({ k: 'ans', did: d.did, ok: false, why: 'busy' });
@@ -551,6 +552,7 @@
       sc.fog = L.ambient.fog ? new T.Fog(...L.ambient.fog) : null;
       const hemi = new T.HemisphereLight(L.ambient.sky, L.ambient.ground, L.ambient.intensity * 2.2); sc.add(hemi);
       const sun = new T.DirectionalLight(L.sun.color, L.sun.intensity * 2); sun.position.set(...L.sun.dir); sc.add(sun);
+      if (L.extras.decorate) L.extras.decorate(sc, sun, this.game.renderer, L);       // the arena's sky dome and its sun shadows (js/duel/arena.js)
       // the weather (js/core/weather.js): the host's runs the schedule, the other player follows it
       const wm = this.match;
       this.weather = VR.WEATHER_ON && VR.WeatherSystem && !wm.solo ? new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera, start: wm.opts && wm.opts.weather,
@@ -565,6 +567,7 @@
       this.game.renderer.compile(sc, this.camera);
     }
     clearWorld() {
+      if (this.level && this.level.extras.undecorate) this.level.extras.undecorate(this.scene);
       this.fx.clear();
       if (this.weather) { this.weather.dispose(); this.weather = null; }
       if (this.fb) { this.fb.dispose(); this.fb = null; }
@@ -680,7 +683,7 @@
       m.phase = 'count'; m.countT = D.COUNT; m.timeLeft = this.roundTime();
       this.resetMe();
       this.ui.setScore(m.sc[this.side()], m.sc[this.oside()]); this.ui.setHP(D.HP);
-      this.ui.big(String(D.COUNT), 'count', 0); VR.Audio.play('click');
+      this.ui.big(String(D.COUNT), 'count', 0); VR.Audio.play('countTick');
       this.fx.clear(); if (this.fb) this.fb.clear();
     }
     endRound(w, why) {   // host
@@ -703,8 +706,8 @@
       if (why === 'time') this.ui.feed(VR.t('du.timeUp'));
       const teamCol = w ? VR.DuelArena.COLORS[m.type === 'pvp' ? w : (w === 'h' ? 'h' : 'g')] : 0xffffff;
       if (!w) { this.ui.big(VR.t('du.roundDraw'), 'draw round', 2100); VR.Audio.play('buzz'); }
-      else if (w === me) { this.ui.big(VR.t('du.roundWon'), 'win round', 2100); VR.Audio.play('success'); }
-      else { this.ui.big(VR.t('du.roundLost'), 'lose round', 2100); VR.Audio.play('crash'); }
+      else if (w === me) { this.ui.big(VR.t('du.roundWon'), 'win round', 2100); VR.Audio.play('roundWin'); }
+      else { this.ui.big(VR.t('du.roundLost'), 'lose round', 2100); VR.Audio.play('roundLose'); }
       if (FB().settings.flashes) this.ui.teamFlash(teamCol);
       if (this.fb) this.fb.note({ type: 'roundEnd', w: w || null });
       if (w && w !== me) this.shake = Math.max(this.shake, 0.35);
@@ -761,7 +764,7 @@
       if (win === true) st.w++; else if (win === false) st.l++; else st.d++;
       VR.Profiles.save();
       if (reward) VR.Wallet.of().credit(reward, `${m.type === 'pvp' ? 'duel' : 'bots'}:${m.did}`, m.type === 'pvp' ? 'duel' : 'bots');
-      VR.Audio.play(win === true ? 'success' : win === false ? 'crash' : 'buzz');
+      VR.Audio.play(win === true ? 'matchWin' : win === false ? 'matchLose' : 'buzz');
       m.autoT = 8; m.autoAt = performance.now() + 8000;
       const col = VR.DuelArena.COLORS;
       setTimeout(() => {
@@ -804,7 +807,7 @@
       if (m.phase === 'wait' && !m.readyMe) return;            // the buy screen is open (it has its own buttons)
       if (this.ui.modal) { this.ui.closeOverlay(); VR.Input.setFPEnabled(true); VR.Input.requestLock(); return; }
       VR.Input.setFPEnabled(false); VR.Input.releaseLock();
-      this.ui.showPause(() => { this.ui.closeOverlay(); VR.Input.setFPEnabled(true); VR.Input.requestLock(); }, () => this.forfeit(), m.solo ? 'solo' : m.type === 'bots' ? 'bots' : 'live');
+      this.ui.showPause(() => { this.ui.closeOverlay(); VR.Audio.play('uiClose'); VR.Input.setFPEnabled(true); VR.Input.requestLock(); }, () => this.forfeit(), m.solo ? 'solo' : m.type === 'bots' ? 'bots' : 'live');
     }
 
     // ================================================================ combat
@@ -1013,7 +1016,7 @@
       res.ends.forEach((e, i) => { if (i < 3) this.pathTracer(muzzle, res.paths[i], this.fb ? this.fb.tracerColor(wid) : 0xffe14a, 0.022); if (res.missed[i] && i < 3) this.impactAt(e); });
         if (this.fb) this.fb.muzzle(muzzle, dirs[0] || new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle);
       }
-      VR.Audio.play(wid === 'sniper' ? 'sniperFar' : def.sound);
+      VR.Audio.play(wid === 'sniper' ? 'sniperFar' : def.sound, { at: muzzle });     // (heard from where they fired)
     }
     /** how far back the host looks for my body when the other player's shot arrives */
     rewindMs() { const m = this.match; return Math.max(300, Math.min(1200, (m && m.ping || 0) + 220)); }
@@ -1267,13 +1270,13 @@
       const bdef = FK().WEAPONS[wid];
       if (bdef && (bdef.arrow || bdef.thrown)) {                // a bot's arrow / spear flies too
         this.arrowFx(muzzle, ends[0], true, paths && paths[0], wid, 1);
-        VR.Audio.play(bdef.sound);
+        VR.Audio.play(bdef.sound, { at: muzzle });
         if (m.type === 'coop') this.send({ k: 'bf', i: b.i, w: wid, e: ends.map(e => e.toArray().map(r2)) });
         return;
       }
       ends.forEach((e, i) => { this.pathTracer(muzzle, paths && paths[i], this.fb ? this.fb.tracerColor(wid) : 0xff7a3a, 0.022); this.impactAt(e, true); });
       if (this.fb) this.fb.muzzle(muzzle, ends[0] ? ends[0].clone().sub(muzzle).normalize() : new T.Vector3(0, 0, -1), wid); else this.fx.flash(muzzle, 0xffb070);
-      VR.Audio.play(wid === 'sniper' ? 'sniperFar' : 'enemyShot');
+      VR.Audio.play(wid === 'sniper' ? 'sniperFar' : 'enemyShot', { at: muzzle });
       if (m.type === 'coop') this.send({ k: 'bf', i: b.i, w: wid, e: ends.map(e => e.toArray().map(r2)) });
     }
     onBotShot(d) { const b = this.bots.list[d.i]; if (b) this.botShotFx(b, (d.e || []).map(a => new T.Vector3().fromArray(a)), d.w); }
@@ -1449,8 +1452,8 @@
         const before = Math.ceil(m.countT);
         m.countT -= dt;
         const now = Math.ceil(m.countT);
-        if (now !== before && now > 0) { this.ui.big(String(now), 'count', 0); VR.Audio.play('click'); }
-        if (m.countT <= 0) { m.phase = 'fight'; this.ui.big(VR.t('du.fight'), 'fight', 700); VR.Audio.play('powerup'); }
+        if (now !== before && now > 0) { this.ui.big(String(now), 'count', 0); VR.Audio.play('countTick'); }
+        if (m.countT <= 0) { m.phase = 'fight'; this.ui.big(VR.t('du.fight'), 'fight', 700); VR.Audio.play('roundStart'); }
       } else if (m.phase === 'fight') {
         m.timeLeft -= dt;
         if (m.type === 'pvp') {
@@ -1713,6 +1716,8 @@
     }
 
     render(renderer) {
+      if (this.level && this.level.extras.frame) this.level.extras.frame(this.scene);
+      if (VR.Audio.setEar) VR.Audio.setEar(this.camera);              // where sounds are heard from (positional sounds)
       renderer.render(this.scene, this.camera);
       const m = this.match;
       if (m && m.phase !== 'wait' && !this.scoped && !(m.dead && m.dead[m.me]) && !(VR.Admin && VR.Admin.freecam)) {

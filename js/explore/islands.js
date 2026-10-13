@@ -1,6 +1,7 @@
 /* =====================================================================
- * SKY ISLANDS — five floating islands seen high in the sky from the
- * main menu, the runner course, the square and the exploration world.
+ * SKY ISLANDS — the five floating islands as seen high in the sky from
+ * INSIDE the island areas only (since v1.46 the menu, runner, square and
+ * exploration skies show none; the sky routes point at them from here).
  * Each is a destination (js/explore/islandworlds.js); here they are only
  * far silhouettes: a few hundred coloured voxels each, merged into one
  * mesh per island, drawn without fog, following the camera like the sky

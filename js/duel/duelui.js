@@ -19,7 +19,7 @@
     'du.none': 'Nobody is free right now. Invite a friend from "Challenge a friend", or try again later.',
     'du.offline': 'Online challenges are switched off in Settings.', 'du.connecting': 'Connecting…',
     'du.challenge': 'CHALLENGE', 'du.close': 'BACK TO THE RUN', 'du.free': 'Free',
-    'du.why.mission': 'in a mission', 'du.why.duel': 'in another duel', 'du.why.race': 'in a race', 'du.why.busy': 'busy', 'du.why.cooldown': 'wait a moment before inviting again', 'du.why.offline': 'offline',
+    'du.why.mission': 'in a mission', 'du.why.duel': 'in another duel', 'du.why.race': 'in a race', 'du.why.busy': 'busy', 'du.why.cooldown': 'wait a moment before inviting again', 'du.why.offline': 'offline', 'du.why.version': 'a different game version: both need the latest update',
     'du.waitTitle': 'Waiting for acceptance…', 'du.cancel': 'CANCEL', 'du.exit': 'EXIT',
     'du.declined': '{name} declined the duel.', 'du.timeout': '{name} didn\'t answer.', 'du.unavailable': '{name} can\'t play now ({why}).', 'du.lost': 'Lost contact with {name}.',
     'du.inviteFrom': '{name} challenges you!', 'du.accept': 'ACCEPT', 'du.decline': 'DECLINE',
@@ -64,7 +64,7 @@
     'du.offline': 'التحديات الأونلاين مطفأة من الإعدادات.', 'du.connecting': 'نتصل…',
     'du.challenge': 'تحدَّ', 'du.close': 'العودة إلى الطريق', 'du.free': 'متاح',
     'du.why.hub': 'في الساحة', 'du.why.minii': 'عند لعبة مصغّرة', 'du.why.mini': 'يلعب لعبة مصغّرة', 'mg.onlineSub': '{game} · واحد ضد واحد أونلاين', 'mg.bbName': 'كرة السلة', 'mg.blName': 'البلياردو',
-    'du.why.mission': 'في مهمة', 'du.why.duel': 'في تحدٍّ آخر', 'du.why.race': 'في سباق', 'du.why.busy': 'مشغول', 'du.why.cooldown': 'انتظر قليلًا قبل دعوته مجددًا', 'du.why.offline': 'غير متصل',
+    'du.why.mission': 'في مهمة', 'du.why.duel': 'في تحدٍّ آخر', 'du.why.race': 'في سباق', 'du.why.busy': 'مشغول', 'du.why.cooldown': 'انتظر قليلًا قبل دعوته مجددًا', 'du.why.offline': 'غير متصل', 'du.why.version': 'نسخة مختلفة من اللعبة: على الطرفين التحديث',
     'du.waitTitle': 'بانتظار القبول…', 'du.cancel': 'إلغاء', 'du.exit': 'خروج',
     'du.declined': '{name} رفض التحدي.', 'du.timeout': 'لم يردّ {name}.', 'du.unavailable': '{name} لا يستطيع اللعب الآن ({why}).', 'du.lost': 'انقطع الاتصال بـ{name}.',
     'du.inviteFrom': '{name} يتحدّاك!', 'du.accept': 'قبول', 'du.decline': 'رفض',
@@ -566,6 +566,7 @@
       w.querySelector('.du-wt').textContent = title; w.querySelector('.du-wo').textContent = online; w.querySelector('.du-ws').textContent = sub;
     }
     showPause(onResume, onForfeit, kind) {
+      VR.Audio.play('uiOpen');
       if (kind === true) kind = 'solo'; else if (!kind) kind = 'live';
       const solo = kind === 'solo';
       const title = solo ? 'du.pauseSolo' : kind === 'bots' ? 'fm.pauseBots' : 'du.pauseTitle';

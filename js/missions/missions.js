@@ -31,7 +31,6 @@
       this.ctrl = new VR.FirstPersonController(this.camera);
       this.flatCtrl = this.ctrl;                // every world's movement; the Mini Planet swaps in its own (buildWorld)
       // the Mini Planet in this sky (js/planet/skyplanet.js), placed per area
-      this.scene.userData.skyPlanet = () => (VR.SkyPlanet ? VR.SkyPlanet.forArea(this.run && this.run.def) : null);
       this.hands = new VR.HandsView();
       this.ui = new VR.MissionUI(this);
       this.settings = Object.assign({ sens: 1, fov: FP().FOV }, VR.UI.store.get('fpSettings', {}));
@@ -522,6 +521,7 @@
     }
 
     render(renderer) {
+      if (VR.Audio.setEar) VR.Audio.setEar(this.camera);              // where positional sounds are heard from
       renderer.render(this.scene, this.camera);
       if (this.run && this.run.state !== 'entering' && !(this.combat && this.combat.scoped) && !this.tppOn()) {
         const ac = renderer.autoClear;

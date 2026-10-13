@@ -184,7 +184,7 @@
       players = Array.isArray(players) ? players : [players];
       for (const e of this.enemies) {
         if (!e.alive) {
-          if (e.deadT === 0) { this.fx && this.fx.puff(e.pos.clone().setY(e.def.height * 0.5), 0xffe14a, 14); VR.Audio.play('enemyDown'); if (this.onKill) this.onKill(e); }
+          if (e.deadT === 0) { this.fx && this.fx.puff(e.pos.clone().setY(e.def.height * 0.5), 0xffe14a, 14); VR.Audio.play('enemyDown', { at: e.pos }); if (this.onKill) this.onKill(e); }
           e.deadT += dt;
           e.obj.scale.setScalar(Math.max(0.01, 1 - e.deadT * 4));
           e.obj.position.y = -e.deadT;
@@ -231,9 +231,9 @@
           e.windT -= dt;
           if (e.windT <= 0) {
             if (dist < d.melee.reach) player.hurt(d.melee.dmg, e);
-            e.coolT = d.melee.cool; VR.Audio.play('swipe');
+            e.coolT = d.melee.cool; VR.Audio.play('swipe', { at: e.pos });
           }
-        } else if (dist < d.melee.range && e.coolT <= 0 && sees) { e.windT = d.melee.windup; VR.Audio.play('windup'); }
+        } else if (dist < d.melee.range && e.coolT <= 0 && sees) { e.windT = d.melee.windup; VR.Audio.play('windup', { at: e.pos }); }
         else if (dist > 1.2) {
           e.strafeT -= dt; if (e.strafeT <= 0) { e.strafeT = 0.5 + Math.random() * 0.6; e.strafe *= -1; }
           const side = dist > 4 ? 0.45 * e.strafe : 0;
@@ -255,7 +255,7 @@
           if (e.burstGap <= 0) { this.fire(e, eye, player); e.burstLeft--; e.burstGap = 0.18; }
         } else {
           e.fireT -= dt;
-          if (e.fireT <= 0 && sees && facing) { e.windT = d.windup; VR.Audio.play('windup'); }
+          if (e.fireT <= 0 && sees && facing) { e.windT = d.windup; VR.Audio.play('windup', { at: e.pos }); }
         }
       }
       // stuck against a wall or a pillar: go around it for a moment
@@ -281,7 +281,7 @@
       const mesh = new T.Mesh(this.shotGeo, glow(e.type === 'heavy' ? 0xb26bff : 0xff7a3a));
       mesh.position.copy(from); this.scene.add(mesh);
       this.shots.push({ pos: from, vel, dmg: d.shotDmg, life: 4, mesh, from: e });
-      VR.Audio.play('enemyShot');
+      VR.Audio.play('enemyShot', { at: e.pos });
     }
     updateShots(dt, players) {
       for (let i = this.shots.length - 1; i >= 0; i--) {

@@ -101,12 +101,10 @@
       const g = this.game, cam = g.camera;
       this.planetT += dt;
       const k = Math.min(1, this.planetT / 0.9), e = k * k * (3 - 2 * k);
-      if (VR.SkyPlanet) {                                   // turn toward it and zoom in: it grows to fill the view
-        const d = VR.SkyPlanet.dirOf(Object.assign({}, VR.SkyPlanet.DEFAULT, VR.SkyPlanet.PLACES.menu), new THREE.Vector3());
-        const look = g.camLook.clone().lerp(cam.position.clone().addScaledVector(d, 10), e);
-        cam.lookAt(look);
-        cam.fov = this.planetFov0 + (9 - this.planetFov0) * e; cam.updateProjectionMatrix();
-      }
+      // a look up into the empty sky and a zoom while it fades (the planet is not in any sky since v1.46)
+      const look = g.camLook.clone().add(new THREE.Vector3(0, 6 * e, 0));
+      cam.lookAt(look);
+      cam.fov = this.planetFov0 + (30 - this.planetFov0) * e; cam.updateProjectionMatrix();
       if (g.fade.value < 0.99 || this.planetT < 0.6) return;
       cam.fov = this.planetFov0; cam.updateProjectionMatrix();
       this.enterAdventure('planet', { intro: false, location: null, fadeIn: true });

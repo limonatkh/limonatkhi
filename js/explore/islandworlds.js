@@ -473,7 +473,7 @@
   VR.ISLAND_ACCESS.forEach(d => { d.skin = 'hub'; });                     // (the square's own gate model, js/adventure/hubgates.js)
   const hub = VR.ADVENTURE.areas.hub;
   if (hub && !hub.entities.some(e => e.id === 'skyRuins')) hub.entities.push(...VR.ISLAND_ACCESS);
-  // the square: the sand panel's board, and the islands in its sky
+  // the square: the sand panel's board (no islands in its sky since v1.46)
   const hubEnv = VR.MissionEnvironments.hub;
   VR.MissionEnvironments.hub = function () {
     const L = hubEnv.apply(this, arguments);
@@ -485,7 +485,7 @@
     L.group.add(vb.build());
     const ex = L.extras, b0 = ex.build, u0 = ex.update, d0 = ex.dispose;
     let sky = null;
-    ex.build = function (scene, mgr) { if (b0) b0.call(this, scene, mgr); sky = VR.SkyIslands ? new VR.SkyIslands(scene, { haze: 0xc8e6f8, distK: 0.62, scale: 0.9 }) : null; };
+    ex.build = function (scene, mgr) { if (b0) b0.call(this, scene, mgr); sky = null; };   // (the square's sky shows no islands since v1.46)
     ex.update = function (dt, mgr) { if (u0) u0.call(this, dt, mgr); if (sky) sky.update(mgr.camera.position, dt); };
     ex.dispose = function () { if (d0) d0.call(this); if (sky) sky.dispose(); sky = null; };
     return L;

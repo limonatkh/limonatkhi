@@ -146,6 +146,20 @@
       const g = new T.Group(); g.add(mesh);
       return g;
     },
+    /** the hidden garden's prize (v1.46): a gold medal on a short ribbon, standing on its edge */
+    gardenMedal() {
+      const vb = new VR.VoxelBuilder();
+      const gold = 0xffc93a, rim = 0xe09a1a, hi = 0xfff1a0, rib = 0x2fb8a8, rib2 = 0x1d7f74;
+      vb.addColorBox(0, 0.02, 0, 0.3, 0.3, 0.06, gold);                        // the disc (a rounded square)
+      vb.addColorBox(0, 0.06, 0, 0.36, 0.22, 0.05, gold); vb.addColorBox(0, -0.02, 0, 0.22, 0.38, 0.05, gold);
+      vb.addColorBox(0, 0.06, 0.03, 0.2, 0.2, 0.02, rim);                       // the raised face
+      vb.addColorBox(0, 0.11, 0.045, 0.06, 0.1, 0.02, hi); vb.addColorBox(0, 0.15, 0.045, 0.12, 0.03, 0.02, hi);   // a little star mark
+      vb.addColorBox(-0.07, 0.36, 0, 0.06, 0.18, 0.03, rib); vb.addColorBox(0.07, 0.36, 0, 0.06, 0.18, 0.03, rib2); // the ribbon
+      const geo = vb.buildGeometries()[0].geometry;
+      const mesh = new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true }));
+      const g = new T.Group(); g.add(mesh);
+      return g;
+    },
     smallLemon() {
       const g = new T.Group();
       const vb = new VR.VoxelBuilder();

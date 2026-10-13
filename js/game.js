@@ -65,16 +65,13 @@
       this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
       holder.appendChild(this.renderer.domElement);
       // soft shadows: only the rebuilt square casts them (js/adventure/hubworld.js), drawn when it asks (not every frame)
-      this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.shadowMap.autoUpdate = false;
-      if (VR.SkyPlanet) VR.SkyPlanet.install(this.renderer);       // the Mini Planet in every world's sky (js/planet/skyplanet.js)
+      this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap; this.renderer.shadowMap.autoUpdate = false;   // (PCF + a blur radius: soft edges, cheaper than PCFSoft)
+      if (VR.SkyPass) VR.SkyPass.install(this.renderer);           // a world's own sky behind it (js/planet/skyplanet.js)
       this.scene = new THREE.Scene();
       this.skyColor = new THREE.Color(0x8fd3ff);
       this.fogColor = new THREE.Color(0xb8e4ff);
       this.scene.background = this.skyColor.clone();
       this.scene.fog = new THREE.Fog(this.fogColor.clone(), 70, 200);
-      // the menu / runner sky's Mini Planet: over the menu's view, ahead of the runner
-      const MENUISH = ['menu', 'character', 'loading', 'challenge', 'missionsList', 'planetEnter'];
-      this.scene.userData.skyPlanet = () => (MENUISH.includes(this.state) || (this.state === 'settings' && this.settingsReturn !== 'paused') ? 'menu' : 'runner');
 
       this.hemi = new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.9);
       this.sun = new THREE.DirectionalLight(0xfff2d6, 2.1);
@@ -84,8 +81,7 @@
       this.camera = new THREE.PerspectiveCamera(C.CAMERA_FOV, 1, 0.3, 330);
       // clouds below, the valley far down, peaks on the horizon
       this.backdrop = new VR.Backdrop(this.scene);
-      // five floating islands high in the sky (visual only here — js/explore/islands.js)
-      this.skyIslands = VR.SkyIslands ? new VR.SkyIslands(this.scene, { haze: 0xb8e4ff }) : null;
+      // (the sky islands and the Mini Planet are seen only in their own areas since v1.46)
       this.camTarget = new THREE.Vector3();
       this.camLook = new THREE.Vector3();
       // the runner camera works in path space (like the player) and is put into the
@@ -114,6 +110,7 @@
 
     applySettings() {
       const s = this.settings;
+      if (VR.Gfx) { if (this.gfxQ !== undefined && this.gfxQ !== s.quality) VR.Gfx.userChose(); this.gfxQ = s.quality; setTimeout(() => VR.Gfx.changed(), 0); }   // (low quality: no shadows / sky dome / skyline in the worlds that have them)
       VR.Audio.setEnabled('sfx', s.sfx);
       VR.Audio.setEnabled('music', s.music);
       C.CHUNKS_AHEAD = s.quality === 'high' ? 6 : 4;
@@ -782,9 +779,10 @@
     // ------------------------------------------------------------ loop
     loop() {
       requestAnimationFrame(() => this.loop());
-      const dt = Math.min(this.clock.getDelta(), 1 / 20);
+      const raw = this.clock.getDelta(), dt = Math.min(raw, 1 / 20);
       this.elapsed = (this.elapsed || 0) + dt;
       const st = this.state;
+      if (VR.Gfx) VR.Gfx.watch(raw, st === 'adventure' || st === 'duel' || st === 'mission');   // (a slow device: the costly extras go by themselves)
       if (st === 'playing') this.updatePlaying(dt);
       else if (st === 'dying') { this.player.update(dt, 0, this.world, this); this.updateCamera(dt); }
       else if (st === 'menu' || st === 'character' || st === 'loading' || st === 'challenge' || st === 'missionsList') this.updateMenu(dt);
@@ -809,7 +807,6 @@
       else {
         this.collect.fx.mesh.visible = true;
         this.backdrop.update(dt, this.camera.position);
-        if (this.skyIslands) this.skyIslands.update(this.camera.position, dt);
         this.renderer.render(this.scene, this.camera);
       }
 

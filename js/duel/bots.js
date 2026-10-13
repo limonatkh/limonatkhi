@@ -141,12 +141,100 @@
       }
       return Math.hypot(b.pos.x - x0, b.pos.z - z0);
     }
+    // ------------------------------------------------------------ host: walking the arena (v1.46)
+    /** the top of the ground under (x, z) that a body at height y can stand on (steps up to 0.45 m) */
+    floorAt(x, z, y, r = 0.25) {
+      let best = -Infinity;
+      for (const s of this.mgr.level.solids) {
+        if (s.enabled === false || s.max[1] > y + 0.45 || s.max[1] < best) continue;
+        if (x + r > s.min[0] && x - r < s.max[0] && z + r > s.min[2] && z - r < s.max[2]) best = s.max[1];
+      }
+      return best;
+    }
+    /** stand on the ground: step up onto it, or fall to it */
+    ground(b, dt) {
+      if (!this.mgr.level) return;
+      const f = this.floorAt(b.pos.x, b.pos.z, b.pos.y);
+      if (f === -Infinity) return;
+      if (f >= b.pos.y - 0.02) { b.pos.y = f; b.vy = 0; return; }
+      b.vy = (b.vy || 0) - 22 * dt;
+      b.pos.y = Math.max(f, b.pos.y + b.vy * dt);
+      if (b.pos.y === f) b.vy = 0;
+    }
+    /** can a body walk straight from a to b at height y (nothing in the way, ground all along)? */
+    walkable(a, c, y) {
+      const L = this.mgr.level, dx = c.x - a.x, dz = c.z - a.z, len = Math.hypot(dx, dz), n = Math.max(1, Math.ceil(len / 0.4)), r = 0.34;
+      for (let i = 1; i <= n; i++) {
+        const x = a.x + dx * i / n, z = a.z + dz * i / n;
+        for (const s of L.solids) {
+          if (s.enabled === false || s.max[1] <= y + 0.4 || s.min[1] >= y + 1.75) continue;
+          if (x + r > s.min[0] && x - r < s.max[0] && z + r > s.min[2] && z - r < s.max[2]) return false;
+        }
+        if (y > 0.3 && Math.abs(this.floorAt(x, z, y) - y) > 0.5) return false;     // (up on a ledge: no walking off it)
+      }
+      return true;
+    }
+    /** the arena's points and the walkable links between them (built once per arena) */
+    navGraph() {
+      const L = this.mgr.level, N = L && L.extras.nav;
+      if (!N) return null;
+      if (L.extras.navGraph) return L.extras.navGraph;
+      const nodes = N.nodes.map(([x, y, z]) => ({ x, y, z })), adj = nodes.map(() => []);
+      const link = (i, j) => { const d = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].z - nodes[j].z) + Math.abs(nodes[i].y - nodes[j].y); adj[i].push([j, d]); adj[j].push([i, d]); };
+      for (const [i, j] of N.links) link(i, j);
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], c = nodes[j];
+        if (Math.abs(a.y - c.y) > 0.3 || Math.hypot(a.x - c.x, a.z - c.z) > 14) continue;
+        if (this.walkable(a, c, a.y) && this.walkable(c, a, a.y)) link(i, j);
+      }
+      return (L.extras.navGraph = { nodes, adj });
+    }
+    /** the next point to walk to on the way to `target` (the target itself when it can be walked to directly) */
+    steerTo(b, target) {
+      const g = this.mgr.level && this.navGraph();
+      if (!g || !target) return target;
+      const ty = target.y || 0, tf = Math.max(0, this.floorAt(target.x, target.z, ty + 0.1));
+      const same = Math.abs(tf - b.pos.y) < 0.8;
+      if (same && Math.hypot(target.x - b.pos.x, target.z - b.pos.z) < 16 && this.walkable(b.pos, target, b.pos.y)) { b.path = null; return target; }
+      const now = performance.now();
+      const moved = !b.pathTo || Math.hypot(b.pathTo.x - target.x, b.pathTo.z - target.z) + Math.abs(b.pathTo.y - tf) > 1.5;   // (a new goal: a new way at once)
+      if (!b.path || now > b.pathT || moved) { b.path = this.plan(g, b, target, tf); b.pathT = now + 450; b.pathTo = { x: target.x, y: tf, z: target.z }; }
+      while (b.path && b.path.length) {
+        const n = g.nodes[b.path[0]];
+        if (Math.hypot(n.x - b.pos.x, n.z - b.pos.z) < 0.7 && Math.abs(n.y - b.pos.y) < 0.8) { b.path.shift(); continue; }
+        return n;
+      }
+      return target;
+    }
+    /** shortest way through the points: from one I can walk to, to the one nearest the target */
+    plan(g, b, target, tf) {
+      const N = g.nodes, near = (p, y, test) => {
+        const c = N.map((n, i) => [i, Math.hypot(n.x - p.x, n.z - p.z) + Math.abs(n.y - y) * 4]).sort((u, v) => u[1] - v[1]);
+        for (const [i] of c.slice(0, 7)) if (Math.abs(N[i].y - y) < 0.8 && (!test || test(N[i]))) return i;
+        return c.length ? c[0][0] : -1;
+      };
+      const from = near(b.pos, b.pos.y, (n) => this.walkable(b.pos, n, b.pos.y));
+      const to = near(target, tf, null);
+      if (from < 0 || to < 0) return null;
+      const dist = N.map(() => Infinity), prev = N.map(() => -1), done = N.map(() => false);
+      dist[from] = 0;
+      for (;;) {
+        let u = -1;
+        for (let i = 0; i < N.length; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
+        if (u < 0 || u === to) break;
+        done[u] = true;
+        for (const [v, w] of g.adj[u]) if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+      }
+      if (dist[to] === Infinity) return null;
+      const path = []; for (let v = to; v >= 0; v = prev[v]) path.unshift(v);
+      return path;
+    }
     /**
      * Where an unseen player might be: where it was last seen or heard; once there (and
      * still nobody), a search point. Bots never know where you are through walls.
      */
     goalFor(b) {
-      if (b.lastSeen && Math.hypot(b.lastSeen.x - b.pos.x, b.lastSeen.z - b.pos.z) > 1.5) return b.lastSeen;
+      if (b.lastSeen && (Math.hypot(b.lastSeen.x - b.pos.x, b.lastSeen.z - b.pos.z) > 1.5 || Math.abs((b.lastSeen.y || 0) - b.pos.y) > 1.2)) return b.lastSeen;
       b.lastSeen = null;
       b.searchT = (b.searchT || 0) - 1 / 30;
       if (!b.search || b.searchT <= 0 || Math.hypot(b.search.x - b.pos.x, b.search.z - b.pos.z) < 1.5) {
@@ -160,7 +248,7 @@
     hear(pos, radius = 34) {
       for (const b of this.list) {
         if (!b.alive || b.pos.distanceTo(pos) > radius) continue;
-        b.lastSeen = new T.Vector3(pos.x + rnd(-1.5, 1.5), 0, pos.z + rnd(-1.5, 1.5));
+        b.lastSeen = new T.Vector3(pos.x + rnd(-1.5, 1.5), pos.y || 0, pos.z + rnd(-1.5, 1.5));
       }
     }
     pickTarget(b, players) {
@@ -175,6 +263,7 @@
       return seen || best;
     }
     update(dt, players) {
+      for (const b of this.list) if (b.alive && !b.held) this.ground(b, dt);      // stairs, ledges, falling (v1.46)
       if (this.fsys) return this.fsys.update(dt, players);
       const D = this.diff, mgr = this.mgr;
       for (const b of this.list) {
@@ -230,7 +319,8 @@
         }
         // movement: keep a good distance for the weapon, strafe, go around cover
         const range = RANGE[b.lo.id] || [6, 12];
-        const dir = sees ? new T.Vector3(tgt.pos.x - b.pos.x, 0, tgt.pos.z - b.pos.z) : new T.Vector3(goal.x - b.pos.x, 0, goal.z - b.pos.z);
+        const way = this.steerTo(b, sees ? tgt.pos : goal);            // straight there, or along the arena's points (stairs, around walls)
+        const dir = new T.Vector3(way.x - b.pos.x, 0, way.z - b.pos.z);
         if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
         dir.normalize();
         let fwd = 0;

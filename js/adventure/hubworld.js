@@ -11,7 +11,7 @@
  *          the Courtyard of Marks (chest, key, gate), the hidden nook
  *          (same footprint as before: the first chapter plays the same)
  *   CENTRE Lemon Plaza — the Citrus Spire in its pool, the shop, HOME
- *   WEST   Combat — the training arena (same floor plan and cover), its
+ *   WEST   Combat — the Training Facility (same cover spots, v1.46 look), its
  *          stadium gate, the Fight and Challenge portals
  *   EAST   the hidden garden (same) · the Arcade pavilion (basketball, billiards)
  *   NORTH  Story Gateway — the hall of chapter doors (5 missions + sealed
@@ -46,10 +46,13 @@
     L.hubV2 = true;
     const vb = new VR.VoxelBuilder();          // clean coloured blocks (lit, shadowed)
     const gb = new VR.VoxelBuilder();          // glowing accents (unlit)
+    const fb = new VR.VoxelBuilder();          // the tiled floors: their own mesh, drawn after the rest (less overdraw)
     /** a block from corner to corner, coloured; solid unless told otherwise */
-    const B = (x0, y0, z0, x1, y1, z1, col, solid = true) => {
+    const B = (x0, y0, z0, x1, y1, z1, col, solid = true, mat = null) => {
       vb.addColorBox((x0 + x1) / 2, y0, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, col);
-      return solid ? L.collider(x0, y0, z0, x1, y1, z1) : null;
+      if (!solid) return null;
+      const c = L.collider(x0, y0, z0, x1, y1, z1); c.mat = mat || (col === P.wood || col === P.wood2 ? 'planks' : col === P.trunk ? 'log' : 'concrete');   // (the surface: steps and impacts)
+      return c;
     };
     const G = (x0, y0, z0, x1, y1, z1, col) => gb.addColorBox((x0 + x1) / 2, y0, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, col);
     /** a wall with a base trim and a cap; its collider goes up to TOP (zone boundaries) */
@@ -61,12 +64,16 @@
     };
     /** a floor: one collider, a pattern of tiles on top (visual) */
     const F = (x0, z0, x1, z1, a, b, tile = 2) => {
-      L.collider(x0, -0.5, z0, x1, 0, z1);
-      vb.addColorBox((x0 + x1) / 2, -0.5, (z0 + z1) / 2, x1 - x0, 0.48, z1 - z0, a);
-      if (b === undefined) return;
+      L.collider(x0, -0.5, z0, x1, 0, z1).mat = a === P.wood ? 'planks' : a === P.grass ? 'grass' : 'concrete';
+      if (b === undefined) { fb.addColorBox((x0 + x1) / 2, -0.5, (z0 + z1) / 2, x1 - x0, 0.48, z1 - z0, a); return; }
+      // (v1.46: one layer of floor — tiles edge to edge, the grout as thin strips, the slab only as its four sides — so no floor pixel is drawn twice)
+      const sk = 0.05, grout = new T.Color(b).multiplyScalar(0.86).getHex();
+      for (const [cx, cz, w, d] of [[(x0 + x1) / 2, z0 + sk / 2, x1 - x0, sk], [(x0 + x1) / 2, z1 - sk / 2, x1 - x0, sk], [x0 + sk / 2, (z0 + z1) / 2, sk, z1 - z0], [x1 - sk / 2, (z0 + z1) / 2, sk, z1 - z0]]) fb.addColorBox(cx, -0.5, cz, w, 0.48, d, a);
       for (let x = x0; x < x1 - 1e-6; x += tile) for (let z = z0; z < z1 - 1e-6; z += tile) {
-        const i = Math.round((x - x0) / tile) + Math.round((z - z0) / tile);
-        vb.addColorBox(Math.min(x + tile, x1) / 2 + x / 2, -0.02, Math.min(z + tile, z1) / 2 + z / 2, Math.min(tile, x1 - x) - 0.06, 0.02, Math.min(tile, z1 - z) - 0.06, i % 2 ? a : b);
+        const i = Math.round((x - x0) / tile) + Math.round((z - z0) / tile), xe = Math.min(x + tile, x1), ze = Math.min(z + tile, z1);
+        fb.addColorBox((x + xe) / 2, -0.02, (z + ze) / 2, xe - x, 0.02, ze - z, i % 2 ? a : b);
+        if (z > z0) fb.addColorBox((x + xe) / 2, 0, z, xe - x, 0.002, 0.05, grout);
+        if (x > x0) fb.addColorBox(x, 0, (z + ze) / 2, 0.05, 0.002, ze - z, grout);
       }
     };
     /** stairs from (x0,z0) rising along +dir to height h over `len` metres, width w (steps ≤ 0.4 m: walkable) */
@@ -132,6 +139,10 @@
     B(-1.6, 0, -9.0, 1.6, 1.3, -8.4, P.orange);                                   // 1.3 m: needs a jump
     band(-1.6, 1.3, -9.02, 1.6, 1.36, -8.38, P.trim);
     B(-1.6, 0.0, -8.25, 1.6, 0.02, -8.15, P.gold, false);                          // the painted line before it
+    // the way to go (v1.46, instead of the old coin trail): glowing chevrons on the floor, a light strip over the wall
+    const chevron = (z) => { for (let k = 0; k < 4; k++) { const o = 0.16 * k; G(-0.75 + o, 0.005, z - 0.08 - o * 0.6, -0.55 + o, 0.025, z + 0.08 - o * 0.6, P.teal); G(0.55 - o, 0.005, z - 0.08 - o * 0.6, 0.75 - o, 0.025, z + 0.08 - o * 0.6, P.teal); } };
+    for (const z of [-2.6, -4.6, -6.6, -10.6, -12.6]) chevron(z);
+    G(-1.2, 1.3, -8.85, 1.2, 1.38, -8.55, P.teal);
     L.anchor('wallSign', 0, 0.75, -8.38, 0);
 
     // ---- the Courtyard of Marks (x -8..8, z -31..-15)
@@ -340,7 +351,9 @@
     /* ================================================================ COMBAT: the training arena (west; same floor plan) */
     arena(L, B, W, F, G, pylon, vb);
 
-    /* ================================================================ the city around (seen, not reached) */
+    /* ================================================================ the city around (seen, not reached; its own mesh: drawn last, no shadows) */
+    const cityVb = new VR.VoxelBuilder();
+    { const vb = cityVb;
     vb.addColorBox(-5, -1.4, -36, 260, 0.8, 240, 0xcfc6b4);
     const towers = [[-60, -20, 10, 26, P.white], [-58, -90, 14, 34, P.navy], [-20, -100, 18, 40, P.white], [26, -98, 12, 30, P.roof], [52, -70, 12, 24, P.white],
       [56, -30, 10, 18, P.teal], [40, 10, 14, 20, P.white], [-40, 18, 12, 16, P.roof], [0, 30, 20, 12, P.wall2], [-66, -50, 10, 30, P.wall2]];
@@ -349,31 +362,69 @@
       vb.addColorBox(x, h - 1, z, w + 0.6, 0.6, w + 0.6, P.trim);
       for (let y = 3; y < h - 2; y += 4) vb.addColorBox(x, y, z, w + 0.04, 1.2, w + 0.04, P.glass);
     }
+    }
 
     L.finish();
-    const lit = vb.build(), glow = gb.build();
-    L.group.add(lit, glowify(glow));
+    const lit = vb.build(), glow = gb.build(), city = cityVb.build(), floors = fb.build();
+    floors.traverse(o => { o.renderOrder = 1; });
+    city.traverse(o => { o.userData.noShadow = true; o.renderOrder = 2; });       // (after the square: hidden pixels are not shaded twice)
+    city.name = 'hubCity';
+    L.group.add(lit, floors, glowify(glow), city);
     L.extras.build = (scene, mgr) => buildExtras(L, scene, mgr);
     L.extras.update = (dt, mgr) => updateExtras(L, dt, mgr);
     L.extras.dispose = () => disposeExtras(L);
     return L;
   }
 
-  /* ---- the training arena (x -40..-14.4, z -54..-32): the same floor plan, cover and spots as before */
+  /* ---- the Training Facility (v1.46; x -40..-14.4, z -54..-32): the same cover spots, weapons, bell and
+   *      wave spots as before (the waves and the computer enemies walk the same open floor), rebuilt as a
+   *      modern training hall: a drop bay with three lit doors where the waves come from (west), a
+   *      scoreboard over it, a roofed side lane (south), lane markings, modular barriers. */
   function arena(L, B, W, F, G, pylon) {
-    F(-40, -54, -14.4, -32, P.arena, P.arena2, 2);
-    for (const [x0, z0, x1, z1] of [[-27.3, -54, -27.1, -32], [-40, -43.1, -14.4, -42.9]]) B(x0, -0.01, z0, x1, 0.012, z1, P.white, false);   // painted lines
+    const X0 = -40, X1 = -14.4, Z0 = -54, Z1 = -32;
+    F(X0, Z0, X1, Z1, 0xd8d4cc, 0xcfcac0, 2);
+    // lane markings: three lanes along the hall, a start line by the bell, the drop zone (dark) by the west wall
+    for (const z of [-46.6, -39.4]) B(X0, -0.01, z - 0.06, X1, 0.012, z + 0.06, P.trim2, false);
+    B(X0, -0.01, -43.06, X1, 0.012, -42.94, P.white, false);
+    B(-18.6, -0.01, Z0, -18.4, 0.014, Z1, P.orange, false);
+    B(X0, -0.01, Z0, -37.2, 0.008, Z1, P.slate2, false);
+    for (let z = Z0 + 1; z < Z1; z += 2) G(-37.25, 0.008, z, -37.15, 0.02, z + 1, P.gold);
+    // the hall's walls: navy with an orange cap (west, north, south), a band and panel lines
     W(-40.4, -54.4, -14.4, -54, 5, P.navy, P.orange); W(-40.4, -32, -14.4, -31.6, 5, P.navy, P.orange); W(-40.4, -54, -40, -32, 5, P.navy, P.orange);
-    const low = (x0, z0, x1, z1, h = 1.1) => { B(x0, 0, z0, x1, h, z1, P.orange); B(x0 - 0.02, h - 0.12, z0 - 0.02, x1 + 0.02, h, z1 + 0.02, P.trim, false); };
+    for (const [z0, z1] of [[-53.98, -53.94], [-32.06, -32.02]]) { B(X0, 2.0, z0, X1, 2.2, z1, P.orange, false); for (let x = X0 + 3; x < X1; x += 4) B(x - 0.05, 0.4, z0, x + 0.05, 4.6, z1, P.trim2, false); }
+    // the drop bay: three dark doorways with lit frames on the west wall (the waves come in here)
+    for (const z of [-38, -43, -48]) {
+      B(-39.98, 0, z - 1.2, -39.9, 3.0, z + 1.2, P.trim, false);
+      G(-39.9, 0, z - 1.32, -39.84, 3.12, z - 1.2, P.teal); G(-39.9, 0, z + 1.2, -39.84, 3.12, z + 1.32, P.teal); G(-39.9, 3.0, z - 1.32, -39.84, 3.12, z + 1.32, P.teal);
+      G(-39.9, 3.35, z - 0.25, -39.84, 3.6, z + 0.25, P.orange);
+    }
+    // the scoreboard over the drop bay (seen from the whole hall)
+    B(-40.6, 5.0, -48.5, -40.0, 8.2, -37.5, P.trim, false);
+    G(-40.02, 5.4, -48.1, -39.96, 7.8, -37.9, 0x1b2a44);
+    for (let i = 0; i < 3; i++) G(-39.97, 6.0 + i * 0.6, -47.2, -39.93, 6.25 + i * 0.6, -38.8 - i * 2.6, i === 1 ? P.gold : P.teal);
+    B(-40.6, 0, -48.5, -40.4, 5.0, -48.1, P.trim, false); B(-40.6, 0, -37.9, -40.4, 5.0, -37.5, P.trim, false);
+    // modular barriers (chest-high), the three pillars, the cargo boxes: the same spots as before
+    const low = (x0, z0, x1, z1, h = 1.1) => {
+      B(x0, 0, z0, x1, h, z1, P.white); B(x0 - 0.03, 0, z0 - 0.03, x1 + 0.03, 0.25, z1 + 0.03, P.trim2, false);
+      B(x0 - 0.03, h - 0.14, z0 - 0.03, x1 + 0.03, h, z1 + 0.03, P.orange, false);
+    };
     low(-24.3, -47.5, -23.7, -44.5); low(-24.3, -41.5, -23.7, -38.5);
     low(-31, -52, -28, -51.4); low(-31, -34.6, -28, -34);
-    for (const [x, z] of [[-30, -38.5], [-30, -47.5], [-33, -43]]) { B(x - 0.6, 0, z - 0.6, x + 0.6, 3.2, z + 0.6, P.white); B(x - 0.66, 3.0, z - 0.66, x + 0.66, 3.2, z + 0.66, P.navy, false); }
-    const crate = (x, z, s) => { B(x - s / 2, 0, z - s / 2, x + s / 2, s, z + s / 2, P.wood); B(x - s / 2 - 0.02, s * 0.45, z - s / 2 - 0.02, x + s / 2 + 0.02, s * 0.55, z + s / 2 + 0.02, P.wood2, false); };
-    crate(-19.5, -40.2, 1.2); crate(-19.4, -46.0, 1.2); crate(-35.6, -50.8, 1.2);
+    for (const [x, z] of [[-30, -38.5], [-30, -47.5], [-33, -43]]) {
+      B(x - 0.6, 0, z - 0.6, x + 0.6, 3.2, z + 0.6, P.trim2); B(x - 0.66, 0, z - 0.66, x + 0.66, 0.3, z + 0.66, P.trim, false);
+      B(x - 0.66, 3.0, z - 0.66, x + 0.66, 3.2, z + 0.66, P.orange, false); G(x - 0.62, 1.9, z - 0.62, x + 0.62, 2.0, z + 0.62, P.teal);
+    }
+    const cargo = (x, z, sz, col) => { B(x - sz / 2, 0, z - sz / 2, x + sz / 2, sz, z + sz / 2, col); B(x - sz / 2 - 0.03, sz - 0.1, z - sz / 2 - 0.03, x + sz / 2 + 0.03, sz, z + sz / 2 + 0.03, P.trim, false); B(x - sz / 2 - 0.03, 0.2, z - 0.06, x + sz / 2 + 0.03, sz - 0.2, z + 0.06, P.trim2, false); };
+    cargo(-19.5, -40.2, 1.2, 0x3f6fa8); cargo(-19.4, -46.0, 1.2, 0xc65a3a); cargo(-35.6, -50.8, 1.2, 0x4c8f5a);
     for (const z of [-33.2, -52.8]) { B(-27.0, 0, z - 0.5, -26.0, 1.2, z + 0.5, P.teal); B(-27.05, 1.0, z - 0.55, -25.95, 1.2, z + 0.55, P.trim, false); }
+    // the roofed side lane (south): a canopy on slim posts
+    B(-36.4, 3.2, -54, -17.6, 3.45, -51.4, P.trim2); B(-36.45, 3.45, -54, -17.55, 3.55, -51.35, P.orange, false);
+    G(-36.2, 3.16, -51.6, -17.8, 3.2, -51.5, P.teal);
+    for (const x of [-36.1, -24.6, -17.9]) B(x - 0.15, 0, -51.7, x + 0.15, 3.2, -51.4, P.trim);
     // the sniper platform (north-west) with steps and its railing
-    B(-39.6, 0, -36.2, -35.4, 2.0, -32.4, P.navy); B(-39.62, 1.88, -36.22, -35.38, 2.0, -32.38, P.orange, false);
-    for (let i = 0; i < 5; i++) B(-35.4 + i * 0.5, 0, -35.6, -34.9 + i * 0.5, 2.0 - i * 0.4, -34.0, P.trim2);
+    B(-39.6, 0, -36.2, -35.4, 2.0, -32.4, P.trim2); B(-39.62, 1.88, -36.22, -35.38, 2.0, -32.38, P.orange, false);
+    G(-35.42, 1.0, -36.18, -35.36, 1.1, -32.42, P.teal);
+    for (let i = 0; i < 5; i++) { B(-35.4 + i * 0.5, 0, -35.6, -34.9 + i * 0.5, 2.0 - i * 0.4, -34.0, P.wall2); B(-35.4 + i * 0.5, 1.94 - i * 0.4, -35.6, -34.9 + i * 0.5, 2.0 - i * 0.4, -34.0, P.trim, false); }
     B(-39.6, 2.0, -36.3, -35.4, 2.9, -36.2, P.trim);
     L.anchor('sniperSpot', -37.6, 2.0, -34.2, -PI / 2);
     L.anchor('shotgunSpot', -20.6, 0, -50.4, -PI / 2);
@@ -393,15 +444,18 @@
     return g;
   }
   // ---------------------------------------------------------------- extras: sky, shadows, signs, moving parts
-  function skyDome() {
+  /** a gradient sky dome in its own little scene (also used by the combat maps: VR.HubWorld.skyDome) */
+  function skyDome(o = {}) {
+    const c = Object.assign({ top: 0x3d8ff0, mid: 0x9fd2ff, hor: 0xffe1bd, low: 0xe6f0fa, sun: [0.55, 0.5, 0.4] }, o);
     const mat = new T.ShaderMaterial({
       side: T.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new T.Color(0x3d8ff0) }, mid: { value: new T.Color(0x9fd2ff) }, hor: { value: new T.Color(0xffe1bd) }, low: { value: new T.Color(0xe6f0fa) }, sun: { value: new T.Vector3(0.55, 0.5, 0.4).normalize() } },
+      uniforms: { top: { value: new T.Color(c.top) }, mid: { value: new T.Color(c.mid) }, hor: { value: new T.Color(c.hor) }, low: { value: new T.Color(c.low) }, sun: { value: new T.Vector3(...c.sun).normalize() }, mixc: { value: new T.Color(0x9aa4b0) }, mixk: { value: 0 } },
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `uniform vec3 top, mid, hor, low, sun; varying vec3 vD;
+      fragmentShader: `uniform vec3 top, mid, hor, low, sun, mixc; uniform float mixk; varying vec3 vD;
         void main(){ float y = vD.y; vec3 c = y > 0.0 ? mix(hor, mid, smoothstep(0.0, 0.25, y)) : mix(hor, low, smoothstep(0.0, -0.2, y));
           c = mix(c, top, smoothstep(0.25, 0.85, y));
           float s = max(dot(normalize(vD), sun), 0.0); c += vec3(1.0, 0.86, 0.6) * (pow(s, 64.0) * 0.9 + pow(s, 6.0) * 0.12);
+          c = mix(c, mixc, mixk);
           gl_FragColor = vec4(c, 1.0); }`,
     });
     mat.toneMapped = false; mat.userData.own = true;
@@ -423,20 +477,27 @@
   }
   const t2 = (en, ar) => ({ en, ar });
   function buildExtras(L, scene, mgr) {
-    const x = L.extras.hubFx = { t: 0, scene };
-    // the sky: a gradient dome drawn behind the world (with the Mini Planet: js/planet/skyplanet.js)
-    x.sky = skyDome(); scene.userData.skyBackdrop = x.sky;
+    const x = L.extras.hubFx = { t: 0, scene, ambT: 0 };
+    // the square's ambience: soft open air and a far city hum (the world bus: the fight ducks it)
+    x.amb = VR.Audio.ambient ? [VR.Audio.ambient(520, 'lowpass'), VR.Audio.ambient(2600, 'bandpass')] : [];
+    // the sky: a gradient dome drawn behind the world (js/planet/skyplanet.js)
+    x.sky = skyDome();
     // soft sun shadows, rendered once (and again when something big moves: a gate opening)
     const r = mgr.game.renderer, sun = scene.children.find(o => o.isDirectionalLight);
     if (sun && r.shadowMap.enabled) {
-      sun.castShadow = true;
       const s = sun.shadow; s.mapSize.set(2048, 2048); s.bias = -0.0004; s.normalBias = 0.05; s.radius = 3;
       const cam = s.camera; cam.left = -72; cam.right = 72; cam.top = 72; cam.bottom = -72; cam.near = 1; cam.far = 260; cam.updateProjectionMatrix();
       sun.target.position.set(-5, 0, -38); scene.add(sun.target);
       sun.position.set(-5 + 0.55 * 110, 0.95 * 110, -38 + 0.4 * 110);
-      scene.traverse(o => { if (o.isMesh && !o.userData.noShadow && !(o.material && (o.material.transparent || o.material.isMeshBasicMaterial || o.material.isShaderMaterial))) { o.castShadow = true; o.receiveShadow = true; } });
-      x.sun = sun; r.shadowMap.needsUpdate = true; x.shadowT = 0.3; x.flags = mgr.run ? mgr.run.flags.size : 0;
+      x.sun = sun; x.flags = mgr.run ? mgr.run.flags.size : 0;
     }
+    // Quality "high": shadows, the dome and the skyline; "low": none of them (weak devices) — follows the setting live
+    x.offGfx = VR.Gfx ? VR.Gfx.on((lite) => {
+      scene.userData.skyBackdrop = lite ? null : x.sky;
+      const city = L.group.getObjectByName('hubCity'); if (city) city.visible = !lite;
+      if (x.sun) { x.sun.castShadow = !lite; VR.Gfx.setShadows(scene, !lite); if (!lite) { r.shadowMap.needsUpdate = true; x.shadowT = 0.3; } }
+    }) : null;
+    if (!VR.Gfx) scene.userData.skyBackdrop = x.sky;
     // moving parts: the spire's ring, the story arch's ring, the runner ring
     const add = (anchor, rad, col, n, size) => { const a = L.anchors[anchor]; if (!a) return null; const g = ring(rad, col, n, size); g.position.set(a.pos[0], a.pos[1], a.pos[2]); g.rotation.y = a.yaw; scene.add(g); return g; };
     x.spire = add('spireRing', 3.2, 0xffe680, 28, 0.32); if (x.spire) x.spire.rotation.x = PI / 2;
@@ -456,23 +517,26 @@
   function updateExtras(L, dt, mgr) {
     const x = L.extras.hubFx; if (!x) return;
     x.t += dt;
+    if ((x.ambT -= dt) <= 0) { x.ambT = 0.5; if (x.amb[0]) x.amb[0].set(0.03); if (x.amb[1]) x.amb[1].set(0.008); }
     if (x.spire) x.spire.rotation.z += dt * 0.35;
     if (x.story) x.story.rotation.z -= dt * 0.25;
     if (x.runner) x.runner.rotation.z += dt * 0.5;
     if (x.sun) {
       const n = mgr.run ? mgr.run.flags.size : 0;
       if (n !== x.flags) { x.flags = n; x.shadowT = 0.8; }                  // a gate may be opening: draw the shadows again for a moment
-      if (x.shadowT > 0) { x.shadowT -= dt; mgr.game.renderer.shadowMap.needsUpdate = true; }
+      if (x.shadowT > 0 && x.sun.castShadow) { x.shadowT -= dt; mgr.game.renderer.shadowMap.needsUpdate = true; }
     }
   }
   function disposeExtras(L) {
     const x = L.extras.hubFx; if (!x) return;
+    if (x.offGfx) x.offGfx();
     if (x.sun) x.sun.castShadow = false;
+    for (const a of x.amb || []) a.stop();
     if (x.scene && x.scene.userData.skyBackdrop === x.sky) x.scene.userData.skyBackdrop = null;     // (the next world has its own sky)
     if (x.sky) x.sky.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     L.extras.hubFx = null;
   }
 
   VR.MissionEnvironments.hub = hubWorld;
-  VR.HubWorld = { PALETTE: P, version: 2 };
+  VR.HubWorld = { PALETTE: P, version: 2, skyDome, glowify };
 })();

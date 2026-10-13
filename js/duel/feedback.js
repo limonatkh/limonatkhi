@@ -440,12 +440,13 @@
       const d = pos.distanceTo(this.camera.position);
       if (d < 14) this.cameraShake = Math.max(this.cameraShake || 0, amount * (1 - d / 14));
     }
-    sfx(name, gap = 0.05) {
-      const now = performance.now() / 1000;
-      if (now - (this.sound[name] || -9) < gap) return false;
+    /** a throttled sound; `at` (a world position): heard from there — direction and distance (v1.46) */
+    sfx(name, gap = 0.05, at = null) {
+      const now = performance.now() / 1000, key = at ? name + '@' : name;
+      if (now - (this.sound[key] || -9) < gap) return false;
       if (now - this.soundT > 0.05) { this.soundT = now; this.soundN = 0; }
       if (++this.soundN > 6) return false;                     // never more than 6 sounds in 50 ms
-      this.sound[name] = now; VR.Audio.play(name); return true;
+      this.sound[key] = now; VR.Audio.play(name, at ? { at } : undefined); return true;
     }
     /** an element's own burst (colour + motion + density) */
     elementBurst(pos, elem, n, o = {}) {
@@ -482,13 +483,13 @@
           this.burst(c, { n: 26 * I, colors: [col, 0xffffff, P.colors.main], glow: true, speed: 7 * I, drag: 3.2, life: 0.55, size: 0.1, prio });
           if (cause.kind === 'ability') this.elementBurst(c, elem, 18 * I, { prio, speed: 5 });
           this.column(base, h, { n: 12, colors: cols, glow: false, speed: 1.2, up: 1.5, life: 0.5, size: 0.08, prio, floor });
-          this.sfx('fbDieCore', 0.02); break;
+          this.sfx('fbDieCore', 0.02, c); break;
         }
         case 'dust': {                                               // B. dust poof dissolve
           this.column(base, h, { n: 26 * I, colors: [0xd8ccb0, 0xb8ad94, P.colors.main, 0xeee4cc], speed: 0.9, up: 1.2, life: 0.6, size: 0.1, end: 0.12, drag: 2.2, prio, floor });
           this.burst(new T.Vector3(base.x, base.y + 0.15, base.z), { n: 14 * I, colors: [0xd8ccb0, 0xc4b48a], speed: 3, flatY: 0.15, up: 0.3, drag: 3, life: 0.7, size: 0.1, end: 0.16, prio, floor });
           this.ring(new T.Vector3(base.x, base.y + 0.04, base.z), { color: 0xe6dcc2, radius: 1.6 * I, life: 0.45, alpha: 0.6, solid: true });
-          this.sfx('fbDieDust', 0.02); break;
+          this.sfx('fbDieDust', 0.02, c); break;
         }
         case 'disintegrate': {                                       // C. progressive particle disintegration
           const E = ELEMENTS[elem] || ELEMENTS.energy;
@@ -499,26 +500,26 @@
             if (body) { body.scale.y = Math.max(0.02, 1 - k); body.scale.x = body.scale.z = 1 + 0.25 * k; }
           }, () => { if (body) { body.visible = false; body.scale.set(1, 1, 1); } });
           this.light(c, P.colors.glow, 18 * I, dur);
-          this.sfx('fbDieDisint', 0.02); break;
+          this.sfx('fbDieDisint', 0.02, c); break;
         }
         case 'shockwave': {                                          // D. death shockwave ring
           this.ring(new T.Vector3(base.x, base.y + 0.06, base.z), { color: P.colors.glow, radius: 4 * I, life: 0.55 });
           this.ring(c, { color: P.colors.main, radius: 2.4 * I, life: 0.4, vertical: true, yaw: Math.random() * Math.PI });
           this.burst(c, { n: 18 * I, colors: cols, glow: true, speed: 6, flatY: 0.3, drag: 2.5, life: 0.5, size: 0.08, prio });
           this.column(base, h, { n: 16, colors: cols, speed: 1, up: 1, life: 0.6, size: 0.09, prio, floor });
-          this.sfx('fbShock', 0.02); break;
+          this.sfx('fbShock', 0.02, c); break;
         }
         case 'debris': {                                             // E. death debris by matter
           if (P.matter === 'robotic' || P.matter === 'armored' || elem === 'ice') {
             const shards = elem === 'ice' ? ELEMENTS.ice.col : [P.colors.main, 0x9aa4b8, 0x5d6676, P.colors.accent];
             this.burst(c, { n: 22 * I, colors: shards, speed: 6, up: 3, grav: 16, drag: 0.4, spin: 14, life: 1.1, size: 0.12, prio, floor, spread: 0.3 });
             this.burst(c, { n: 20 * I, colors: elem === 'ice' ? [0xffffff, 0xbff4ff] : [0xffcf6a, 0xffffff, 0xff9a3a], glow: true, speed: 9, grav: 10, drag: 1.2, life: 0.45, size: 0.045, prio });
-            this.sfx(elem === 'ice' ? 'fbIce' : 'fbDieMetal', 0.02);
+            this.sfx(elem === 'ice' ? 'fbIce' : 'fbDieMetal', 0.02, c);
           } else {
             this.column(base, h, { n: 26 * I, colors: [0x2a2622, 0x4a4038, 0x6b5e52], speed: 0.6, up: 1.4, grav: -0.6, drag: 1.6, life: 1.2, size: 0.07, end: 0.04, prio });
             this.column(base, h, { n: 14 * I, colors: [P.colors.glow, 0xffffff], glow: true, speed: 0.5, up: 2.2, grav: -1, drag: 1.2, life: 0.9, size: 0.05, prio });
             this.burst(c, { n: 6 * I, colors: [0x8a8a8a, 0xb0b0b0], speed: 1.5, up: 0.6, drag: 3, life: 0.55, size: 0.1, end: 0.16, prio });
-            this.sfx('fbDieAsh', 0.02);
+            this.sfx('fbDieAsh', 0.02, c);
           }
           this.light(c, P.colors.glow, 14 * I, 0.25); break;
         }
@@ -531,18 +532,18 @@
           this.elementBurst(c, elem, 30 * I, { prio, speed: 8 * I, life: 0.7 });
           this.burst(new T.Vector3(base.x, base.y + 0.3, base.z), { n: 8 * I, colors: [0x6a6a6a, 0x8a8a8a, 0x4a4a4a], speed: 2, flatY: 0.3, up: 0.4, drag: 3, life: 0.6, size: 0.12, end: 0.2, prio });   // smoke (low, short: never a wall to hide behind)
           this.column(base, h, { n: 12, colors: cols, speed: 2, up: 2, grav: 9, life: 0.8, size: 0.1, prio, floor, spin: 8 });
-          this.sfx('fbDieBlast', 0.02); this.shakeNear(c, 0.35); break;
+          this.sfx('fbDieBlast', 0.02, c); this.shakeNear(c, 0.35); break;
         }
         case 'fall': {                                               // G. fall elimination
           this.burst(new T.Vector3(base.x, base.y + 1, base.z), { n: 16, colors: [P.colors.main, 0xffffff], glow: true, speed: 0.6, up: -9, drag: 0.5, life: 0.6, size: 0.06, prio });
           this.ring(new T.Vector3(base.x, base.y + 0.5, base.z), { color: P.colors.glow, radius: 2.2, life: 0.6 });
-          this.sfx('fbDieFall', 0.02); break;
+          this.sfx('fbDieFall', 0.02, c); break;
         }
       }
       // the last elimination of a round (or a headshot): an extra shockwave
       if ((o.roundEnd || o.head) && style !== 'shockwave' && style !== 'fall') {
         this.ring(new T.Vector3(base.x, base.y + 0.06, base.z), { color: o.head ? 0xffd23a : P.colors.glow, radius: 3.2 * I, life: 0.5 });
-        if (o.roundEnd) this.sfx('fbShock', 0.02);
+        if (o.roundEnd) this.sfx('fbShock', 0.02, c);
       }
       // the body: hidden (or dissolving — handled above), never left standing
       if (o.body && style !== 'disintegrate') {
@@ -600,21 +601,21 @@
       switch (surface) {
         case 'metal':
           this.burst(pos, { n: 10, colors: [0xffcf6a, 0xffffff, 0xff9a3a], glow: true, speed: 7, dir: out, push: 3, grav: 12, drag: 0.8, life: 0.35, size: 0.035 });
-          this.sprite(pos, { color: 0xffd27a, size: 0.15, end: 0.4, life: 0.06 }); this.sfx('fbImpMetal', 0.04); break;
+          this.sprite(pos, { color: 0xffd27a, size: 0.15, end: 0.4, life: 0.06 }); this.sfx('fbImpMetal', 0.04, pos); break;
         case 'wood':
-          this.burst(pos, { n: 7, colors: [0xb98a52, 0x8a6236, 0xd8b07a], speed: 3, dir: out, push: 2.5, grav: 12, spin: 14, life: 0.6, size: 0.05 }); this.sfx('fbImpWood', 0.04); break;
+          this.burst(pos, { n: 7, colors: [0xb98a52, 0x8a6236, 0xd8b07a], speed: 3, dir: out, push: 2.5, grav: 12, spin: 14, life: 0.6, size: 0.05 }); this.sfx('fbImpWood', 0.04, pos); break;
         case 'energy':
           this.ring(pos, { color: 0xffe14a, radius: 0.6, life: 0.25, normal: n });
           this.burst(pos, { n: 6, colors: [0xffe14a, 0xffffff], glow: true, speed: 2, dir: out, push: 1, drag: 3, life: 0.3, size: 0.05 }); this.sfx('fbImpEnergy', 0.05); break;
         case 'dirt': case 'snow': case 'water': {
           const C = STEP_COL[surface];
           this.burst(pos, { n: 8, colors: C, speed: surface === 'water' ? 3 : 1.5, dir: out, push: surface === 'water' ? 3 : 1.5, grav: surface === 'water' ? 10 : 2, drag: 2, life: 0.55, size: 0.07, end: surface === 'water' ? 0 : 0.12 });
-          this.sfx('fbImpSoft', 0.04); break;
+          this.sfx('fbImpSoft', 0.04, pos); break;
         }
         default:                                                     // stone: chips + dust
           this.burst(pos, { n: 6, colors: [0x9a9a9a, 0x7a7a7a, 0xc4b48a], speed: 3, dir: out, push: 2.5, grav: 14, spin: 10, life: 0.5, size: 0.05 });
           this.burst(pos, { n: 3, colors: [0xd8ccb0, 0xe6dcc2], speed: 0.6, dir: out, push: 0.8, drag: 2, life: 0.35, size: 0.05, end: 0.09 });
-          this.sfx('fbImpStone', 0.04);
+          this.sfx('fbImpStone', 0.04, pos);
       }
       this.note({ type: 'impact', surface });
     }
@@ -633,12 +634,12 @@
             const d = new T.Vector3(rnd(-1, 1), rnd(-0.6, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(0.8, 1.4));
             this.glow.spawn(pos.x + d.x, pos.y + d.y, pos.z + d.z, -d.x * 3, -d.y * 3, -d.z * 3, { life: 0.35, size: 0.06, color: E.col[i % E.col.length], prio: 1 });
           }
-          this.light(pos, col, 14, 0.35); this.sfx('fbCharge', 0.2); break;
+          this.light(pos, col, 14, 0.35); this.sfx('fbCharge', 0.2, pos); break;
         }
         case 'launch':
           this.sprite(pos, { color: col, size: 0.4, end: 1.2, life: 0.12 });
           this.elementBurst(pos, o.elem, 10, { dir: o.dir, push: 3, speed: 2.5, life: 0.35, prio: 1 });
-          this.light(pos, col, 25, 0.12); this.sfx(E.sound, 0.08); break;
+          this.light(pos, col, 25, 0.12); this.sfx(E.sound, 0.08, pos); break;
         case 'trail':
           this.elementBurst(pos, o.elem, 2, { speed: 0.6, life: 0.35, size: 0.06 }); break;
         case 'area':
@@ -648,11 +649,11 @@
           this.sprite(pos, { color: col, size: 0.5, end: 2 * (o.radius ? o.radius / 2 : 1), life: 0.2 });
           this.elementBurst(pos, o.elem, 18 * (o.big ? 2 : 1), { speed: o.big ? 7 : 4, prio: 1 });
           if (o.radius) this.ring(new T.Vector3(pos.x, pos.y + 0.06, pos.z), { color: col, radius: o.radius, life: 0.45 });
-          this.light(pos, col, o.big ? 50 : 22, 0.25); this.sfx(E.sound, 0.06);
+          this.light(pos, col, o.big ? 50 : 22, 0.25); this.sfx(E.sound, 0.06, pos);
           if (o.big) this.shakeNear(pos, 0.3);
           break;
         case 'end':
-          this.elementBurst(pos, o.elem, 8, { speed: 1.2, life: 0.45 }); this.sfx('fbAbEnd', 0.15); break;
+          this.elementBurst(pos, o.elem, 8, { speed: 1.2, life: 0.45 }); this.sfx('fbAbEnd', 0.15, pos); break;
       }
       if (o.me && (stage === 'impact' || stage === 'area')) this.screen.tint(col, 0.6);
       this.note({ type: 'ability', stage, elem: o.elem || 'energy' });
@@ -668,15 +669,15 @@
       if (P.trail === 'magic') this.burst(p, { n: 2, colors: [P.colors.glow, P.colors.main], glow: true, speed: 0.3, up: 0.8, life: 0.5, size: 0.04 });
       this.note({ type: 'step', surface, prof: P.id });
     }
-    stepSound(surface, prof, running) {
+    stepSound(surface, prof, running, at = null) {
       const P = profile(prof);
-      if (running && P.steps !== 'metal' && surface !== 'metal' && surface !== 'water') { const nm = surface === 'wood' ? 'runStepWood' : 'runStep'; this.sfx(nm, 0.12); return nm; }
+      if (running && P.steps !== 'metal' && surface !== 'metal' && surface !== 'water') { const nm = surface === 'wood' ? 'runStepWood' : 'runStep'; this.sfx(nm, 0.12, at); return nm; }
       const name = P.steps === 'metal' ? (surface === 'metal' ? 'fbStepMetal' : 'fbStepRobot') : surface === 'metal' ? 'fbStepMetal' : surface === 'wood' ? 'fbStepWood' : surface === 'water' ? 'fbStepWater' : surface === 'dirt' || surface === 'snow' ? 'fbStepSoft' : 'fbStepStone';
-      this.sfx(name, 0.12);
+      this.sfx(name, 0.12, at);
       return name;
     }
     /** landing: dust ring, particles, a sound by weight; returns the camera pulse (0..1) */
-    land(pos, speed, surface, prof) {
+    land(pos, speed, surface, prof, at = null) {
       // an ordinary jump lands at ~10 m/s; a fall from a high perch at 25+
       const P = profile(prof), k = clamp((speed - 9) / 16, 0, 1) * P.weight;
       if (speed < 6) return 0;
@@ -684,7 +685,7 @@
       this.ring(base, { color: C[1] || C[0], radius: 0.8 + 1.6 * k, life: 0.35 + 0.15 * k, alpha: 0.75, solid: true });
       this.burst(base, { n: 6 + 14 * k, colors: C, speed: 2 + 3 * k, flatY: 0.15, up: 0.4, drag: 3, life: 0.5, size: 0.07, end: 0.12, floor: pos.y });
       if (surface === 'metal' || P.matter === 'robotic' || P.matter === 'armored') this.burst(base, { n: 4 + 8 * k, colors: [0xffcf6a, 0xffffff], glow: true, speed: 4, up: 2, grav: 12, life: 0.3, size: 0.03 });
-      this.sfx(k > 0.65 ? 'fbLand3' : k > 0.25 ? 'fbLand2' : 'fbLand1', 0.1);
+      this.sfx(k > 0.65 ? 'fbLand3' : k > 0.25 ? 'fbLand2' : 'fbLand1', 0.1, at);
       this.note({ type: 'land', k: +k.toFixed(2), surface });
       return Math.min(1, k);
     }
@@ -713,9 +714,9 @@
       const hs = Math.hypot(a.pos.x - w.prev.x, a.pos.z - w.prev.z) / dt; w.prev.copy(a.pos);
       if (hs > 30) return;                                                 // a teleport (respawn, blink)
       const air = a.air || a.pos.y > 0.25 && Math.abs(vy) > 0.5;
-      if (w.air && !air && w.vyMin < -4) this.land(a.pos, -w.vyMin, groundAt(level, a.pos), prof);
+      if (w.air && !air && w.vyMin < -4) this.land(a.pos, -w.vyMin, groundAt(level, a.pos), prof, a.pos);
       if (air) w.vyMin = Math.min(w.air ? w.vyMin : 0, vy); w.air = air;
-      if (!air && !a.low && hs > 2) { w.stepAcc += hs * dt; if (w.stepAcc > 1.9) { w.stepAcc = 0; this.footstep(a.pos, groundAt(level, a.pos), prof, Math.random() < 0.5 ? -1 : 1); } }
+      if (!air && !a.low && hs > 2) { w.stepAcc += hs * dt; if (w.stepAcc > 1.9) { w.stepAcc = 0; const sf = groundAt(level, a.pos); this.footstep(a.pos, sf, prof, Math.random() < 0.5 ? -1 : 1); this.stepSound(sf, prof, hs > 7, a.pos); } }   // (their steps: heard from where they are)
       if (a.slide && hs > 3) { w.slideT -= dt; if (w.slideT <= 0) { w.slideT = 0.04; this.slideTrail(a.pos, null, groundAt(level, a.pos), prof); } }
       if (hs > 14 && !air) this.dashTrail(a.pos, prof);
     }
