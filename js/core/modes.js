@@ -21,6 +21,8 @@
  *                    to the planet in the sky and flies at it while the screen
  *                    fades, then the planet's area (js/planet/); its portal
  *                    (or the pause menu) leaves it: leavePlanet() → main menu
+ *   enterExplore()   the main menu's "Runner World on foot" button: fade,
+ *                    then the exploration world (same as the hidden cave)
  *   enterCourse(returnTo)        the runner portal: fade out, the runner
  *                    course (third person); after its result screen
  *                    backFromCourse() returns to the portal (first person)
@@ -111,6 +113,26 @@
       cam.fov = this.planetFov0; cam.updateProjectionMatrix();
       this.enterAdventure('planet', { intro: false, location: null, fadeIn: true });
       setTimeout(() => { if (g.missions.run && g.missions.run.def.planet) g.missions.ui.caption(VR.t('pl.arrive'), 4); }, 500);
+    }
+    // ---- the runner world on foot (js/explore/explore.js), straight from the main menu
+    //      (the same world as the hidden cave beside the course; its way home leads to the square)
+    enterExplore() {
+      const g = this.game;
+      if (g.state !== 'menu' || !VR.ADVENTURE.areas.explore) return false;
+      VR.Audio.unlock();
+      if (g.settings.fullscreen) VR.Fullscreen.request();
+      this.exploreT = 0;
+      g.setState('exploreEnter');
+      g.fade.target = 1;
+      VR.Audio.play('portal'); VR.Audio.setMusicVolume(0.25);
+      return true;
+    }
+    updateExploreEnter(dt) {
+      const g = this.game;
+      this.exploreT += dt;
+      if (g.fade.value < 0.99 || this.exploreT < 0.5) return;
+      g.courseFrom = null;
+      this.arrive('explore');
     }
     /** the planet's portal: fade out, back to the main menu (fading in) */
     leavePlanet() {

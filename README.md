@@ -1367,3 +1367,7 @@ VR.Audio.useMusicFile('sounds/theme.mp3');
 - No real movement is thrown away any more. A big event against the motion is held for one event (at most 35 ms): if the mouse goes on that way it counts in full; only a lone wild event inside steady motion is dropped. In raw mode only an absurd event (over 4000 px) is checked.
 - The first big event right after the capture starts (or comes back after Esc / Alt-Tab) is ignored: it is the hidden cursor's jump.
 - `?mousedebug=1` shows a small box: raw or adjusted capture, events per second, held / kept / dropped events, the biggest event and the slowest frame. If a skip is still there, a photo of this box tells which it is (a dropped event, or a slow frame).
+
+## The Runner World on foot from the main menu (v1.44.2)
+
+- The main menu has a button under the Mini Planet: **The Runner World on foot** (⛰️). It fades straight into the exploration world (`js/explore/explore.js`), the same world the hidden cave beside the course leads to. Its way home leads to the square, as before. The hidden cave is still there.
