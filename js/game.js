@@ -143,6 +143,7 @@
       UI.bind('againBtn', () => (this.courseFrom === 'adventure' ? this.modes.backFromCourse() : this.start()));
       UI.bind('charBtn', () => this.setState('character'));
       UI.bind('planetBtn', () => this.modes.enterPlanet());
+      UI.bind('exploreBtn', () => this.modes.enterExplore());
       UI.bind('missionsBtn', () => this.setState('missionsList'));
       UI.bind('mlBack', () => this.setState('menu'));
       UI.bind('duelBtn', () => { VR.Audio.unlock(); this.duel.openPickerFromMenu(null, this.fightMenu.rules()); });
@@ -797,6 +798,7 @@
       else if (st === 'mini' || st === 'miniEnter' || st === 'miniReturn') this.mini.update(dt);
       else if (st === 'secretEnter') VR.SecretCave.updateEnter(this, dt);
       else if (st === 'planetEnter') { this.updateMenu(dt); this.modes.updatePlanetEnter(dt); }
+      else if (st === 'exploreEnter') { this.updateMenu(dt); this.modes.updateExploreEnter(dt); }
       this.challenge.update(dt);
       this.duel.tick(dt);
       this.updateFade(dt);

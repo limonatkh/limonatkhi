@@ -21,6 +21,11 @@
  * uses it, and so do the tests (every find must be reachable).
  * ===================================================================== */
 (function () {
+  // the main menu's button into this world (js/core/modes.js enterExplore)
+  if (VR.I18N) {
+    Object.assign(VR.I18N.STRINGS.en, { 'menu.explore': 'The Runner World on foot', 'menu.exploreSub': 'Walk the mountains around the course' });
+    Object.assign(VR.I18N.STRINGS.ar, { 'menu.explore': 'عالم الركض مشياً', 'menu.exploreSub': 'امشِ في الجبال حول طريق الركض' });
+  }
   const VT = (typeof VR !== 'undefined' && VR.VoxTerrain) || (typeof require !== 'undefined' ? require('./voxterrain.js') : null);
   const t2 = (en, ar) => ({ en, ar });
   const CELL = 2, N = 80, X0 = -80, Z0 = -80;
