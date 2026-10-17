@@ -26,6 +26,7 @@
   const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
   function frame() {
+    if (VR.MapChoice && VR.MapChoice.hub === 2 && VR.HubPortals) return VR.HubPortals.runner(0xffe14a);   // (map 2: the square's gate models, js/adventure/hubgates.js)
     const g = new T.Group(), vb = new VR.VoxelBuilder();
     for (const x of [-1.6, 1.6]) vb.addColorBox(x, 0, 0, 0.5, 3.6, 0.6, 0x4a4f5d);
     vb.addColorBox(0, 3.6, 0, 3.7, 0.5, 0.6, 0x4a4f5d);

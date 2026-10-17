@@ -106,5 +106,6 @@
     return L.finish();
   }
 
-  VR.DuelArena = { build, COLORS };
+  /** map: 1 = this arena (the default), 2 = Lemon Works (js/duel/arena2.js); the match decides (js/duel/duel.js) */
+  VR.DuelArena = { build: (map) => (map === 2 && VR.DuelArena2 ? VR.DuelArena2.build() : build()), COLORS };
 })();

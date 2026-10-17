@@ -160,9 +160,11 @@
       this.matchT = 0;
       this.game.beginDuel();
     }
+    /** the map I chose in the Fight menu (js/mapchoice.js): 1 = the yard, 2 = Lemon Works */
+    myMap() { return VR.MapChoice && VR.MapChoice.arena === 2 ? 2 : 1; }
     soloMatch() {
       return {
-        solo: true, type: 'pvp', opts: null, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: '', role: 'h', me: 'h', op: 'g', did: 'solo', chan: { kind: 'none', key: '', send() {} },
+        solo: true, map: this.myMap(), type: 'pvp', opts: null, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: '', role: 'h', me: 'h', op: 'g', did: 'solo', chan: { kind: 'none', key: '', send() {} },
         names: { h: this.myName(), g: '' }, tones: { h: 'white', g: 'grey' }, chars: { h: this.myChar(), g: null },
         sc: { h: 0, g: 0 }, hp: { h: D.HP, g: D.HP }, round: 0, phase: 'practice', countT: 0, timeLeft: D.ROUND_TIME, endT: 0,
         lastHeard: performance.now(), sendT: 0, history: [], oppLastFire: -9, rounds: 0, over: false, result: null,
@@ -176,8 +178,8 @@
       const other = VR.Online.list().find(p => p.st === 'wait' && p.id > VR.Online.id && !((this.cool.get('o:' + p.id) || 0) > performance.now()));
       if (!other) return;
       const chan = this.onlineChan(other.id, other.name, other.ch);
-      this.pending = { did: VR.Net.randomCode(8), chan, auto: true, left: 6, until: performance.now() + 6000 };
-      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), auto: 1 });
+      this.pending = { did: VR.Net.randomCode(8), chan, auto: true, left: 6, until: performance.now() + 6000, map: this.myMap() };
+      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), auto: 1, am: this.myMap() });
     }
 
     // ================================================================ picker (inviter)
@@ -248,8 +250,8 @@
       if (!chan || chan.key !== key) { this.pickNotice = { text: VR.t('du.lost', { name: '' }), kind: 'bad' }; return this.renderPicker(); }
       if ((this.cool.get(key) || 0) > performance.now()) return;
       const opts = this.pickOpts || null, rules = this.pickFromMenu ? this.pickRules || null : null;
-      this.pending = { did: VR.Net.randomCode(8), chan, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules };
-      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), mode: opts ? (opts.type === 'mini' ? 'mini' : 'coop') : 'pvp', game: opts && opts.game || '', bots: opts ? opts.bots : 0, diff: opts ? opts.diff : '',
+      this.pending = { did: VR.Net.randomCode(8), chan, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules, map: this.myMap() };
+      chan.send({ k: 'inv', did: this.pending.did, name: this.myName(), ch: this.myChar(), am: this.pending.map, mode: opts ? (opts.type === 'mini' ? 'mini' : 'coop') : 'pvp', game: opts && opts.game || '', bots: opts ? opts.bots : 0, diff: opts ? opts.diff : '',
         ft: rules && rules.firstTo || 0, ow: rules && rules.weapon || '' });
       this.ui.showWaiting(chan.name, D.INVITE_TIME, D.INVITE_TIME, () => this.cancelInvite());
     }
@@ -284,7 +286,7 @@
       if ((this.declinedFrom.get(chan.key) || 0) > performance.now()) return chan.send({ k: 'ans', did: d.did, ok: false, why: 'cooldown' });
       const opts = mini ? { type: 'mini', game: d.game } : d.mode === 'coop' ? { type: 'coop', bots: Math.max(1, Math.min(3, d.bots | 0 || 1)), diff: VR.DuelBots.DIFF[d.diff] ? d.diff : 'normal' } : null;
       const rules = this.cleanRules({ firstTo: d.ft, weapon: d.ow }, false);
-      this.incoming = { did: d.did, chan, name: String(d.name || chan.name).slice(0, 16), ch: d.ch, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules };
+      this.incoming = { did: d.did, chan, name: String(d.name || chan.name).slice(0, 16), ch: d.ch, left: D.INVITE_TIME, until: performance.now() + D.INVITE_TIME * 1000, opts, rules, map: (d.am | 0) === 2 ? 2 : 1 };   // (the inviter's map: both play on it)
       chan.name = this.incoming.name; chan.ch = d.ch || chan.ch;
       // waiting in the arena = waiting for exactly this: start right away
       if (this.match && this.match.solo && !opts) return this.acceptInvite();
@@ -297,9 +299,9 @@
       const why = this.busyReason(this.kindOf(inc));
       if (why) { inc.chan.send({ k: 'ans', did: inc.did, ok: false, why }); return; }
       if (this.pending && this.pending.auto) { this.pending.chan.send({ k: 'cancel', did: this.pending.did }); this.pending = null; }
-      inc.chan.send({ k: 'ans', did: inc.did, ok: true, name: this.myName(), ch: this.myChar() });
+      inc.chan.send({ k: 'ans', did: inc.did, ok: true, name: this.myName(), ch: this.myChar(), am: inc.map });   // (am: the map I will build)
       if (inc.opts && inc.opts.type === 'mini') return this.startMini('g', inc.chan, inc.did, inc.opts);
-      this.startMatch('g', inc.chan, inc.did, inc.opts, inc.rules);
+      this.startMatch('g', inc.chan, inc.did, inc.opts, inc.rules, inc.map);
     }
     /** " · first to 3 · sniper only" */
     rulesText(r) {
@@ -338,7 +340,7 @@
             if (d.name) p.chan.name = String(d.name).slice(0, 16);
             if (d.ch) p.chan.ch = d.ch;
             if (p.opts && p.opts.type === 'mini') this.startMini('h', p.chan, p.did, p.opts);
-            else this.startMatch('h', p.chan, p.did, p.opts, p.rules);
+            else this.startMatch('h', p.chan, p.did, p.opts, p.rules, (d.am | 0) === 2 ? p.map : 1);   // (an older game knows only map 1: then both play map 1)
           } else this.endPending(d.why === 'declined' ? 'declined' : d.why === 'timeout' ? 'timeout' : 'unavailable', d.why);
           return;
         }
@@ -392,13 +394,13 @@
       VR.MiniNet.begin(s);
       this.game.mini.enterOnline(opts.game, s);
     }
-    startMatch(role, chan, did, opts = null, rules = null) {
+    startMatch(role, chan, did, opts = null, rules = null, map = 1) {
       this.ui.hidePicker(); this.pickOpen = false; this.ui.hideInvite(); this.ui.showPrompt(false);
       if (this.incoming) this.declineInvite();
       const fromWaiting = !!(this.match && this.match.solo);
       const type = opts && opts.type === 'coop' ? 'coop' : 'pvp';
       this.match = {
-        type, opts, rules: this.cleanRules(rules, false), dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: opts ? this.botTeamName(opts) : '',
+        map: map === 2 ? 2 : 1, type, opts, rules: this.cleanRules(rules, false), dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: opts ? this.botTeamName(opts) : '',
         role, chan, did, me: role, op: OTHER[role], net: null,
         names: { [role]: this.myName(), [OTHER[role]]: chan.name },
         tones: { h: 'white', g: 'grey' },          // automatic colours: inviter white, invited player grey
@@ -432,7 +434,7 @@
         : { type: 'bots', bots: Math.max(1, Math.min(3, opts.bots | 0 || 1)), diff: VR.DuelBots.DIFF[opts.diff] ? opts.diff : 'normal', loot: !!opts.loot, playAs };
       const rules = this.cleanRules(given && given.rules, !!opts.loot);
       this.match = {
-        type: 'bots', opts, rules, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: this.botTeamName(opts),
+        map: this.myMap(), type: 'bots', opts, rules, dead: { h: false, g: false }, oppPick: null, oppLast: {}, botName: this.botTeamName(opts),
         role: 'h', chan: { kind: 'none', key: '', name: '', send() {} }, did: 'bots-' + VR.uid(), me: 'h', op: 'g',
         names: { h: this.myName(), g: this.botTeamName(opts) }, tones: { h: 'white', g: 'grey' }, chars: { h: this.myChar(), g: null },
         sc: { h: 0, g: 0 }, hp: { h: D.HP, g: D.HP }, round: 0, phase: 'enter', countT: 0, timeLeft: D.BOT_ROUND_TIME, endT: 0,
@@ -542,7 +544,7 @@
 
     buildWorld() {
       this.clearWorld();
-      const L = VR.DuelArena.build();
+      const L = VR.DuelArena.build(this.match && this.match.map);
       this.level = L;
       if (this.hiro) this.hiro.build(L);
       const sc = this.scene;
@@ -551,6 +553,7 @@
       sc.fog = L.ambient.fog ? new T.Fog(...L.ambient.fog) : null;
       const hemi = new T.HemisphereLight(L.ambient.sky, L.ambient.ground, L.ambient.intensity * 2.2); sc.add(hemi);
       const sun = new T.DirectionalLight(L.sun.color, L.sun.intensity * 2); sun.position.set(...L.sun.dir); sc.add(sun);
+      if (L.extras.decorate) L.extras.decorate(sc, sun, this.game.renderer, L);       // map 2's sky dome and its sun shadows (js/duel/arena2.js)
       // the weather (js/core/weather.js): the host's runs the schedule, the other player follows it
       const wm = this.match;
       this.weather = VR.WEATHER_ON && VR.WeatherSystem && !wm.solo ? new VR.WeatherSystem({ scene: sc, hemi, sun, camera: this.camera, start: wm.opts && wm.opts.weather,
@@ -565,6 +568,7 @@
       this.game.renderer.compile(sc, this.camera);
     }
     clearWorld() {
+      if (this.level && this.level.extras.undecorate) this.level.extras.undecorate(this.scene);
       this.fx.clear();
       if (this.weather) { this.weather.dispose(); this.weather = null; }
       if (this.fb) { this.fb.dispose(); this.fb = null; }
@@ -1713,6 +1717,7 @@
     }
 
     render(renderer) {
+      if (this.level && this.level.extras.frame) this.level.extras.frame(this.scene);
       renderer.render(this.scene, this.camera);
       const m = this.match;
       if (m && m.phase !== 'wait' && !this.scoped && !(m.dead && m.dead[m.me]) && !(VR.Admin && VR.Admin.freecam)) {

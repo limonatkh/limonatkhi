@@ -89,13 +89,17 @@
       const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
       const locked = m === 'pvp' || m === 'coop' ? [] : VR.FightKit.locked('bots');
       const fts = [0, 1, 2, 3, 5, 7];
-      let h = `<div class="fm-rrow"><b>${esc(VR.t('fm.rounds'))}</b>${fts.map(n => `<button class="btn small ${n === this.firstTo ? 'on' : ''}" data-ft="${n}" type="button">${n ? esc(VR.t('fm.firstToN', { n })) : esc(VR.t('fm.usual'))}</button>`).join('')}</div>`;
+      // the map (js/mapchoice.js): 1 = the yard (default), 2 = Lemon Works; with a friend, the inviter's map is played
+      const mp = VR.MapChoice ? VR.MapChoice.arena : 1;
+      let h = VR.MapChoice ? `<div class="fm-rrow"><b>${esc(VR.t('fm.map'))}</b>${[1, 2].map(n => `<button class="btn small ${n === mp ? 'on' : ''}" data-map="${n}" type="button">${esc(VR.t('fm.map' + n))}</button>`).join('')}</div>` : '';
+      h += `<div class="fm-rrow"><b>${esc(VR.t('fm.rounds'))}</b>${fts.map(n => `<button class="btn small ${n === this.firstTo ? 'on' : ''}" data-ft="${n}" type="button">${n ? esc(VR.t('fm.firstToN', { n })) : esc(VR.t('fm.usual'))}</button>`).join('')}</div>`;
       if (m !== 'loot') {
         h += `<div class="fm-rrow"><b>${esc(VR.t('fm.kind'))}</b><button class="btn small ${!this.oneWeapon ? 'on' : ''}" data-ow="" type="button">${esc(VR.t('fm.kindBuy'))}</button>`
           + VR.FightKit.ONE_WEAPON.map(id => `<button class="btn small ${id === this.oneWeapon ? 'on' : ''} ${locked.includes(id) ? 'locked' : ''}" data-ow="${id}" type="button" ${locked.includes(id) ? 'disabled' : ''}>${locked.includes(id) ? '🔒 ' : ''}${esc(VR.L(VR.FightKit.NAMES[id]))}</button>`).join('') + '</div>';
       }
       el.innerHTML = h;
       const save = () => VR.UI.store.set('fightRules', { firstTo: this.firstTo, weapon: this.oneWeapon });
+      el.querySelectorAll('[data-map]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); VR.MapChoice.setArena(+b.dataset.map); this.renderRules(); }));
       el.querySelectorAll('[data-ft]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.firstTo = +b.dataset.ft; save(); this.renderRules(); }));
       el.querySelectorAll('[data-ow]').forEach(b => b.addEventListener('click', () => { VR.Audio.play('click'); this.oneWeapon = b.dataset.ow || null; save(); this.renderRules(); }));
     }

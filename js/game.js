@@ -64,6 +64,8 @@
       const holder = document.getElementById('game');
       this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
       holder.appendChild(this.renderer.domElement);
+      // sun shadows: only the map-2 worlds cast them (js/adventure/hubworld.js, js/duel/arena2.js), drawn when they ask (not every frame)
+      this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap; this.renderer.shadowMap.autoUpdate = false;
       if (VR.SkyPlanet) VR.SkyPlanet.install(this.renderer);       // the Mini Planet in every world's sky (js/planet/skyplanet.js)
       this.scene = new THREE.Scene();
       this.skyColor = new THREE.Color(0x8fd3ff);
@@ -236,6 +238,7 @@
       if (s !== 'playing' && this.duel) this.duel.ui.showPrompt(false);
       VR.Input.setEnabled(s === 'playing');
       if (s === 'menu') { UI.menuStats(this.best, this.bank); this.refreshMenuButtons(); }
+      if (s === 'menu' && VR.MapChoice) VR.MapChoice.menuShown();          // a new square map was chosen: load it (js/mapchoice.js)
       if (s === 'missionsList') this.renderMissionList();
       if (s === 'character') {
         UI.character(VR.CHARACTERS[this.charIndex]);

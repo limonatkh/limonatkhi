@@ -133,6 +133,7 @@
       if (scene.background) renderer.setClearColor(scene.background, 1);
       renderer.autoClear = false;
       renderer.clear(true, true, true);
+      if (scene.userData.skyBackdrop) { render(scene.userData.skyBackdrop, skyCam); renderer.clearDepth(); }   // a world's own sky (map 2's gradient domes)
       render(skyScene, skyCam);
       renderer.clearDepth();
       renderer.setClearColor(oldC, oldA);

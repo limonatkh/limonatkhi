@@ -289,7 +289,8 @@
   /* ==================================================================
    * the area
    * ================================================================ */
-  const HUB_PORTAL = { pos: [-7.2, 0.05, -35.4], yaw: -PI / 2 };          // back in the square, in front of the runner portal
+  const HUB_PORTAL = VR.MapChoice && VR.MapChoice.hub === 2 ? { pos: [-26.5, 0.05, -71.6], yaw: PI }      // (map 2: the Portal Terrace, in front of the runner ring)
+    : { pos: [-7.2, 0.05, -35.4], yaw: -PI / 2 };          // back in the square, in front of the runner portal
   const coinLine = (from, to, n) => { const out = []; for (let k = 0; k < n; k++) { const u = k / (n - 1); out.push([from[0] + (to[0] - from[0]) * u, 0, from[1] + (to[1] - from[1]) * u]); } return out; };
   const EXPLORE = {
     id: 'explore', persistent: true, combat: true, order: 10, environment: 'explore', weather: false,

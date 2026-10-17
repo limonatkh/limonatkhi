@@ -496,7 +496,8 @@
       if (rooted || plan.move === 'hold' || b.fx.dash || b.fx.strike) { b.vel.set(0, 0, 0); return; }
       const F = b.f, m = b.mem;
       const range = plan.range || b.rangeOverride || F.range;
-      const dir = new T.Vector3(goal.x - b.pos.x, 0, goal.z - b.pos.z); if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1); dir.normalize();
+      const way = this.bots.steerTo(b, goal);                      // around walls and up the stairs (js/duel/bots.js)
+      const dir = new T.Vector3(way.x - b.pos.x, 0, way.z - b.pos.z); if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1); dir.normalize();
       let fwd = 0, side = 0;
       const mv = tgt ? plan.move : 'approach';
       if (mv === 'approach') fwd = !tgt || dist > range[1] ? 1 : dist < range[0] ? -0.6 : 0.3;

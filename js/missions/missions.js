@@ -364,6 +364,11 @@
       if (L.extras.build) L.extras.build(sc, this);           // a world's own extras (the cloud sea, sky islands…)
       this.loadView();
       this.ctrl.reset(L.spawn); this.ctrl.safe = null;
+      // the square's map was switched (Settings → Square map) since this place was saved: it is not a safe place there
+      if (def.id === 'hub' && VR.MapChoice && VR.MapChoice.hubChanged()) {
+        if (location && location.pos) { const H = VR.ADVENTURE.HOME; location = H && this.run.has('in_plaza') ? { pos: H.pos.slice(), yaw: H.yaw } : null; }
+        VR.MapChoice.hubEntered();
+      }
       if (location && location.pos) {               // CONTINUE: back where you were (the spawn stays the respawn point)
         this.ctrl.reset({ pos: location.pos, yaw: location.yaw || 0 });
         this.ctrl.spawn = L.spawn;

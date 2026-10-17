@@ -60,6 +60,8 @@
   const markTaken = (area, key) => { const s = areaSave(area); (s.coins || (s.coins = [])).push(key); };
   MS.Components.coins = {
     build(def, ctx) {
+      // an area without pickups (map 2's square: its coin lines were laid out for map 1): nothing is built, nothing can be collected
+      if (ctx.mgr.run.def.noCollectibles) return { id: def.id, def, obj: null, kind: null, hit: null, prompt: () => null, use: () => {}, coins: [], sync: () => {}, update: () => {} };
       if (!coinGeo) { coinGeo = new T.BoxGeometry(0.42, 0.42, 0.08); coinGeo.userData.shared = true; }
       const mat = VR.Mat.get('coin');
       const area = ctx.mgr.run.def.id;
@@ -319,6 +321,7 @@
 
   const HUB = {
     id: 'hub', persistent: true, combat: true, order: 0, environment: 'hub',
+    noCollectibles: !!(VR.MapChoice && VR.MapChoice.hub === 2),      // (map 2: no coins to pick up in the square)
     // flags that are each player's own progress (the rest — doors, gates, the garden — belong to the world)
     personalFlags: ['crossed_wall', 'in_plaza', 'in_garden', 'arena_clear', 'used_portal', 'visited_shop'],
     name: { en: 'Lemon Square', ar: 'ساحة الليمون' },

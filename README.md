@@ -1371,3 +1371,12 @@ VR.Audio.useMusicFile('sounds/theme.mp3');
 ## The Runner World on foot from the main menu (v1.44.2)
 
 - The main menu has a button under the Mini Planet: **The Runner World on foot** (⛰️). It fades straight into the exploration world (`js/explore/explore.js`), the same world the hidden cave beside the course leads to. Its way home leads to the square, as before. The hidden cave is still there.
+
+## Map 2 as a choice: the square and the fights (v1.44.3)
+
+The two maps built on the redesign branches are in the game as **choices**; the maps the game always had stay the default.
+
+- **Square map** (Settings → «خريطة الساحة» / Square map): MAP 1 is the square as it always was; MAP 2 is Lemon Square (`js/adventure/hubworld.js`, from v1.45/v1.46). It moves gates and portals, so it is read when the game loads: choosing it in Settings from the main menu reloads the game on leaving Settings; chosen during play, it waits until you are back in the main menu. On map 2 the gates use the square's own models, the five sky-island gates stand on the Portal Terrace (the sand wall's panel beside it), the runner world's way home lands there, and there are no coins to pick up in the square. A place saved on one square is not used on the other: you start at home.
+- **Fight map** (Fight menu → «الخريطة» / Map): MAP 1 is the sandstone yard; MAP 2 is Lemon Works (`js/duel/arena2.js`, from v1.46, with the computer players' stairs and walkway routes). It is read when a match starts. Online, the inviter's map is played by both; a game without map choices answers without one, and then both play map 1.
+- Saved on this device (`cubeexpress.mapHub`, `cubeexpress.mapArena`). For tests: `?hubmap=2`, `?arenamap=2`.
+- Map 1 is unchanged: the computer players walk the flat yard as before (the stair logic only runs on a map that has a route graph).
