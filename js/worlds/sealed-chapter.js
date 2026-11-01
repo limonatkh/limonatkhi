@@ -175,6 +175,13 @@
       st.back = { pos: [+x.toFixed(2), 0.05, +(z + 3.6).toFixed(2)], yaw: PI };
       const go = () => {
         if (VR.RD) VR.RD.cameFrom = { pos: st.back.pos.slice(), yaw: st.back.yaw };
+        // (the chapter may ask first — e.g. once it is all played: carry on, or from the start; null: stay here)
+        if (VR.RD && VR.RD.enterStory) {
+          st.busy = true;
+          Promise.resolve(VR.RD.enterStory(ctx.mgr)).catch((e) => { console.error('[sealed]', e); return null; })
+            .then((area) => { st.busy = false; if (area) ctx.mgr.game.modes.travel(area); });
+          return;
+        }
         const area = VR.RD && VR.RD.entryArea ? VR.RD.entryArea() : (st.area || S(id).area);   // (a story in parts: the first part not finished yet)
         ctx.mgr.game.modes.travel(area);
       };
