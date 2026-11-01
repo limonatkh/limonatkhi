@@ -175,7 +175,8 @@
       st.back = { pos: [+x.toFixed(2), 0.05, +(z + 3.6).toFixed(2)], yaw: PI };
       const go = () => {
         if (VR.RD) VR.RD.cameFrom = { pos: st.back.pos.slice(), yaw: st.back.yaw };
-        ctx.mgr.game.modes.travel(st.area || S(id).area);
+        const area = VR.RD && VR.RD.entryArea ? VR.RD.entryArea() : (st.area || S(id).area);   // (a story in parts: the first part not finished yet)
+        ctx.mgr.game.modes.travel(area);
       };
       let t = 0;
       return {
